@@ -24,7 +24,6 @@ def register_user(req: HttpRequest) -> HttpResponse:
     Endpoint to create a new user.
     Expects JSON matching `User` schema:
         {
-          "userid": "some-id",       <-- This will be ignored.
           "username": "...",
           "email": "...",
           "password": "..."
@@ -39,9 +38,8 @@ def register_user(req: HttpRequest) -> HttpResponse:
             mimetype="application/json"
         )
 
-    # Validate with Pydantic
+    # Validate with Pydantic (userid is now optional)
     try:
-        # Even though the client might pass a "userid", we override it.
         user_in = User(**body)
     except ValidationError as e:
         return HttpResponse(e.json(), status_code=400, mimetype="application/json")
