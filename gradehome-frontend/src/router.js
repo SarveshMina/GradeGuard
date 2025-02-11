@@ -1,12 +1,27 @@
+// router.js
 import { createRouter, createWebHistory } from 'vue-router';
-import AuthLanding from './views/AuthLanding.vue';
+
+// Import your pages:
+import Landing from './views/Landing.vue';
+import Login from './views/Login.vue';
+import Register from './views/Register.vue';
 
 const routes = [
     {
         path: '/',
-        name: 'AuthLanding',
-        component: AuthLanding
-    }
+        name: 'Landing',
+        component: Landing
+    },
+    {
+        path: '/login',
+        name: 'Login',
+        component: Login
+    },
+    {
+        path: '/register',
+        name: 'Register',
+        component: Register
+    },
 ];
 
 const router = createRouter({
