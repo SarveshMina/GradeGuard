@@ -1,15 +1,11 @@
 <template>
   <div class="auth-container">
-    <NavBar mode="login" />
+    <NavBar mode="forgot" />
     <main class="auth-main">
-      <h1>Login</h1>
-      <p>
-        Don’t have an account?
-        <router-link to="/register">Sign up</router-link>
-      </p>
-      <form @submit.prevent="handleLogin">
+      <h1>Password Reset</h1>
+      <form @submit.prevent="handleReset">
         <div class="form-group">
-          <label for="email">Email</label>
+          <label for="email">Email:</label>
           <input
               type="email"
               v-model="email"
@@ -18,22 +14,7 @@
               required
           />
         </div>
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input
-              type="password"
-              v-model="password"
-              id="password"
-              placeholder="Enter your password"
-              required
-          />
-        </div>
-        <div class="form-group">
-          <router-link to="/forgot-password" class="forgot-link">
-            Forgot your password?
-          </router-link>
-        </div>
-        <button type="submit" class="auth-button">Login</button>
+        <button type="submit" class="auth-button">Get OTP</button>
       </form>
     </main>
     <Footer />
@@ -45,17 +26,16 @@ import NavBar from '@/components/NavBar.vue'
 import Footer from '@/components/Footer.vue'
 
 export default {
-  name: 'Login',
+  name: 'ForgotPassword',
   components: { NavBar, Footer },
   data() {
     return {
-      email: '',
-      password: ''
+      email: ''
     }
   },
   methods: {
-    handleLogin() {
-      alert(`Logging in with ${this.email}`)
+    handleReset() {
+      alert(`OTP sent to ${this.email}`);
     }
   }
 }
@@ -66,7 +46,6 @@ export default {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  /* Use the landing page gradient */
   background: linear-gradient(135deg, #fcfcff 0%, #b191fc 100%);
   color: var(--text-color);
   font-family: "Montserrat", sans-serif;
@@ -75,7 +54,7 @@ export default {
 .auth-main {
   flex: 1;
   padding: 1rem;
-  max-width: 400px;
+  max-width: 500px;
   margin: 1rem auto;
   background: var(--form-bg);
   border-radius: 8px;
@@ -85,16 +64,6 @@ export default {
 .auth-main h1 {
   margin-bottom: 0.5rem;
   text-align: center;
-}
-
-.auth-main p {
-  text-align: center;
-  margin-bottom: 1rem;
-}
-
-.auth-main p router-link {
-  text-decoration: none;
-  color: var(--link-color);
 }
 
 .form-group {
@@ -113,14 +82,6 @@ export default {
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 0.9rem;
-}
-
-.forgot-link {
-  display: inline-block;
-  margin-top: 0.5rem;
-  font-size: 0.85rem;
-  color: var(--link-color);
-  text-decoration: none;
 }
 
 .auth-button {

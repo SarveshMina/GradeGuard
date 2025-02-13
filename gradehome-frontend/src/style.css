@@ -1,13 +1,43 @@
-/* style.css */
+/* Global Imports: fonts and icons */
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap");
+@import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css");
 
-/* Global fade class for intersection observer */
-.fade-section {
-    opacity: 0;
-    transform: translateY(40px);
-    transition: opacity 0.8s ease, transform 0.8s ease;
+/* Define CSS variables for light mode */
+:root {
+    --background: #fff;
+    --text-color: #000;
+    --header-bg: transparent;
+    --footer-bg: #fff;
+    --btn-border: #000;
+    --btn-color: #000;
+    --btn-hover-bg: #000;
+    --btn-hover-color: #fff;
+    --link-color: #000;
+    --form-bg: #f9f9f9;
 }
 
-.fade-in {
-    opacity: 1;
-    transform: translateY(0);
+/* Dark mode variables (activated via body.dark-mode) */
+body.dark-mode {
+    --background: #121212;
+    --text-color: #e0e0e0;
+    --header-bg: transparent;
+    --footer-bg: #2b2b2b;
+    --btn-border: #e0e0e0;
+    --btn-color: #e0e0e0;
+    --btn-hover-bg: #e0e0e0;
+    --btn-hover-color: #121212;
+    --link-color: #ccc;
+    --form-bg: #2c2c2c;
+}
+
+/* Global resets */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    font-family: "Montserrat", sans-serif;
+    background: var(--background);
+    color: var(--text-color);
 }

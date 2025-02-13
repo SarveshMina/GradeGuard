@@ -1,14 +1,63 @@
 <template>
-  <!-- Dynamic binding: when darkMode is true, the .dark-mode class is applied -->
-  <div :class="{ 'landing-container': true, 'dark-mode': darkMode }">
-    <!-- Header -->
+  <div class="landing-container">
+    <!-- Fixed Header/Nav -->
     <header class="landing-header" ref="headerRef">
       <div class="logo">GradeHome</div>
       <nav>
-        <!-- Login and Sign Up buttons -->
-        <button @click="goToLogin" class="nav-button">Login</button>
-        <button @click="goToRegister" class="nav-button">Sign Up</button>
-        <!-- Dark mode toggle button -->
+        <!-- Arrow buttons for Login & Sign Up (using dark style by default) -->
+        <router-link to="/login" class="arrow-btn">
+          <span class="text">Login</span>
+          <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+                d="M4.66669 11.3334L11.3334 4.66669"
+                stroke="white"
+                stroke-width="1.33333"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            />
+            <path
+                d="M4.66669 4.66669H11.3334V11.3334"
+                stroke="white"
+                stroke-width="1.33333"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            />
+          </svg>
+        </router-link>
+
+        <router-link to="/register" class="arrow-btn">
+          <span class="text">Sign Up</span>
+          <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+                d="M4.66669 11.3334L11.3334 4.66669"
+                stroke="white"
+                stroke-width="1.33333"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            />
+            <path
+                d="M4.66669 4.66669H11.3334V11.3334"
+                stroke="white"
+                stroke-width="1.33333"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            />
+          </svg>
+        </router-link>
+
+        <!-- Dark mode toggle (unchanged) -->
         <button @click="toggleDarkMode" class="nav-button dark-mode-toggle">
           <i v-if="!darkMode" class="fas fa-moon"></i>
           <i v-else class="fas fa-sun"></i>
@@ -16,8 +65,9 @@
       </nav>
     </header>
 
-    <!-- Hero Section with Parallax and Mouse Reactive Background -->
+    <!-- Hero Section -->
     <section class="hero-parallax" ref="heroRef">
+      <!-- Pull the overlay up by 40px so that the scroll arrow comes in view -->
       <div class="hero-parallax-overlay">
         <div class="hero-content" data-aos="fade-up">
           <h1>The Grade Calculator</h1>
@@ -25,14 +75,52 @@
             Track your university grade average, predict your degree classification, and more.
           </p>
           <div class="hero-buttons">
-            <!-- Get Started button -->
-            <button class="cta-button" @click="goToRegister">Get Started</button>
+            <!-- “Get Started” button (always using dark style) -->
+            <router-link class="cta-button" to="/register">
+              <span class="text">Get Started</span>
+              <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                    d="M4.66669 11.3334L11.3334 4.66669"
+                    stroke="white"
+                    stroke-width="1.33333"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                />
+                <path
+                    d="M4.66669 4.66669H11.3334V11.3334"
+                    stroke="white"
+                    stroke-width="1.33333"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                />
+              </svg>
+            </router-link>
+
+            <!-- “Start Without Signing Up” button -->
+            <button class="scroll-btn" @click="scrollToCalcForm">
+              Start Without Signing Up
+            </button>
           </div>
         </div>
+
+        <!-- Modern scroll-down arrow (visible from the start until hero leaves) -->
+        <button
+            v-if="showScrollDown"
+            class="scroll-down-btn"
+            @click="scrollToCalcForm"
+        >
+          <i class="fas fa-arrow-down"></i>
+        </button>
       </div>
     </section>
 
-    <!-- Stats + "Calculate Without Signing Up" Section -->
+    <!-- Stats & Calculator Section (pulled up by 40px) -->
     <section class="stats-section" ref="statsSectionRef" data-aos="fade-up">
       <div class="calc-form">
         <h3>Calculate without signing up</h3>
@@ -40,12 +128,10 @@
         <input type="text" v-model="university" placeholder="e.g. MIT" />
         <label>Your Degree</label>
         <input type="text" v-model="degree" placeholder="e.g. Computer Science" />
+        <!-- Start button aligned to right with hover animation -->
         <button class="start-btn" @click="handleQuickCalc">Start</button>
       </div>
-
-      <!-- Container for the switching stats card with fixed minimum height -->
       <div class="stats-card-container">
-        <!-- Tab buttons -->
         <div class="tabs">
           <button
               :class="{ active: statsMode === 'percentage' }"
@@ -60,8 +146,6 @@
             GPA
           </button>
         </div>
-
-        <!-- Transition wrapper: using "fade-scale" with mode "out-in" -->
         <transition name="fade-scale" mode="out-in">
           <div class="stats-card" :key="statsMode">
             <!-- Percentage Mode -->
@@ -76,7 +160,8 @@
                 <div class="module" v-for="m in modulesPerc" :key="m.name">
                   <div :class="['module-icon', m.colorClass]">{{ m.letter }}</div>
                   <div class="module-info">
-                    <strong>{{ m.name }}</strong> <small>({{ m.credits }} credits)</small>
+                    <strong>{{ m.name }}</strong>
+                    <small>({{ m.credits }} credits)</small>
                   </div>
                   <div class="module-grade">{{ m.grade }}</div>
                 </div>
@@ -93,7 +178,8 @@
                 <div class="module" v-for="m in modulesGpa" :key="m.name">
                   <div :class="['module-icon', m.colorClass]">{{ m.letter }}</div>
                   <div class="module-info">
-                    <strong>{{ m.name }}</strong> <small>({{ m.credits }} credits)</small>
+                    <strong>{{ m.name }}</strong>
+                    <small>({{ m.credits }} credits)</small>
                   </div>
                   <div class="module-grade">{{ m.grade }}</div>
                 </div>
@@ -104,7 +190,7 @@
       </div>
     </section>
 
-    <!-- "Easy, But Powerful" Section -->
+    <!-- Features Section -->
     <section class="features-section" ref="featuresRef" data-aos="fade-up">
       <div class="features-hero">
         <h2>
@@ -115,209 +201,325 @@
       <div class="features-list">
         <div class="feature-item">
           <h3><span class="vertical-bar"></span> Track coursework and exams</h3>
-          <p>
-            With our weighted average calculator you can keep track of your grades and calculate your average.
-            GradeHome takes an average of the exam and coursework marks for your modules.
-            The credits for a module are used as weighting for your total year average.
-          </p>
+          <p>Keep track of your grades and calculate your average.</p>
         </div>
         <div class="feature-item">
           <h3><span class="vertical-bar"></span> Split up your years</h3>
-          <p>
-            You can divide your modules into years and customise weights for each year. For most degrees,
-            the first year doesn't count towards your final score. There is often a 40:60 split for your final two years but this varies by university and is handled by GradeHome's calculator.
-          </p>
+          <p>Divide your modules into years and customise weights for each year.</p>
         </div>
         <div class="feature-item">
           <h3><span class="vertical-bar"></span> Add grade targets</h3>
-          <p>
-            Predict your final grade classification with degree targets. Figure out how well you need to
-            score in your remaining exams to get a 1st class honours or a GPA 4.0.
-          </p>
+          <p>Predict your final classification with degree targets.</p>
         </div>
       </div>
     </section>
 
-    <!-- Grading Systems Section turned into 3 cards -->
+    <!-- Systems Section -->
     <section class="systems-section" ref="systemsRef" data-aos="fade-up">
       <div class="system-cards">
         <div class="system-card">
           <h3>Support for Every Grading System</h3>
-          <p>GradeHome supports grading systems for universities and colleges from all over the world.</p>
+          <p>Universities and colleges worldwide.</p>
         </div>
         <div class="system-card">
-          <h3>US Grade Point Average Calculator</h3>
-          <p>If your college uses GPA 4.0 or GPA 5.0, we have you covered.</p>
+          <h3>US GPA Calculator</h3>
+          <p>Support for GPA 4.0, 5.0, etc.</p>
         </div>
         <div class="system-card">
-          <h3>UK Weighted Percentage Calculator</h3>
-          <p>UK universities often use a weighted average for the final Grade.</p>
+          <h3>UK Weighted % Calculator</h3>
+          <p>Handle weighted averages for final grade.</p>
         </div>
       </div>
     </section>
 
     <!-- Footer -->
-    <footer class="landing-footer" ref="footerRef" data-aos="fade-up">
-      <div class="footer-main">
-        <div class="footer-col">
-          <h3>GradeHub</h3>
-          <ul>
-            <li><a href="#">Home</a></li>
-            <li><a href="#">About</a></li>
-            <li><a href="#">GPA Calculator</a></li>
-            <li><a href="#">Reviews</a></li>
-            <li><a href="#">Analytics</a></li>
-          </ul>
-        </div>
-        <div class="footer-col">
-          <h3>Account</h3>
-          <ul>
-            <li><a href="#">Login</a></li>
-            <li><a href="#">Sign Up</a></li>
-          </ul>
-        </div>
-        <div class="footer-col">
-          <h3>Legal</h3>
-          <ul>
-            <li><a href="#">Privacy Policy</a></li>
-            <li><a href="#">Terms of Service</a></li>
-          </ul>
-        </div>
-        <div class="footer-col">
-          <h3>GradeHub Robot Logo</h3>
-          <p>
-            <strong>GradeHome</strong><br />
-            <a href="mailto:sarveshmina@outlook.com">sarveshmina@outlook.com</a><br />
-            —<br />
-            Made by Sarvesh Mina
-          </p>
-        </div>
-      </div>
-    </footer>
+    <Footer />
   </div>
 </template>
 
 <script>
-import AOS from "aos";
-import "aos/dist/aos.css";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Footer from '@/components/Footer.vue'
+import AOS from 'aos'
+import 'aos/dist/aos.css'
+import { gsap } from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 export default {
-  name: "Landing",
+  name: 'Landing',
+  components: {
+    Footer
+  },
   data() {
     return {
-      darkMode: false, // dark mode state
-      university: "",
-      degree: "",
-      statsMode: "percentage",
+      darkMode: false,
+      showScrollDown: true, // arrow is visible from the start
+      university: '',
+      degree: '',
+      statsMode: 'percentage',
       modulesPerc: [
-        { letter: "N", name: "Neural Networks", credits: 20, grade: "65%", colorClass: "n" },
-        { letter: "P", name: "Database Systems", credits: 10, grade: "50%", colorClass: "p" },
-        { letter: "Q", name: "Quantum Computing", credits: 10, grade: "-", colorClass: "q" },
+        { letter: 'N', name: 'Neural Networks', credits: 20, grade: '65%', colorClass: 'n' },
+        { letter: 'P', name: 'Database Systems', credits: 10, grade: '50%', colorClass: 'p' },
+        { letter: 'Q', name: 'Quantum Computing', credits: 10, grade: '-', colorClass: 'q' }
       ],
       modulesGpa: [
-        { letter: "N", name: "Neural Networks", credits: 20, grade: "A", colorClass: "n" },
-        { letter: "P", name: "Database Systems", credits: 10, grade: "B", colorClass: "p" },
-        { letter: "Q", name: "Quantum Computing", credits: 10, grade: "-", colorClass: "q" },
-      ],
-    };
+        { letter: 'N', name: 'Neural Networks', credits: 20, grade: 'A', colorClass: 'n' },
+        { letter: 'P', name: 'Database Systems', credits: 10, grade: 'B', colorClass: 'p' },
+        { letter: 'Q', name: 'Quantum Computing', credits: 10, grade: '-', colorClass: 'q' }
+      ]
+    }
   },
   methods: {
-    goToLogin() {
-      this.$router.push("/login");
-    },
-    goToRegister() {
-      this.$router.push("/register");
-    },
     handleQuickCalc() {
-      alert(`Calculating for ${this.university} - ${this.degree}...`);
+      alert(`Calculating for ${this.university} - ${this.degree}...`)
     },
     toggleDarkMode() {
-      this.darkMode = !this.darkMode;
+      this.darkMode = !this.darkMode
+      if (this.darkMode) {
+        document.body.classList.add('dark-mode')
+      } else {
+        document.body.classList.remove('dark-mode')
+      }
     },
+    scrollToCalcForm() {
+      this.$refs.statsSectionRef.scrollIntoView({ behavior: 'smooth' })
+    }
   },
   mounted() {
     AOS.init({
       duration: 1000,
       offset: 120,
       once: true,
-    });
-    gsap.registerPlugin(ScrollTrigger);
+    })
+    gsap.registerPlugin(ScrollTrigger)
+
+    // Animate header in
     gsap.from(this.$refs.headerRef, {
       y: -80,
       opacity: 0,
       duration: 1,
-      ease: "power3.out",
-    });
+      ease: 'power3.out',
+    })
+    // Animate hero content in
     gsap.from(this.$refs.heroRef, {
       x: -100,
       opacity: 0,
       duration: 1.2,
-      ease: "power2.out",
+      ease: 'power2.out',
       scrollTrigger: {
         trigger: this.$refs.heroRef,
-        start: "top center",
+        start: 'top center',
       },
-    });
-    // Mouse reactive background for hero section
-    const heroSection = this.$refs.heroRef;
-    document.addEventListener("mousemove", (e) => {
-      const x = e.clientX / window.innerWidth - 0.5;
-      const y = e.clientY / window.innerHeight - 0.5;
+    })
+
+    // Mouse parallax for hero background
+    const heroSection = this.$refs.heroRef
+    document.addEventListener('mousemove', (e) => {
+      const x = e.clientX / window.innerWidth - 0.5
+      const y = e.clientY / window.innerHeight - 0.5
       gsap.to(heroSection, {
-        backgroundPosition: `${50 + x * 10}% ${50 + y * 10}%`,
+        backgroundPosition: `${50 + x * 20}% ${50 + y * 20}%`,
         duration: 0.5,
-        ease: "power2.out",
-      });
-    });
-  },
-};
+        ease: 'power2.out',
+      })
+    })
+
+    // Slight scroll-based parallax
+    gsap.fromTo(
+        heroSection,
+        { y: 0 },
+        {
+          y: -150,
+          scrollTrigger: {
+            trigger: heroSection,
+            start: 'top top',
+            end: 'bottom top',
+            scrub: 1,
+          },
+        }
+    )
+
+    // Keep arrow visible while hero is active
+    ScrollTrigger.create({
+      trigger: heroSection,
+      start: 'top top',
+      end: 'bottom top',
+      onEnter: () => { this.showScrollDown = true },
+      onLeave: () => { this.showScrollDown = false },
+      onEnterBack: () => { this.showScrollDown = true },
+      onLeaveBack: () => { this.showScrollDown = false },
+    })
+  }
+}
 </script>
 
 <style scoped>
-@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap");
 @import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css");
 @import "aos/dist/aos.css";
 
+/* LIGHT MODE BACKGROUND: one screen tall gradient */
 .landing-container {
-  display: flex;
-  flex-direction: column;
   min-height: 100vh;
-  font-family: "Poppins", sans-serif;
+  background: linear-gradient(135deg, #fcfcff 0%, #b191fc 100%);
   color: #000;
-  background-color: #fff;
+  position: relative;
   overflow-x: hidden;
 }
 
-/* Text glow for headings/important text */
-h1,
-h2,
-h3,
-.logo,
-.highlight {
-  text-shadow: 0 0 6px rgba(0, 0, 0, 0.1);
+/* Hero section exactly 100vh */
+.hero-parallax {
+  min-height: 100vh;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }
 
-/* Header */
+/* Pull the hero overlay up by 40px so the scroll arrow appears higher */
+.hero-parallax-overlay {
+  background: none;
+  width: 100%;
+  max-width: 1200px;
+  margin: -40px auto 0 auto;
+  padding: 3rem 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+/* Hero content styles (old snippet style) */
+.hero-content {
+  text-align: center;
+  color: #000;
+  padding: 4rem 2rem;
+  font-size: 1.1rem;
+}
+.hero-content h1 {
+  font-size: 3.2rem;
+  margin-bottom: 1rem;
+}
+.hero-content p {
+  margin-bottom: 2rem;
+  font-size: 1.2rem;
+  line-height: 1.6;
+}
+
+/* Scroll-down arrow with bounce animation */
+.scroll-down-btn {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: transparent;
+  border: 2px solid #7b49ff;
+  color: #7b49ff;
+  font-size: 22px;
+  padding: 0.6rem 1rem;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: 0.3s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.scroll-down-btn i {
+  animation: bounce 1.5s infinite;
+}
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(5px); }
+  60% { transform: translateY(3px); }
+}
+.scroll-down-btn:hover {
+  background: #7b49ff;
+  color: #fff;
+  transform: translateX(-50%) scale(1.05);
+}
+.dark-mode .scroll-down-btn {
+  border-color: #b39ddb;
+  color: #b39ddb;
+}
+.dark-mode .scroll-down-btn:hover {
+  background: #b39ddb;
+  color: #333;
+  transform: translateX(-50%) scale(1.05);
+}
+
+/* Sticky header */
 .landing-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 1rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
-  background: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: transparent;
+  z-index: 999;
 }
 .logo {
-  font-size: 1.6rem;
+  font-size: 2rem;
   font-weight: bold;
+  color: #512DA8;
 }
 
-/* Buttons */
-.nav-button,
-.start-btn {
+/* Arrow buttons for Login/Sign Up - always using dark version */
+.arrow-btn {
+  font-size: 20px;
+  font-weight: 600;
+  background-color: #512da8;
+  color: #fff;
+  text-decoration: none;
+  padding: 0.6rem 1.5rem 0.6rem 1.2rem;
+  border-radius: 99px;
+  position: relative;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+  transition: 0.4s ease;
+}
+.arrow-btn .text {
+  line-height: 1;
+  margin-right: 2rem;
+  position: relative;
+  z-index: 5;
+}
+.arrow-btn::before {
+  content: '';
+  background-color: #b39ddb;
+  width: 28px;
+  height: 28px;
+  border-radius: 99px;
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  transition: 0.4s ease;
+  z-index: 1;
+}
+.arrow-btn svg {
+  width: 14px;
+  height: 14px;
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%) rotate(0deg);
+  transition: 0.4s ease;
+  z-index: 5;
+}
+.arrow-btn:hover svg {
+  transform: translateY(-50%) rotate(45deg);
+}
+.arrow-btn:hover::before {
+  width: 100%;
+  height: 100%;
+  right: 0;
+}
+
+/* Dark mode toggle button */
+.nav-button {
   margin: 0 0.5rem;
-  padding: 0.6rem 1.2rem;
+  padding: 0.8rem 1.2rem;
   border: 2px solid #000;
   background: transparent;
   color: #000;
@@ -325,62 +527,98 @@ h3,
   cursor: pointer;
   transition: 0.3s;
   font-weight: 600;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+  text-decoration: none;
+  box-shadow: 0 0 8px rgba(0,0,0,0.2);
 }
-.nav-button:hover,
-.start-btn:hover {
+.nav-button:hover {
   background: #000;
   color: #fff;
   transform: translateY(-2px);
-  box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 12px rgba(0,0,0,0.4);
 }
 
-/* Special Get Started button */
+/* Hero buttons container */
+.hero-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+/* CTA button (Get Started) always using dark version with added hover animation */
 .cta-button {
-  margin: 0 0.5rem;
-  padding: 0.6rem 1.2rem;
-  border: 2px solid #fff;
-  background: transparent;
-  color: #fff;
-  border-radius: 24px;
-  cursor: pointer;
-  transition: 0.3s;
+  font-size: 16px;
   font-weight: 600;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+  background-color: #512da8;
+  padding: 0.75rem 1.5rem 0.75rem 2rem;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 99px;
+  position: relative;
+  text-decoration: none;
+  transition: all 0.5s;
+}
+.cta-button .text {
+  color: #fff;
+  margin-right: 2rem;
+  position: relative;
+  z-index: 5;
+}
+.cta-button::before {
+  content: '';
+  background-color: #b39ddb;
+  width: 28px;
+  height: 28px;
+  border-radius: 99px;
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  transition: all 0.5s;
+  z-index: 1;
+}
+.cta-button svg {
+  width: 14px;
+  height: 14px;
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%) rotate(0deg);
+  transition: all 0.5s;
+  z-index: 5;
+}
+.cta-button:hover svg {
+  transform: translateY(-50%) rotate(45deg);
+}
+.cta-button:hover::before {
+  width: 100%;
+  height: 100%;
+  right: 0;
 }
 .cta-button:hover {
-  background: #fff;
-  color: #000;
-  transform: translateY(-2px);
-  box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+  transform: scale(1.05);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
-/* Hero / Parallax */
-.hero-parallax {
-  min-height: 60vh;
-  background: #000;
-  background-attachment: fixed;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  background-size: 200%;
+/* "Start Without Signing Up" button */
+.scroll-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 24px;
+  border: 2px solid #7b49ff;
+  background: transparent;
+  color: #7b49ff;
+  cursor: pointer;
+  transition: 0.3s;
 }
-.hero-parallax-overlay {
-  background-color: rgba(0, 0, 0, 0.4);
-  width: 100%;
-  padding: 3rem 1rem;
-}
-.hero-content {
-  text-align: center;
+.scroll-btn:hover {
+  background: #7b49ff;
   color: #fff;
 }
-.hero-content h1 {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
 
-/* Stats + Calculator Form */
+/* Stats & Calculator Section */
 .stats-section {
   display: flex;
   gap: 2rem;
@@ -388,12 +626,16 @@ h3,
   max-width: 1100px;
   margin: 0 auto;
 }
+/* Pull stats section up by 40px */
+.stats-section {
+  margin-top: -40px;
+}
 .calc-form {
   flex: 1 1 300px;
-  background: #f9f9f9;
+  background: rgba(255,255,255,0.9);
   padding: 1.5rem;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 .calc-form h3 {
   margin-bottom: 1rem;
@@ -401,6 +643,7 @@ h3,
 .calc-form label {
   display: block;
   margin: 0.5rem 0 0.25rem;
+  color: #000;
 }
 .calc-form input {
   width: 100%;
@@ -411,23 +654,36 @@ h3,
   margin-bottom: 1rem;
   outline: none;
 }
-
-/* Container for the switching stats card; fixed min-height prevents layout shift */
+/* Align the Start button to the right and add hover animation */
+.calc-form .start-btn {
+  margin-left: auto;
+  display: block;
+  background: #512da8;
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 24px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.calc-form .start-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
 .stats-card-container {
   flex: 1 1 500px;
-  min-height: 300px; /* Adjust this value if needed */
+  min-height: 300px;
 }
-
-/* Stats Card */
 .stats-card {
-  background: #fff;
+  background: rgba(255,255,255,0.9);
   border: 1px solid #ddd;
   border-radius: 8px;
   padding: 1.5rem;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 5px rgba(0,0,0,0.05);
 }
 
-/* Transition for switching cards: fade and slight scale */
+/* Fade-scale transition for switching Percentage/GPA */
 .fade-scale-enter-active,
 .fade-scale-leave-active {
   transition: opacity 0.3s ease, transform 0.3s ease;
@@ -438,7 +694,7 @@ h3,
   transform: scale(0.95);
 }
 
-/* Progress Bar & Modules */
+/* Progress bar inside stats */
 .progress-bar {
   display: flex;
   height: 24px;
@@ -459,10 +715,9 @@ h3,
 }
 .lost {
   background: #555;
-  color: #fff;
 }
 .remaining {
-  background: #ccc;
+  background: #999;
   color: #000;
 }
 .modules-list .module {
@@ -494,14 +749,12 @@ h3,
 .q {
   background: #E6E6FA;
 }
-.module-info {
+.modules-list .module-info {
   flex: 1;
 }
-.module-grade {
+.modules-list .module-grade {
   font-weight: bold;
 }
-
-/* Tabs */
 .tabs {
   margin-bottom: 1rem;
 }
@@ -512,7 +765,10 @@ h3,
   margin-right: 0.5rem;
   cursor: pointer;
   border-radius: 24px;
-  transition: 0.3s;
+  transition: transform 0.3s ease, background-color 0.3s ease;
+}
+.tabs button:hover {
+  transform: scale(1.05);
 }
 .tabs button.active {
   background: #000;
@@ -520,30 +776,33 @@ h3,
   color: #fff;
 }
 
-/* Features */
+/* Features Section */
 .features-section {
   display: flex;
-  flex-wrap: wrap;
-  padding: 1.5rem 15rem;
-  gap: 0.25rem;
+  gap: 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem;
 }
 .features-hero {
-  flex: 1 1 250px;
+  flex: 1 1 300px;
 }
 .features-list {
-  flex: 2 1 400px;
+  flex: 1 1 500px;
 }
 .features-hero h2 {
   font-size: 2.2rem;
   line-height: 1.2;
   margin-bottom: 1rem;
+  color: #000;
 }
 .highlight {
-  color: #000;
+  color: #ffeb3b;
 }
 .feature-item h3 {
   margin-bottom: 0.3rem;
   font-size: 1.2rem;
+  color: #000;
 }
 .vertical-bar {
   display: inline-block;
@@ -552,9 +811,14 @@ h3,
   height: 1rem;
   margin-right: 6px;
 }
+.feature-item p {
+  color: #333;
+}
 
 /* Systems Section */
 .systems-section {
+  max-width: 1100px;
+  margin: 0 auto;
   padding: 2rem 3rem;
 }
 .system-cards {
@@ -564,10 +828,10 @@ h3,
 }
 .system-card {
   flex: 1;
-  background: #fff;
+  background: rgba(255,255,255,0.9);
   border-radius: 8px;
   padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   text-align: center;
 }
 .system-card h3 {
@@ -576,11 +840,11 @@ h3,
 
 /* Footer */
 .landing-footer {
-  background: #fff;
+  background: var(--footer-bg);
   text-align: center;
   padding: 1rem;
   margin-top: auto;
-  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
 }
 .footer-main {
   display: flex;
@@ -605,7 +869,7 @@ h3,
   margin-bottom: 0.3rem;
 }
 .footer-col a {
-  color: #000;
+  color: var(--link-color);
   text-decoration: none;
   transition: 0.3s;
 }
@@ -621,7 +885,7 @@ h3,
   text-align: center;
 }
 .contact-info a {
-  color: #000;
+  color: var(--link-color);
   text-decoration: none;
   transition: 0.3s;
 }
@@ -629,16 +893,30 @@ h3,
   text-decoration: underline;
 }
 
-/* =================== */
-/* Dark Mode Styles  */
-/* =================== */
-.dark-mode {
-  background-color: #121212;
+/* DARK MODE OVERRIDES */
+.dark-mode .landing-container {
+  background: linear-gradient(135deg, #000000 10%, #5d5d5d 90%);
   color: #e0e0e0;
 }
-.dark-mode .landing-header {
-  background: #2b2b2b;
-  box-shadow: 0 2px 4px rgba(34, 34, 34, 0.5);
+.dark-mode .hero-content {
+  color: #e0e0e0;
+}
+.dark-mode .features-hero h2,
+.dark-mode .feature-item h3,
+.dark-mode .feature-item p {
+  color: #ccc;
+}
+.dark-mode .vertical-bar {
+  background: #ccc;
+}
+.dark-mode .highlight {
+  color: #bbb;
+}
+.dark-mode .hero-parallax {
+  background: transparent;
+}
+.dark-mode .hero-parallax-overlay {
+  background: none;
 }
 .dark-mode .logo {
   color: #e0e0e0;
@@ -653,15 +931,12 @@ h3,
   background: #e0e0e0;
   color: #121212;
 }
-/* Hero section dark mode uses grey instead of black */
-.dark-mode .hero-parallax {
-  background-color: #555;
-}
-.dark-mode .hero-parallax-overlay {
-  background-color: rgba(85, 85, 85, 0.7);
-}
 .dark-mode .calc-form {
-  background: #2c2c2c;
+  background: rgba(44,44,44,0.9);
+  color: #e0e0e0;
+}
+.dark-mode .calc-form label {
+  background: rgba(44,44,44,0.9);
   color: #e0e0e0;
 }
 .dark-mode .calc-form input {
@@ -670,7 +945,7 @@ h3,
   color: #e0e0e0;
 }
 .dark-mode .stats-card {
-  background: #2c2c2c;
+  background: rgba(44,44,44,0.9);
   border-color: #444;
 }
 .dark-mode .tabs button {
@@ -695,24 +970,72 @@ h3,
   background: #adb5bd;
 }
 .dark-mode .system-card {
-  background: #2c2c2c;
+  background: rgba(44,44,44,0.9);
   color: #e0e0e0;
 }
 .dark-mode .landing-footer {
   background: #2b2b2b;
   color: #ccc;
-  box-shadow: 0 -2px 4px rgba(34, 34, 34, 0.5);
+  box-shadow: 0 -2px 4px rgba(34,34,34,0.5);
 }
 .dark-mode .footer-col a,
 .dark-mode .contact-info a {
   color: #ccc;
 }
 
-/* New overrides: In dark mode, only the "EASY," text and the vertical bar (bullet) become light grey */
-.dark-mode .highlight {
-  color: #ccc;
+/* MOBILE ADJUSTMENTS */
+@media only screen and (max-width: 768px) {
+  /* Reduce container padding */
+  .landing-container {
+    padding: 0 1rem;
+  }
+
+  /* Adjust hero section height and font sizes */
+  .hero-parallax {
+    min-height: 80vh;
+  }
+  .hero-content h1 {
+    font-size: 2.5rem;
+  }
+  .hero-content p {
+    font-size: 1rem;
+  }
+  .hero-buttons {
+    gap: 0.75rem;
+  }
+  .cta-button {
+    font-size: 14px;
+    padding: 0.65rem 1.2rem;
+  }
+  .scroll-btn {
+    font-size: 14px;
+    padding: 0.5rem 1rem;
+  }
+
+  /* Adjust stats section layout */
+  .stats-section {
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: -20px;
+    padding: 1rem;
+  }
+  .calc-form {
+    padding: 1rem;
+  }
+  .calc-form .start-btn {
+    width: auto;
+    margin: 1rem 0 0 auto;
+  }
+  .stats-card-container {
+    margin-top: 1rem;
+  }
+
+  /* Adjust tabs styling */
+  .tabs button {
+    padding: 0.5rem;
+    font-size: 14px;
+  }
 }
-.dark-mode .vertical-bar {
-  background: #ccc;
-}
+
+/* End of mobile adjustments */
 </style>
