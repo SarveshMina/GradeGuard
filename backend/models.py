@@ -1,39 +1,47 @@
-# models.py
-
 import re
 from typing import Optional
 from pydantic import BaseModel, EmailStr, validator, constr
 
 class User(BaseModel):
     """
-    A single Pydantic model for user data.
-    - userid: A unique ID string (could be an email, UUID, or something else). Now optional.
-    - username: A unique username in the app.
-    - email: Unique email per account (checked at DB level). Must be valid email format.
-    - password: Must be 8–20 chars, with at least 1 uppercase, 1 digit, 1 special char.
+    Model for new user data.
+    Fields:
+      - firstName: The user's first name.
+      - email: The user's email address.
+      - password: Must be 8–20 characters with at least one uppercase letter, one digit, and one special character.
+      - university: The university or college name.
+      - degree: The degree the user is pursuing.
+      - calcType: Must be one of: "UK Percentage", "US GPA 4.0", "US GPA 5.0".
     """
     userid: Optional[str] = None
-    username: str
+    firstName: str
     email: EmailStr
     password: constr(min_length=8, max_length=20)
+    university: str
+    degree: str
+    calcType: str
 
     @validator("password")
     def validate_password(cls, value):
-        # At least one uppercase letter
         if not re.search(r"[A-Z]", value):
             raise ValueError("Password must contain at least one uppercase letter (A-Z).")
-        # At least one digit
         if not re.search(r"\d", value):
             raise ValueError("Password must contain at least one digit (0-9).")
-        # At least one special character
         if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", value):
             raise ValueError("Password must contain at least one special character.")
+        return value
+
+    @validator("calcType")
+    def validate_calc_type(cls, value):
+        allowed = ["UK Percentage", "US GPA 4.0", "US GPA 5.0"]
+        if value not in allowed:
+            raise ValueError("Calculator type must be one of: " + ", ".join(allowed))
         return value
 
 
 class UserLogin(BaseModel):
     """
-    Minimal model for user login, requiring only email and password.
+    Model for user login data.
     """
     email: EmailStr
     password: constr(min_length=8, max_length=20)

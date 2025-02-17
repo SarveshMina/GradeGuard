@@ -1,10 +1,8 @@
-# user_routes.py
 import os
 import json
 import datetime
-import logging
 import jwt
-import uuid  # <-- Import uuid module
+import uuid
 from passlib.hash import bcrypt
 from pydantic import ValidationError
 from azure.functions import HttpRequest, HttpResponse
@@ -13,7 +11,9 @@ from models import User, UserLogin
 from database import (
     create_user,
     get_user_by_email,
-    get_user_by_username,
+    increment_university_and_major_counter,
+    get_university_doc,
+    get_all_universities_docs
 )
 
 JWT_SECRET = os.environ.get("JWT_SECRET", "default_secret")
@@ -21,13 +21,8 @@ JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
 
 def register_user(req: HttpRequest) -> HttpResponse:
     """
-    Endpoint to create a new user.
-    Expects JSON matching `User` schema:
-        {
-          "username": "...",
-          "email": "...",
-          "password": "..."
-        }
+    POST /api/register
+    Creates a new user and increments counters for the chosen university/major.
     """
     try:
         body = req.get_json()
@@ -38,13 +33,13 @@ def register_user(req: HttpRequest) -> HttpResponse:
             mimetype="application/json"
         )
 
-    # Validate with Pydantic (userid is now optional)
+    # Validate against Pydantic model
     try:
         user_in = User(**body)
     except ValidationError as e:
         return HttpResponse(e.json(), status_code=400, mimetype="application/json")
 
-    # Check if email is already in use
+    # Check if user already exists
     if get_user_by_email(user_in.email):
         return HttpResponse(
             json.dumps({"error": "Email already in use."}),
@@ -52,34 +47,29 @@ def register_user(req: HttpRequest) -> HttpResponse:
             mimetype="application/json"
         )
 
-    # Check if username is already taken
-    if get_user_by_username(user_in.username):
-        return HttpResponse(
-            json.dumps({"error": "Username already taken."}),
-            status_code=400,
-            mimetype="application/json"
-        )
-
-    # Generate a UUID for the user regardless of what the client provided.
+    # Create user doc
     generated_userid = str(uuid.uuid4())
-
-    # Hash the password before storing
     hashed_password = bcrypt.hash(user_in.password)
 
-    # Build user record for Cosmos DB.
-    # Using the email as the 'id' to enable point reads, and our generated UUID as 'userid'.
     user_doc = {
-        "id": user_in.email,  # This is the Cosmos DB document ID.
+        "id": user_in.email,  # using email as the document ID
         "userid": generated_userid,
-        "username": user_in.username,
+        "firstName": user_in.firstName,
         "email": user_in.email,
         "password": hashed_password,
+        "university": user_in.university,
+        "degree": user_in.degree,
+        "calcType": user_in.calcType,
         "createdAt": datetime.datetime.utcnow().isoformat()
     }
 
+    # Insert user
     create_user(user_doc)
 
-    # Optionally create JWT so user is "logged in" immediately.
+    # Increment counters
+    increment_university_and_major_counter(user_in.university, user_in.degree)
+
+    # Return JWT
     token = create_jwt(user_in.email)
     return HttpResponse(
         json.dumps({"message": "User registered successfully.", "token": token}),
@@ -90,16 +80,12 @@ def register_user(req: HttpRequest) -> HttpResponse:
 
 def login_user(req: HttpRequest) -> HttpResponse:
     """
-    Endpoint to login an existing user.
-    Expects JSON matching `UserLogin` schema:
-        {
-          "email": "...",
-          "password": "..."
-        }
+    POST /api/login
+    Logs in an existing user, returns a JWT if successful.
     """
     try:
         body = req.get_json()
-    except:
+    except Exception:
         return HttpResponse(
             json.dumps({"error": "Invalid JSON in request body."}),
             status_code=400,
@@ -119,7 +105,7 @@ def login_user(req: HttpRequest) -> HttpResponse:
             mimetype="application/json"
         )
 
-    # Verify password
+    # Check password
     if not bcrypt.verify(user_in.password, user_doc["password"]):
         return HttpResponse(
             json.dumps({"error": "Invalid email or password."}),
@@ -127,7 +113,7 @@ def login_user(req: HttpRequest) -> HttpResponse:
             mimetype="application/json"
         )
 
-    # If valid, create and return a token
+    # Return JWT
     token = create_jwt(user_doc["email"])
     return HttpResponse(
         json.dumps({"message": "Login successful.", "token": token}),
@@ -138,7 +124,7 @@ def login_user(req: HttpRequest) -> HttpResponse:
 
 def create_jwt(email: str) -> str:
     """
-    Generate a JWT token with 1-day expiry.
+    Generate a JWT token with a 1-day expiry.
     """
     payload = {
         "sub": email,
@@ -150,16 +136,14 @@ def create_jwt(email: str) -> str:
 
 def verify_jwt_token(req: HttpRequest) -> (bool, str):
     """
-    Extracts and verifies the JWT from 'Authorization' header.
+    Extracts and verifies the JWT from the Authorization header.
     Returns (True, decoded_email) if valid, or (False, error_message) if invalid.
     """
     auth_header = req.headers.get("Authorization")
     if not auth_header:
         return False, "Missing Authorization header"
-
     if not auth_header.startswith("Bearer "):
         return False, "Authorization header must start with Bearer"
-
     token = auth_header.split(" ", 1)[1].strip()
     try:
         decoded = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
@@ -173,16 +157,98 @@ def verify_jwt_token(req: HttpRequest) -> (bool, str):
 
 def protected_resource(req: HttpRequest) -> HttpResponse:
     """
-    Example of a protected route that requires a valid JWT in `Authorization: Bearer <token>`.
+    GET /api/protected
+    Example of a protected route that requires a valid JWT.
     """
     is_valid, result = verify_jwt_token(req)
     if not is_valid:
-        return HttpResponse(json.dumps({"error": result}), status_code=401, mimetype="application/json")
-
-    # If valid, 'result' is the email from the token
+        return HttpResponse(
+            json.dumps({"error": result}),
+            status_code=401,
+            mimetype="application/json"
+        )
     email = result
     return HttpResponse(
         json.dumps({"message": f"You are authorized! Token belongs to {email}."}),
         status_code=200,
         mimetype="application/json"
     )
+
+
+# -------------------------------------------------------------------------
+# NEW: GET /api/stats/universities  => returns array of all universities
+# -------------------------------------------------------------------------
+def get_universities_endpoint(req: HttpRequest) -> HttpResponse:
+    """
+    GET /api/stats/universities
+    Returns an array of docs like:
+      [
+        {
+          "id": "...",
+          "name": "...",
+          "counter": 123,
+          "majors": [ { "major_name": "X", "counter": 10 }, ... ]
+        },
+        ...
+      ]
+    """
+    try:
+        from database import get_all_universities_docs
+        docs = get_all_universities_docs()
+        return HttpResponse(
+            json.dumps(docs),
+            status_code=200,
+            mimetype="application/json"
+        )
+    except Exception as e:
+        return HttpResponse(
+            json.dumps({"error": str(e)}),
+            status_code=500,
+            mimetype="application/json"
+        )
+
+
+# -------------------------------------------------------------------------
+# NEW: GET /api/stats/university?name=University%20of%20Southampton
+# -------------------------------------------------------------------------
+def get_university_endpoint(req: HttpRequest) -> HttpResponse:
+    """
+    GET /api/stats/university?name=University%20of%20Southampton
+    Returns a single doc, e.g.:
+      {
+        "id": "University of Southampton",
+        "name": "University of Southampton",
+        "counter": 51,
+        "majors": [
+          { "major_name": "Computer Science", "counter": 13 },
+          ...
+        ]
+      }
+    """
+    name = req.params.get("name")
+    if not name:
+        return HttpResponse(
+            json.dumps({"error": "Missing 'name' query parameter"}),
+            status_code=400,
+            mimetype="application/json"
+        )
+
+    try:
+        doc = get_university_doc(name)
+        if not doc:
+            return HttpResponse(
+                json.dumps({"error": "University not found."}),
+                status_code=404,
+                mimetype="application/json"
+            )
+        return HttpResponse(
+            json.dumps(doc),
+            status_code=200,
+            mimetype="application/json"
+        )
+    except Exception as e:
+        return HttpResponse(
+            json.dumps({"error": str(e)}),
+            status_code=500,
+            mimetype="application/json"
+        )

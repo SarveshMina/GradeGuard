@@ -1,63 +1,37 @@
 <template>
-  <div class="landing-container">
+  <div class="landing-container" ref="landingContainer">
     <!-- Fixed Header/Nav -->
     <header class="landing-header" ref="headerRef">
       <div class="logo">GradeHome</div>
       <nav>
-        <!-- Arrow buttons for Login & Sign Up (using dark style by default) -->
-        <router-link to="/login" class="arrow-btn">
+        <!-- Arrow buttons for Login & Sign Up -->
+        <router-link :to="{ path: '/login', query: { mode: 'login' } }" class="arrow-btn">
           <span class="text">Login</span>
-          <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-                d="M4.66669 11.3334L11.3334 4.66669"
-                stroke="white"
-                stroke-width="1.33333"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-            />
-            <path
-                d="M4.66669 4.66669H11.3334V11.3334"
-                stroke="white"
-                stroke-width="1.33333"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-            />
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+               xmlns="http://www.w3.org/2000/svg">
+            <path d="M4.66669 11.3334L11.3334 4.66669"
+                  stroke="white" stroke-width="1.33333"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4.66669 4.66669H11.3334V11.3334"
+                  stroke="white" stroke-width="1.33333"
+                  stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </router-link>
 
-        <router-link to="/register" class="arrow-btn">
+        <router-link :to="{ path: '/login', query: { mode: 'signup' } }" class="arrow-btn">
           <span class="text">Sign Up</span>
-          <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-                d="M4.66669 11.3334L11.3334 4.66669"
-                stroke="white"
-                stroke-width="1.33333"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-            />
-            <path
-                d="M4.66669 4.66669H11.3334V11.3334"
-                stroke="white"
-                stroke-width="1.33333"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-            />
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+               xmlns="http://www.w3.org/2000/svg">
+            <path d="M4.66669 11.3334L11.3334 4.66669"
+                  stroke="white" stroke-width="1.33333"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4.66669 4.66669H11.3334V11.3334"
+                  stroke="white" stroke-width="1.33333"
+                  stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </router-link>
 
-        <!-- Dark mode toggle (unchanged) -->
+        <!-- Dark mode toggle -->
         <button @click="toggleDarkMode" class="nav-button dark-mode-toggle">
           <i v-if="!darkMode" class="fas fa-moon"></i>
           <i v-else class="fas fa-sun"></i>
@@ -67,7 +41,6 @@
 
     <!-- Hero Section -->
     <section class="hero-parallax" ref="heroRef">
-      <!-- Pull the overlay up by 40px so that the scroll arrow comes in view -->
       <div class="hero-parallax-overlay">
         <div class="hero-content" data-aos="fade-up">
           <h1>The Grade Calculator</h1>
@@ -75,52 +48,30 @@
             Track your university grade average, predict your degree classification, and more.
           </p>
           <div class="hero-buttons">
-            <!-- “Get Started” button (always using dark style) -->
-            <router-link class="cta-button" to="/register">
+            <router-link :to="{ path: '/login', query: { mode: 'signup' } }" class="cta-button">
               <span class="text">Get Started</span>
-              <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                    d="M4.66669 11.3334L11.3334 4.66669"
-                    stroke="white"
-                    stroke-width="1.33333"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                />
-                <path
-                    d="M4.66669 4.66669H11.3334V11.3334"
-                    stroke="white"
-                    stroke-width="1.33333"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                />
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+                   xmlns="http://www.w3.org/2000/svg">
+                <path d="M4.66669 11.3334L11.3334 4.66669"
+                      stroke="white" stroke-width="1.33333"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M4.66669 4.66669H11.3334V11.3334"
+                      stroke="white" stroke-width="1.33333"
+                      stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </router-link>
-
-            <!-- “Start Without Signing Up” button -->
             <button class="scroll-btn" @click="scrollToCalcForm">
               Start Without Signing Up
             </button>
           </div>
         </div>
-
-        <!-- Modern scroll-down arrow (visible from the start until hero leaves) -->
-        <button
-            v-if="showScrollDown"
-            class="scroll-down-btn"
-            @click="scrollToCalcForm"
-        >
+        <button v-if="showScrollDown" class="scroll-down-btn" @click="scrollToCalcForm">
           <i class="fas fa-arrow-down"></i>
         </button>
       </div>
     </section>
 
-    <!-- Stats & Calculator Section (pulled up by 40px) -->
+    <!-- Stats & Calculator Section -->
     <section class="stats-section" ref="statsSectionRef" data-aos="fade-up">
       <div class="calc-form">
         <h3>Calculate without signing up</h3>
@@ -128,27 +79,19 @@
         <input type="text" v-model="university" placeholder="e.g. MIT" />
         <label>Your Degree</label>
         <input type="text" v-model="degree" placeholder="e.g. Computer Science" />
-        <!-- Start button aligned to right with hover animation -->
         <button class="start-btn" @click="handleQuickCalc">Start</button>
       </div>
       <div class="stats-card-container">
         <div class="tabs">
-          <button
-              :class="{ active: statsMode === 'percentage' }"
-              @click="statsMode = 'percentage'"
-          >
+          <button :class="{ active: statsMode === 'percentage' }" @click="statsMode = 'percentage'">
             Percentage
           </button>
-          <button
-              :class="{ active: statsMode === 'gpa' }"
-              @click="statsMode = 'gpa'"
-          >
+          <button :class="{ active: statsMode === 'gpa' }" @click="statsMode = 'gpa'">
             GPA
           </button>
         </div>
         <transition name="fade-scale" mode="out-in">
           <div class="stats-card" :key="statsMode">
-            <!-- Percentage Mode -->
             <div v-if="statsMode === 'percentage'">
               <h2>60% Average</h2>
               <div class="progress-bar">
@@ -167,7 +110,6 @@
                 </div>
               </div>
             </div>
-            <!-- GPA Mode -->
             <div v-else-if="statsMode === 'gpa'">
               <h2>3.7 GPA</h2>
               <div class="progress-bar">
@@ -246,13 +188,11 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 export default {
   name: 'Landing',
-  components: {
-    Footer
-  },
+  components: { Footer },
   data() {
     return {
       darkMode: false,
-      showScrollDown: true, // arrow is visible from the start
+      showScrollDown: true,
       university: '',
       degree: '',
       statsMode: 'percentage',
@@ -279,6 +219,13 @@ export default {
       } else {
         document.body.classList.remove('dark-mode')
       }
+      // Immediately update the gradient using a default angle (135deg)
+      const container = this.$refs.landingContainer
+      const angle = 135
+      const gradient = this.darkMode
+          ? `linear-gradient(${angle}deg, #B191FC 0%, #000000 100%)`
+          : `linear-gradient(${angle}deg, #f2f2f2 0%, #b191fc 100%)`
+      container.style.background = gradient
     },
     scrollToCalcForm() {
       this.$refs.statsSectionRef.scrollIntoView({ behavior: 'smooth' })
@@ -348,22 +295,40 @@ export default {
       onEnterBack: () => { this.showScrollDown = true },
       onLeaveBack: () => { this.showScrollDown = false },
     })
+
+    // Mouse reactive gradient update (using the window's center for a stable reference)
+    const container = this.$refs.landingContainer
+    document.addEventListener('mousemove', (e) => {
+      const centerX = window.innerWidth / 2;
+      const centerY = window.innerHeight / 2;
+      const deltaX = e.clientX - centerX;
+      const deltaY = e.clientY - centerY;
+      const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+      const gradient = this.darkMode
+          ? `linear-gradient(${angle}deg, #B191FC 0%, #000000 100%)`
+          : `linear-gradient(${angle}deg, #f2f2f2 0%, #b191fc 100%)`;
+      container.style.background = gradient;
+    })
   }
 }
 </script>
+
 
 <style scoped>
 @import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css");
 @import "aos/dist/aos.css";
 
-/* LIGHT MODE BACKGROUND: one screen tall gradient */
+/* Use the CSS variable defined in global styles */
 .landing-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #fcfcff 0%, #b191fc 100%);
+  background: var(--bg-gradient);
   color: #000;
   position: relative;
   overflow-x: hidden;
+  transition: background 0s;
 }
+
+/* (Rest of your component styles remain unchanged) */
 
 /* Hero section exactly 100vh */
 .hero-parallax {
@@ -386,7 +351,7 @@ export default {
   justify-content: center;
 }
 
-/* Hero content styles (old snippet style) */
+/* Hero content styles */
 .hero-content {
   text-align: center;
   color: #000;
@@ -461,7 +426,7 @@ export default {
   color: #512DA8;
 }
 
-/* Arrow buttons for Login/Sign Up - always using dark version */
+/* Arrow buttons for Login/Sign Up */
 .arrow-btn {
   font-size: 20px;
   font-weight: 600;
@@ -546,7 +511,7 @@ export default {
   margin-top: 1rem;
 }
 
-/* CTA button (Get Started) always using dark version with added hover animation */
+/* CTA button (Get Started) */
 .cta-button {
   font-size: 16px;
   font-weight: 600;
@@ -626,7 +591,6 @@ export default {
   max-width: 1100px;
   margin: 0 auto;
 }
-/* Pull stats section up by 40px */
 .stats-section {
   margin-top: -40px;
 }
@@ -654,7 +618,6 @@ export default {
   margin-bottom: 1rem;
   outline: none;
 }
-/* Align the Start button to the right and add hover animation */
 .calc-form .start-btn {
   margin-left: auto;
   display: block;
@@ -683,7 +646,7 @@ export default {
   box-shadow: 0 1px 5px rgba(0,0,0,0.05);
 }
 
-/* Fade-scale transition for switching Percentage/GPA */
+/* Fade-scale transition */
 .fade-scale-enter-active,
 .fade-scale-leave-active {
   transition: opacity 0.3s ease, transform 0.3s ease;
@@ -985,12 +948,9 @@ export default {
 
 /* MOBILE ADJUSTMENTS */
 @media only screen and (max-width: 768px) {
-  /* Reduce container padding */
   .landing-container {
     padding: 0 1rem;
   }
-
-  /* Adjust hero section height and font sizes */
   .hero-parallax {
     min-height: 80vh;
   }
@@ -1011,8 +971,6 @@ export default {
     font-size: 14px;
     padding: 0.5rem 1rem;
   }
-
-  /* Adjust stats section layout */
   .stats-section {
     flex-direction: column;
     gap: 1rem;
@@ -1029,13 +987,9 @@ export default {
   .stats-card-container {
     margin-top: 1rem;
   }
-
-  /* Adjust tabs styling */
   .tabs button {
     padding: 0.5rem;
     font-size: 14px;
   }
 }
-
-/* End of mobile adjustments */
 </style>

@@ -14,6 +14,11 @@
     --btn-hover-color: #fff;
     --link-color: #000;
     --form-bg: #f9f9f9;
+
+    /* Set up the reactive background variables */
+    --bg-angle: 135deg;
+    /* Light mode: gradient from white to purple */
+    --bg-gradient: linear-gradient(var(--bg-angle), #ffffff 0%, #B191FC 100%);
 }
 
 /* Dark mode variables (activated via body.dark-mode) */
@@ -26,8 +31,11 @@ body.dark-mode {
     --btn-color: #e0e0e0;
     --btn-hover-bg: #e0e0e0;
     --btn-hover-color: #121212;
-    --link-color: #ccc;
+    --link-color: #7b49ff;
     --form-bg: #2c2c2c;
+
+    /* Dark mode: gradient from purple to black */
+    --bg-gradient: linear-gradient(var(--bg-angle), #B191FC 0%, #000000 100%);
 }
 
 /* Global resets */
