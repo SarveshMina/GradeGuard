@@ -98,3 +98,14 @@ def get_university_doc(university_name: str):
         return doc
     except:
         return None
+
+
+def update_user_calculator(email: str, calculator_config: dict):
+    """
+    Updates the 'calculator' field in the user document for the given email.
+    """
+    user_doc = get_user_by_email(email)
+    if not user_doc:
+        raise Exception("User not found")
+    user_doc["calculator"] = calculator_config
+    _container.upsert_item(user_doc)

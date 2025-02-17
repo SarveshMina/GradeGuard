@@ -1,6 +1,7 @@
+<!-- Login.vue -->
 <template>
   <div class="auth-container" ref="authContainer">
-    <!-- Example NavBar (optional) -->
+    <!-- NavBar for desktop -->
     <NavBar v-if="!isMobile" :mode="formMode" />
 
     <!-- Mobile header -->
@@ -54,6 +55,14 @@
             </div>
             <button type="submit" class="auth-button">Login</button>
           </form>
+
+          <!-- Sign in with Google Button -->
+          <div class="oauth-container">
+            <button class="google-btn" @click="loginWithGoogle">
+              <img src="/assets/google-logo.png" alt="Google logo" class="google-logo" />
+              Sign in with Google
+            </button>
+          </div>
         </main>
       </div>
 
@@ -180,7 +189,7 @@
       </div>
     </transition>
 
-    <!-- Footer (optional) -->
+    <!-- Footer -->
     <Footer v-if="!isMobile" />
 
     <!-- University Selection Modal -->
@@ -194,7 +203,6 @@
               placeholder="Search university..."
               class="search-input"
           />
-          <!-- Only the list is scrollable -->
           <div class="list-container">
             <ul class="university-list">
               <li
@@ -215,7 +223,6 @@
       <div v-if="showMajorModal" class="modal-overlay" @click.self="closeMajorModal">
         <div class="modal-content">
           <h2>Select Your Degree</h2>
-          <!-- If user wants to add a custom degree, show an input field -->
           <div v-if="showCustomMajorInput">
             <input
                 type="text"
@@ -229,7 +236,6 @@
               </button>
             </div>
           </div>
-          <!-- Otherwise, show the search and list of majors with counters -->
           <div v-else>
             <input
                 type="text"
@@ -237,7 +243,6 @@
                 placeholder="Search degree..."
                 class="search-input"
             />
-            <!-- Only the list is scrollable -->
             <div class="list-container">
               <ul class="university-list">
                 <li
@@ -271,35 +276,29 @@ export default {
   components: { NavBar, Footer },
   data() {
     return {
-      // Basic UI state
       isMobile: false,
       darkMode: false,
       formMode: 'login',
       signUpStep: 1,
-
       // Login fields
       loginEmail: '',
       loginPassword: '',
-
       // Sign-up fields
       signUpEmail: '',
       signUpPassword: '',
       firstName: '',
       calcType: 'UK Percentage',
       degree: '',
-
       // University data
       universityDocs: [],
       selectedUniversityDoc: null,
       universitySearch: '',
       showUniversityModal: false,
-
       // Major data
       majorSearch: '',
       showMajorModal: false,
       showCustomMajorInput: false,
       customMajor: '',
-
       // Forgot Password
       forgotEmail: ''
     };
@@ -412,7 +411,7 @@ export default {
         const response = await axios.post(`${API_URL}/register`, payload);
         alert("Sign up successful: " + response.data.message);
 
-        // Fetch updated counters
+        // Fetch updated counters if a university is selected
         if (this.selectedUniversityDoc) {
           const updatedResponse = await axios.get(`${API_URL}/stats/university`, {
             params: { name: this.selectedUniversityDoc.name }
@@ -432,12 +431,12 @@ export default {
           password: this.loginPassword,
         });
         alert("Login successful: " + response.data.message);
+        this.$router.push('/dashboard');
       } catch (error) {
         alert("Login failed: " + (error.response?.data?.error || error.message));
       }
     },
     async handleForgot() {
-      // Example only
       alert("Forgot password request sent for " + this.forgotEmail);
     },
     switchToSignup() {
@@ -452,6 +451,10 @@ export default {
     switchToForgot() {
       this.formMode = 'forgot';
     },
+    loginWithGoogle() {
+      // Redirect to your backend Google OAuth endpoint
+      window.location.href = `${API_URL}/auth/google`;
+    }
   },
   watch: {
     '$route.query.mode': {
@@ -702,7 +705,7 @@ export default {
   opacity: 0;
 }
 
-/* Glassmorphism Modal Styles */
+/* Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -716,7 +719,6 @@ export default {
   justify-content: center;
   align-items: center;
   z-index: 2000;
-  /* No scrolling on the overlay itself */
   padding: 1rem;
   overflow: hidden;
 }
@@ -729,41 +731,36 @@ export default {
   padding: 1.5rem;
   width: 100%;
   max-width: 400px;
-  /* We remove vertical scroll from the entire modal content */
-  overflow: hidden; /* or remove altogether if you want a fallback */
+  overflow: hidden;
   transition: transform 0.3s ease;
   position: relative;
   box-sizing: border-box;
   max-height: 70vh;
 }
 
-/* The scrollable container for the lists */
 .list-container {
-  max-height: 40vh; /* Adjust as needed */
+  max-height: 40vh;
   overflow-y: auto;
-  margin-top: 1rem; /* Spacing above the list */
-  /* optional border-top or spacing for separation:
-     border-top: 1px solid #eee;
-     padding-top: 1rem;
-  */
+  margin-top: 1rem;
 }
 
-/* Scrollbar Styling for .list-container */
 .list-container::-webkit-scrollbar {
   width: 8px;
 }
+
 .list-container::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .list-container::-webkit-scrollbar-thumb {
   background-color: var(--link-color);
   border-radius: 4px;
 }
+
 .list-container::-webkit-scrollbar-thumb:hover {
   background-color: #555;
 }
 
-/* Modal scale-in animation */
 .modal-enter-active {
   animation: scaleIn 0.3s forwards;
 }
@@ -799,7 +796,6 @@ export default {
   cursor: pointer;
 }
 
-/* Light mode hover: white background, black text */
 .university-list li:hover {
   background: #f0f0f0;
   color: #000;
@@ -810,27 +806,54 @@ export default {
   color: var(--link-color);
 }
 
-/* Dark Mode Adjustments */
+/* Google OAuth Button Styles */
+.oauth-container {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+.google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  cursor: pointer;
+  transition: background 0.3s ease;
+  margin-top: 1rem;
+}
+
+.google-btn:hover {
+  background: #f7f7f7;
+}
+
+.google-logo {
+  width: 20px;
+  height: 20px;
+  margin-right: 0.5rem;
+}
+
+
+/* Dark mode adjustments */
 .dark-mode .auth-main {
   --link-color: #B191FC;
   background: #2b2b2b;
   color: #fff;
 }
 
-.dark-mode .auth-main h1 {
-  color: #fff;
-}
-
-.dark-mode .auth-main p {
-  color: #fff;
-}
-
+.dark-mode .auth-main h1,
+.dark-mode .auth-main p,
 .dark-mode .form-group label {
   color: #fff;
 }
 
 .dark-mode .form-group input,
-.dark-mode .form-group select {
+.dark-mode .form-group select,
+.dark-mode .university-selector {
   background: #444;
   color: #fff;
   border: 1px solid #555;
@@ -839,7 +862,6 @@ export default {
 .dark-mode .form-group input:focus,
 .dark-mode .form-group select:focus {
   border-color: var(--link-color);
-  outline: none;
 }
 
 .dark-mode .forgot-link,
@@ -847,31 +869,8 @@ export default {
   color: var(--link-color);
 }
 
-.dark-mode .university-selector {
-  background: #444;
-  border: 1px solid #555;
-  color: #fff;
-}
-
-.dark-mode .university-selector .placeholder {
-  color: #bbb;
-}
-
-/* Dark mode modal background */
 .dark-mode .modal-content {
   background: rgba(0, 0, 0, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  overflow: hidden; /* keep consistent with normal mode */
-}
-
-/* Dark mode hover: darker background, white text */
-.dark-mode .university-list li:hover {
-  background: #444;
-  color: #fff;
-}
-
-/* Dark mode .list-container scrollbar styling */
-.dark-mode .list-container::-webkit-scrollbar-thumb {
-  background-color: #B191FC;
 }
 </style>

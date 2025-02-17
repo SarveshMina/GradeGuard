@@ -252,3 +252,88 @@ def get_university_endpoint(req: HttpRequest) -> HttpResponse:
             status_code=500,
             mimetype="application/json"
         )
+
+
+def update_calculator_config(req: HttpRequest) -> HttpResponse:
+    """
+    PUT /api/calculator
+    Updates the user's calculator configuration.
+    Expects a JSON body matching the CalculatorConfig model.
+    Requires a valid JWT in the Authorization header.
+    """
+    # Verify the JWT token to get the user email
+    is_valid, result = verify_jwt_token(req)
+    if not is_valid:
+        return HttpResponse(
+            json.dumps({"error": result}),
+            status_code=401,
+            mimetype="application/json"
+        )
+    email = result
+
+    # Parse and validate the request body
+    try:
+        body = req.get_json()
+    except Exception:
+        return HttpResponse(
+            json.dumps({"error": "Invalid JSON in request body."}),
+            status_code=400,
+            mimetype="application/json"
+        )
+
+    try:
+        from models import CalculatorConfig
+        config = CalculatorConfig(**body)
+    except Exception as e:
+        return HttpResponse(
+            json.dumps({"error": str(e)}),
+            status_code=400,
+            mimetype="application/json"
+        )
+
+    try:
+        # Update the user's document with the new calculator config
+        from database import update_user_calculator
+        update_user_calculator(email, config.dict())
+        return HttpResponse(
+            json.dumps({"message": "Calculator configuration updated successfully."}),
+            status_code=200,
+            mimetype="application/json"
+        )
+    except Exception as e:
+        return HttpResponse(
+            json.dumps({"error": str(e)}),
+            status_code=500,
+            mimetype="application/json"
+        )
+
+
+def get_calculator_config(req: HttpRequest) -> HttpResponse:
+    """
+    GET /api/calculator
+    Returns the user's current calculator configuration.
+    Requires a valid JWT.
+    """
+    is_valid, result = verify_jwt_token(req)
+    if not is_valid:
+        return HttpResponse(
+            json.dumps({"error": result}),
+            status_code=401,
+            mimetype="application/json"
+        )
+    email = result
+
+    user_doc = get_user_by_email(email)
+    if not user_doc:
+        return HttpResponse(
+            json.dumps({"error": "User not found."}),
+            status_code=404,
+            mimetype="application/json"
+        )
+    # Return the calculator configuration if exists, otherwise an empty config
+    config = user_doc.get("calculator", {})
+    return HttpResponse(
+        json.dumps(config),
+        status_code=200,
+        mimetype="application/json"
+    )

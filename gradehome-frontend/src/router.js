@@ -3,6 +3,7 @@ import Landing from './views/Landing.vue'
 import Login from './views/Login.vue'
 import ForgotPassword from './views/ForgotPassword.vue'
 import MobileLanding from './views/MobileLanding.vue'
+import Dashboard from './views/Dashboard.vue' // <-- Import Dashboard component
 import { Capacitor } from '@capacitor/core'
 
 // You can detect a mobile build via Capacitor or use screen width
@@ -23,6 +24,11 @@ const routes = [
         path: '/forgot-password',
         name: 'ForgotPassword',
         component: ForgotPassword,
+    },
+    {
+        path: '/dashboard',
+        name: 'Dashboard',
+        component: Dashboard,
     }
 ]
 

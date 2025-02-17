@@ -1,6 +1,15 @@
 import re
-from typing import Optional
-from pydantic import BaseModel, EmailStr, validator, constr
+from typing import Optional, List
+from pydantic import BaseModel, EmailStr, validator, constr, conint, confloat
+
+class YearSetting(BaseModel):
+    year: str          # e.g., "Year 1", "Year 2", etc. or "Masters"
+    active: bool = True
+    credits: conint(ge=0)  # number of credits, minimum 0
+    weight: confloat(ge=0, le=100)  # percentage weight (0-100)
+
+class CalculatorConfig(BaseModel):
+    years: List[YearSetting]
 
 class User(BaseModel):
     """
@@ -20,6 +29,9 @@ class User(BaseModel):
     university: str
     degree: str
     calcType: str
+    calcType: str
+    # Add the calculator configuration as an optional field
+    calculator: CalculatorConfig = None
 
     @validator("password")
     def validate_password(cls, value):
