@@ -1,6 +1,9 @@
 <template>
   <header class="auth-header">
-    <div class="logo">GradeHome</div>
+    <!-- Clickable Logo -->
+    <router-link to="/" class="logo">
+      GradeHome
+    </router-link>
     <nav>
       <!-- When in login mode, show a Sign Up link; otherwise, show Login -->
       <router-link
@@ -76,7 +79,6 @@
 export default {
   name: "NavBar",
   props: {
-    // Accepts "login", "signup", or "forgot" to indicate the current mode
     mode: {
       type: String,
       default: "login"
@@ -85,7 +87,7 @@ export default {
   data() {
     return {
       darkMode: false
-    }
+    };
   },
   methods: {
     toggleDarkMode() {
@@ -101,25 +103,44 @@ export default {
 </script>
 
 <style scoped>
+/* Base header styles */
 .auth-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
-  background: var(--header-bg);
-  box-shadow: none;
 }
+
+/* Logo styling with glowing text effect */
 .logo {
   font-size: 2rem;
   font-weight: bold;
+  text-decoration: none;
+  /* In light mode, set text color to purple */
   color: #512da8;
-}
-nav {
-  display: flex;
-  align-items: center;
+  transition: text-shadow 0.3s ease;
 }
 
-/* Arrow button styling (for Sign Up / Login links) */
+/* Light mode glow: when hovered or active, glow white with increased intensity */
+.logo:hover {
+  text-shadow: 0 0 12px #ffffff;
+}
+.logo:active {
+  text-shadow: 0 0 20px #ffffff;
+}
+
+/* Dark mode override: when body has dark-mode class */
+.dark-mode .logo {
+  color: #ffffff;
+}
+.dark-mode .logo:hover {
+  text-shadow: 0 0 12px #512da8;
+}
+.dark-mode .logo:active {
+  text-shadow: 0 0 20px #512da8;
+}
+
+/* Arrow button styling for sign up / login links */
 .arrow-btn {
   font-size: 16px;
   font-weight: 600;

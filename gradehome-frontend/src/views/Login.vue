@@ -1,4 +1,3 @@
-<!-- Login.vue -->
 <template>
   <div class="auth-container" ref="authContainer">
     <!-- NavBar for desktop -->
@@ -30,33 +29,17 @@
           <form @submit.prevent="handleLogin">
             <div class="form-group">
               <label for="login-email">Email</label>
-              <input
-                  type="email"
-                  v-model="loginEmail"
-                  id="login-email"
-                  placeholder="Enter your email"
-                  required
-              />
+              <input type="email" v-model="loginEmail" id="login-email" placeholder="Enter your email" required />
             </div>
             <div class="form-group">
               <label for="login-password">Password</label>
-              <input
-                  type="password"
-                  v-model="loginPassword"
-                  id="login-password"
-                  placeholder="Enter your password"
-                  required
-              />
+              <input type="password" v-model="loginPassword" id="login-password" placeholder="Enter your password" required />
             </div>
             <div class="forgot-container">
-              <a href="#" @click.prevent="switchToForgot" class="forgot-link">
-                Forgot your password?
-              </a>
+              <a href="#" @click.prevent="switchToForgot" class="forgot-link">Forgot your password?</a>
             </div>
             <button type="submit" class="auth-button">Login</button>
           </form>
-
-          <!-- Sign in with Google Button -->
           <div class="oauth-container">
             <button class="google-btn" @click="loginWithGoogle">
               <img src="/assets/google-logo.png" alt="Google logo" class="google-logo" />
@@ -80,23 +63,11 @@
               <div v-if="signUpStep === 1" key="signup-step1" class="signup-step">
                 <div class="form-group">
                   <label for="signup-email">Email</label>
-                  <input
-                      type="email"
-                      v-model="signUpEmail"
-                      id="signup-email"
-                      placeholder="you@example.com"
-                      required
-                  />
+                  <input type="email" v-model="signUpEmail" id="signup-email" placeholder="you@example.com" required />
                 </div>
                 <div class="form-group">
                   <label for="signup-password">Password</label>
-                  <input
-                      type="password"
-                      v-model="signUpPassword"
-                      id="signup-password"
-                      placeholder="••••••••••"
-                      required
-                  />
+                  <input type="password" v-model="signUpPassword" id="signup-password" placeholder="••••••••••" required />
                 </div>
                 <div class="next-btn-container">
                   <button type="button" class="small-btn next-btn" @click="goToSignUpStep(2)">
@@ -104,7 +75,6 @@
                   </button>
                 </div>
               </div>
-
               <!-- Step 2: Additional Info -->
               <div v-else key="signup-step2" class="signup-step">
                 <div class="signup-back">
@@ -112,15 +82,8 @@
                 </div>
                 <div class="form-group">
                   <label for="first-name">First Name</label>
-                  <input
-                      type="text"
-                      v-model="firstName"
-                      id="first-name"
-                      placeholder="Enter your first name"
-                      required
-                  />
+                  <input type="text" v-model="firstName" id="first-name" placeholder="Enter your first name" required />
                 </div>
-
                 <!-- University selection -->
                 <div class="form-group">
                   <label>University/College</label>
@@ -131,7 +94,6 @@
                     <span v-else class="placeholder">Select your University/College</span>
                   </div>
                 </div>
-
                 <!-- Degree (Major) selection -->
                 <div class="form-group">
                   <label>Degree</label>
@@ -140,7 +102,6 @@
                     <span v-else class="placeholder">Select your Degree</span>
                   </div>
                 </div>
-
                 <!-- Calculator type -->
                 <div class="form-group">
                   <label for="calc-type">Select Calculator Type</label>
@@ -150,11 +111,8 @@
                     <option value="US GPA 4.0">US GPA 4.0</option>
                   </select>
                 </div>
-
                 <div class="signup-buttons">
-                  <button type="submit" class="small-btn create-account-btn">
-                    Create Account
-                  </button>
+                  <button type="submit" class="small-btn create-account-btn">Create Account</button>
                 </div>
               </div>
             </transition>
@@ -166,19 +124,11 @@
       <div v-else-if="formMode === 'forgot'" key="forgot" class="auth-wrapper">
         <main class="auth-main">
           <h1>Forgot Password</h1>
-          <p>
-            Enter your email and we'll send you instructions to reset your password.
-          </p>
+          <p>Enter your email and we'll send you instructions to reset your password.</p>
           <form @submit.prevent="handleForgot">
             <div class="form-group">
               <label for="forgot-email">Email</label>
-              <input
-                  type="email"
-                  v-model="forgotEmail"
-                  id="forgot-email"
-                  placeholder="Enter your email"
-                  required
-              />
+              <input type="email" v-model="forgotEmail" id="forgot-email" placeholder="Enter your email" required />
             </div>
             <button type="submit" class="auth-button">Reset Password</button>
             <p class="back-link">
@@ -196,23 +146,27 @@
     <transition name="modal">
       <div v-if="showUniversityModal" class="modal-overlay" @click.self="closeUniversityModal">
         <div class="modal-content">
-          <h2>Select Your University</h2>
-          <input
-              type="text"
-              v-model="universitySearch"
-              placeholder="Search university..."
-              class="search-input"
-          />
+          <div class="modal-header">
+            <h2>Select Your University</h2>
+            <button class="close-button" @click="closeUniversityModal">&times;</button>
+          </div>
+          <input type="text" v-model="universitySearch" placeholder="Search university..." class="search-input" />
+          <p v-if="universitySearch && universitySearch.trim().length < 3" class="helper-text">
+            Please type at least 3 letters.
+          </p>
           <div class="list-container">
             <ul class="university-list">
-              <li
-                  v-for="(uniDoc, index) in filteredUniversities"
-                  :key="index"
-                  @click="selectUniversity(uniDoc)"
-              >
+              <li v-for="(uniDoc, index) in universityDocs" :key="index" @click="selectUniversity(uniDoc)">
                 {{ uniDoc.name }} – {{ uniDoc.counter }} students
               </li>
             </ul>
+            <!-- Load More Button with Loading Spinner -->
+            <div v-if="canLoadMore" class="load-more-container">
+              <button @click="loadMoreUniversities" class="small-btn next-btn">
+                <span v-if="!isLoadingMore">Load More</span>
+                <span v-else class="spinner"></span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -222,34 +176,21 @@
     <transition name="modal">
       <div v-if="showMajorModal" class="modal-overlay" @click.self="closeMajorModal">
         <div class="modal-content">
-          <h2>Select Your Degree</h2>
+          <div class="modal-header">
+            <h2>Select Your Degree</h2>
+            <button class="close-button" @click="closeMajorModal">&times;</button>
+          </div>
           <div v-if="showCustomMajorInput">
-            <input
-                type="text"
-                v-model="customMajor"
-                placeholder="Enter your degree"
-                class="search-input"
-            />
+            <input type="text" v-model="customMajor" placeholder="Enter your degree" class="search-input" />
             <div class="next-btn-container">
-              <button type="button" class="small-btn next-btn" @click="saveCustomMajor">
-                Save
-              </button>
+              <button type="button" class="small-btn next-btn" @click="saveCustomMajor">Save</button>
             </div>
           </div>
           <div v-else>
-            <input
-                type="text"
-                v-model="majorSearch"
-                placeholder="Search degree..."
-                class="search-input"
-            />
+            <input type="text" v-model="majorSearch" placeholder="Search degree..." class="search-input" />
             <div class="list-container">
               <ul class="university-list">
-                <li
-                    v-for="(majorObj, index) in filteredMajors"
-                    :key="index"
-                    @click="selectMajor(majorObj.major_name)"
-                >
+                <li v-for="(majorObj, index) in filteredMajors" :key="index" @click="selectMajor(majorObj.major_name)">
                   {{ majorObj.major_name }} – {{ majorObj.counter }} students
                 </li>
                 <li class="custom-option" @click="enableCustomMajor">
@@ -269,7 +210,7 @@ import axios from 'axios';
 import NavBar from '@/components/NavBar.vue';
 import Footer from '@/components/Footer.vue';
 
-const API_URL = 'http://localhost:7071/api'; // Your Azure Functions backend
+const API_URL = 'http://localhost:7071/api'; // Azure Functions backend
 
 export default {
   name: 'Login',
@@ -280,49 +221,46 @@ export default {
       darkMode: false,
       formMode: 'login',
       signUpStep: 1,
-      // Login fields
       loginEmail: '',
       loginPassword: '',
-      // Sign-up fields
       signUpEmail: '',
       signUpPassword: '',
       firstName: '',
       calcType: 'UK Percentage',
       degree: '',
-      // University data
       universityDocs: [],
       selectedUniversityDoc: null,
       universitySearch: '',
       showUniversityModal: false,
-      // Major data
+      searchTimeout: null,
+      // Pagination for university search
+      searchOffset: 0,
+      searchLimit: 10,
+      lastFetchedCount: 0,
+      isLoadingMore: false,
       majorSearch: '',
       showMajorModal: false,
       showCustomMajorInput: false,
       customMajor: '',
-      // Forgot Password
       forgotEmail: ''
     };
   },
   computed: {
-    filteredUniversities() {
-      const term = this.universitySearch.toLowerCase();
-      return this.universityDocs.filter(doc =>
-          doc.name.toLowerCase().includes(term)
-      );
-    },
     filteredMajors() {
       if (!this.selectedUniversityDoc) return [];
       const term = this.majorSearch.toLowerCase();
       return this.selectedUniversityDoc.majors.filter(m =>
           m.major_name.toLowerCase().includes(term)
       );
+    },
+    canLoadMore() {
+      return this.universitySearch.trim().length >= 3 && this.lastFetchedCount === this.searchLimit;
     }
   },
   mounted() {
     this.checkMobile();
     window.addEventListener('resize', this.checkMobile);
     this.setBackgroundGradient();
-    this.fetchAllUniversities();
   },
   beforeUnmount() {
     window.removeEventListener('resize', this.checkMobile);
@@ -342,17 +280,14 @@ export default {
       this.darkMode = !this.darkMode;
       document.body.classList.toggle('dark-mode', this.darkMode);
     },
-    async fetchAllUniversities() {
-      try {
-        const response = await axios.get(`${API_URL}/stats/universities`);
-        this.universityDocs = response.data;
-      } catch (err) {
-        console.error('Error fetching universities:', err);
-      }
-    },
     openUniversityModal() {
+      console.log("openUniversityModal triggered");
       this.showUniversityModal = true;
+      // Reset search state
       this.universitySearch = '';
+      this.universityDocs = [];
+      this.searchOffset = 0;
+      this.searchLimit = 10;
       document.body.style.overflow = 'hidden';
     },
     closeUniversityModal() {
@@ -410,8 +345,6 @@ export default {
         };
         const response = await axios.post(`${API_URL}/register`, payload);
         alert("Sign up successful: " + response.data.message);
-
-        // Fetch updated counters if a university is selected
         if (this.selectedUniversityDoc) {
           const updatedResponse = await axios.get(`${API_URL}/stats/university`, {
             params: { name: this.selectedUniversityDoc.name }
@@ -452,23 +385,67 @@ export default {
       this.formMode = 'forgot';
     },
     loginWithGoogle() {
-      // Redirect to your backend Google OAuth endpoint
       window.location.href = `${API_URL}/auth/google`;
+    },
+    // Main search function accepts a flag indicating if it's a "load more" request.
+    async searchUniversities(query, loadMore = false) {
+      try {
+        if (!loadMore) {
+          this.searchLimit = 10;
+          this.searchOffset = 0;
+        } else {
+          this.searchLimit = 20;
+          this.isLoadingMore = true;
+        }
+        const response = await axios.get(`${API_URL}/universities/search`, {
+          params: {
+            query,
+            limit: this.searchLimit,
+            offset: this.searchOffset
+          }
+        });
+        const results = response.data;
+        this.lastFetchedCount = results.length;
+        if (loadMore) {
+          const newResults = results.filter(u => !this.universityDocs.some(existing => existing.id === u.id));
+          this.universityDocs = this.universityDocs.concat(newResults);
+          this.searchOffset += newResults.length;
+          this.isLoadingMore = false;
+        } else {
+          this.universityDocs = results;
+          this.searchOffset = results.length;
+        }
+      } catch (err) {
+        console.error('Error searching universities:', err);
+        this.isLoadingMore = false;
+      }
+    },
+    loadMoreUniversities() {
+      this.searchUniversities(this.universitySearch, true);
     }
   },
   watch: {
-    '$route.query.mode': {
-      handler(newMode) {
-        if (newMode === 'signup') {
-          this.formMode = 'signup';
-          this.signUpStep = 1;
-        } else {
-          this.formMode = 'login';
-        }
-      },
-      immediate: true,
+    // Only trigger a new search if the search text is at least 3 characters.
+    universitySearch(newQuery) {
+      if (this.searchTimeout) clearTimeout(this.searchTimeout);
+      if (newQuery.trim().length >= 3) {
+        this.searchOffset = 0;
+        this.searchTimeout = setTimeout(() => {
+          this.searchUniversities(newQuery, false);
+        }, 300);
+      } else {
+        this.universityDocs = [];
+      }
     },
-  },
+    '$route.query.mode'(newMode) {
+      if (newMode === 'signup') {
+        this.formMode = 'signup';
+        this.signUpStep = 1;
+      } else {
+        this.formMode = 'login';
+      }
+    }
+  }
 };
 </script>
 
@@ -738,6 +715,23 @@ export default {
   max-height: 70vh;
 }
 
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  margin: 0;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
 .list-container {
   max-height: 40vh;
   overflow-y: auto;
@@ -782,6 +776,7 @@ export default {
   margin-bottom: 1rem;
   border: 1px solid #ddd;
   border-radius: 6px;
+  transition: all 0.3s ease;
 }
 
 .university-list {
@@ -794,6 +789,7 @@ export default {
   padding: 0.5rem;
   border-bottom: 1px solid #eee;
   cursor: pointer;
+  transition: background 0.2s ease;
 }
 
 .university-list li:hover {
@@ -804,6 +800,21 @@ export default {
 .university-list li.custom-option {
   font-style: italic;
   color: var(--link-color);
+}
+
+/* Loading spinner styles */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  border-top-color: #000;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Google OAuth Button Styles */
@@ -837,7 +848,6 @@ export default {
   margin-right: 0.5rem;
 }
 
-
 /* Dark mode adjustments */
 .dark-mode .auth-main {
   --link-color: #B191FC;
@@ -862,6 +872,7 @@ export default {
 .dark-mode .form-group input:focus,
 .dark-mode .form-group select:focus {
   border-color: var(--link-color);
+  outline: none;
 }
 
 .dark-mode .forgot-link,
