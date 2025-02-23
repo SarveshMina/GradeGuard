@@ -1,323 +1,372 @@
 <template>
   <div class="dashboard" ref="dashboardRef">
-    <h1>Dashboard</h1>
-    <!-- Dark/Light mode toggle -->
-    <button class="toggle-mode-btn" @click="toggleDarkMode">
-      <i v-if="!darkMode" class="fas fa-moon"></i>
-      <i v-else class="fas fa-sun"></i>
-      {{ darkMode ? 'Light Mode' : 'Dark Mode' }}
-    </button>
+    <!-- NavBar at the very top -->
+    <NavBar mode="dashboard" :isMobile="isMobile" />
 
-    <!-- If not logged in -->
-    <div v-if="notLoggedIn" class="center-content">
-      <p>You are not logged in!</p>
-      <p><a href="/login">Go to Login</a></p>
-    </div>
+    <!-- Dashboard content starts below NavBar -->
+    <div class="dashboard-content-wrapper">
+      <h1>Dashboard</h1>
 
-    <!-- Otherwise -->
-    <div v-else class="center-content">
-      <!-- 1. Setup Wizard for multi-choice preferences -->
-      <div v-if="showSetupWizard" class="setup-wizard">
-        <h2>Welcome! Let’s set up your preferences</h2>
-        <p>Please select an option for each question.</p>
-
-        <!-- Academic Level -->
-        <div class="form-group">
-          <label>What is your current academic level?</label>
-          <div class="select-group">
-            <button
-                class="select-btn"
-                :class="{ active: userConfig.academicLevel === 'Undergraduate' }"
-                @click="userConfig.academicLevel = 'Undergraduate'">
-              🎓 Undergraduate
-            </button>
-            <button
-                class="select-btn"
-                :class="{ active: userConfig.academicLevel === 'Postgraduate (Masters)' }"
-                @click="userConfig.academicLevel = 'Postgraduate (Masters)'">
-              🧑‍🎓 Masters
-            </button>
-            <button
-                class="select-btn"
-                :class="{ active: userConfig.academicLevel === 'Postgraduate (PhD)' }"
-                @click="userConfig.academicLevel = 'Postgraduate (PhD)'">
-              👨‍🎓 PhD
-            </button>
-          </div>
-        </div>
-
-        <!-- Enrollment Type -->
-        <div class="form-group">
-          <label>Are you full-time or part-time?</label>
-          <div class="select-group">
-            <button
-                class="select-btn"
-                :class="{ active: userConfig.enrollmentType === 'Full time' }"
-                @click="userConfig.enrollmentType = 'Full time'">
-              ✅ Full time
-            </button>
-            <button
-                class="select-btn"
-                :class="{ active: userConfig.enrollmentType === 'Part time' }"
-                @click="userConfig.enrollmentType = 'Part time'">
-              ⏳ Part time
-            </button>
-          </div>
-        </div>
-
-        <!-- Study Preference -->
-        <div class="form-group">
-          <label>What describes your study preferences best?</label>
-          <div class="select-group">
-            <button
-                class="select-btn"
-                :class="{ active: userConfig.studyPreference === 'Mornings are best' }"
-                @click="userConfig.studyPreference = 'Mornings are best'">
-              🌅 Mornings
-            </button>
-            <button
-                class="select-btn"
-                :class="{ active: userConfig.studyPreference === 'Afternoons are best' }"
-                @click="userConfig.studyPreference = 'Afternoons are best'">
-              ☀️ Afternoons
-            </button>
-            <button
-                class="select-btn"
-                :class="{ active: userConfig.studyPreference === 'Evenings are best' }"
-                @click="userConfig.studyPreference = 'Evenings are best'">
-              🌆 Evenings
-            </button>
-            <button
-                class="select-btn"
-                :class="{ active: userConfig.studyPreference === 'Late night' }"
-                @click="userConfig.studyPreference = 'Late night'">
-              🌙 Late Night
-            </button>
-          </div>
-        </div>
-
-        <!-- Additional questions can be added here -->
-
-        <button @click="saveUserConfig" class="save-button">Save Preferences</button>
+      <!-- If not logged in -->
+      <div v-if="notLoggedIn" class="center-content">
+        <p>You are not logged in!</p>
+        <p><a href="/login">Go to Login</a></p>
       </div>
 
-      <!-- 2. Normal Dashboard (Calculator UI, etc.) -->
-      <div v-else class="dashboard-content">
-        <h2>Select your Years</h2>
-        <table class="years-table">
-          <thead>
-          <tr>
-            <th>Active</th>
-            <th>Year</th>
-            <th># Credits</th>
-            <th>% Weight</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr v-for="(y, index) in calculatorConfig.years" :key="index">
-            <td>
-              <input type="checkbox" v-model="y.active" />
-            </td>
-            <td>{{ y.year }}</td>
-            <td>
-              <input type="number" v-model.number="y.credits" min="0" @input="onCreditsChange(index)" />
-            </td>
-            <td>
-              <input type="number" v-model.number="y.weight" min="0" max="100" @input="onWeightChange(index)" />
-            </td>
-          </tr>
-          </tbody>
-        </table>
-        <button class="save-button" @click="saveYears">Save Years</button>
+      <!-- Otherwise -->
+      <div v-else class="center-content">
+        <!-- 1. Setup Wizard for multi-choice preferences -->
+        <div v-if="showSetupWizard" class="setup-wizard">
+          <h2>Welcome! Let’s set up your preferences</h2>
+          <p>Please select an option for each question.</p>
+
+          <!-- Academic Level -->
+          <div class="form-group">
+            <label>What is your current academic level?</label>
+            <div class="select-group">
+              <button
+                  class="select-btn"
+                  :class="{ active: userConfig.academicLevel === 'Undergraduate' }"
+                  @click="userConfig.academicLevel = 'Undergraduate'"
+              >
+                🎓 Undergraduate
+              </button>
+              <button
+                  class="select-btn"
+                  :class="{ active: userConfig.academicLevel === 'Postgraduate (Masters)' }"
+                  @click="userConfig.academicLevel = 'Postgraduate (Masters)'"
+              >
+                🧑‍🎓 Masters
+              </button>
+              <button
+                  class="select-btn"
+                  :class="{ active: userConfig.academicLevel === 'Postgraduate (PhD)' }"
+                  @click="userConfig.academicLevel = 'Postgraduate (PhD)'"
+              >
+                👨‍🎓 PhD
+              </button>
+            </div>
+          </div>
+
+          <!-- Enrollment Type -->
+          <div class="form-group">
+            <label>Are you full-time or part-time?</label>
+            <div class="select-group">
+              <button
+                  class="select-btn"
+                  :class="{ active: userConfig.enrollmentType === 'Full time' }"
+                  @click="userConfig.enrollmentType = 'Full time'"
+              >
+                ✅ Full time
+              </button>
+              <button
+                  class="select-btn"
+                  :class="{ active: userConfig.enrollmentType === 'Part time' }"
+                  @click="userConfig.enrollmentType = 'Part time'"
+              >
+                ⏳ Part time
+              </button>
+            </div>
+          </div>
+
+          <!-- Study Preference -->
+          <div class="form-group">
+            <label>What describes your study preferences best?</label>
+            <div class="select-group">
+              <button
+                  class="select-btn"
+                  :class="{ active: userConfig.studyPreference === 'Mornings are best' }"
+                  @click="userConfig.studyPreference = 'Mornings are best'"
+              >
+                🌅 Mornings
+              </button>
+              <button
+                  class="select-btn"
+                  :class="{ active: userConfig.studyPreference === 'Afternoons are best' }"
+                  @click="userConfig.studyPreference = 'Afternoons are best'"
+              >
+                ☀️ Afternoons
+              </button>
+              <button
+                  class="select-btn"
+                  :class="{ active: userConfig.studyPreference === 'Evenings are best' }"
+                  @click="userConfig.studyPreference = 'Evenings are best'"
+              >
+                🌆 Evenings
+              </button>
+              <button
+                  class="select-btn"
+                  :class="{ active: userConfig.studyPreference === 'Late night' }"
+                  @click="userConfig.studyPreference = 'Late night'"
+              >
+                🌙 Late Night
+              </button>
+            </div>
+          </div>
+
+          <!-- Save Preferences -->
+          <button @click="saveUserConfig" class="save-button">
+            Save Preferences
+          </button>
+        </div>
+
+        <!-- 2. Normal Dashboard (Calculator UI, etc.) -->
+        <div v-else class="dashboard-content">
+          <h2>Select your Years</h2>
+          <table class="years-table">
+            <thead>
+            <tr>
+              <th>Active</th>
+              <th>Year</th>
+              <th># Credits</th>
+              <th>% Weight</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="(y, index) in calculatorConfig.years" :key="index">
+              <td>
+                <input type="checkbox" v-model="y.active" />
+              </td>
+              <td>{{ y.year }}</td>
+              <td>
+                <input
+                    type="number"
+                    v-model.number="y.credits"
+                    min="0"
+                    @input="onCreditsChange(index)"
+                />
+              </td>
+              <td>
+                <input
+                    type="number"
+                    v-model.number="y.weight"
+                    min="0"
+                    max="100"
+                    @input="onWeightChange(index)"
+                />
+              </td>
+            </tr>
+            </tbody>
+          </table>
+          <button class="save-button" @click="saveYears">
+            Save Years
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import axios from 'axios'
-import { notify } from '@/services/toastService.js'
-import NavBar from '@/components/NavBar.vue'
-import Footer from '@/components/Footer.vue'
-import {getDarkModePreference} from "@/services/darkModeService.js";
-import { API_URL } from '/src/config.js'
+import axios from "axios";
+import { notify } from "@/services/toastService.js";
+import NavBar from "@/components/NavBar.vue";
+import { getDarkModePreference, setDarkModePreference } from "@/services/darkModeService.js";
+import { API_URL } from "@/config.js";
 
 export default {
-  name: 'Dashboard',
-  components: { NavBar, Footer },
+  name: "Dashboard",
+  components: { NavBar },
   data() {
     return {
       darkMode: false,
       notLoggedIn: false,
       showSetupWizard: false,
       userConfig: {
-        academicLevel: '',
-        enrollmentType: '',
-        studyPreference: '',
+        academicLevel: "",
+        enrollmentType: "",
+        studyPreference: "",
       },
       calculatorConfig: {
         years: [
-          { year: 'Year 1', active: false, credits: 120, weight: 0 },
-          { year: 'Year 2', active: false, credits: 120, weight: 0 },
-          { year: 'Year 3', active: false, credits: 120, weight: 0 },
-          { year: 'Year 4', active: false, credits: 120, weight: 0 },
-          { year: 'Masters', active: false, credits: 180, weight: 0 },
+          { year: "Year 1", active: false, credits: 120, weight: 0 },
+          { year: "Year 2", active: false, credits: 120, weight: 0 },
+          { year: "Year 3", active: false, credits: 120, weight: 0 },
+          { year: "Year 4", active: false, credits: 120, weight: 0 },
+          { year: "Masters", active: false, credits: 180, weight: 0 },
         ],
       },
-      // Modal-related variables
+      // Modal-related variables (for university & degree selection)
       universityDocs: [],
       selectedUniversityDoc: null,
-      universitySearch: '',
+      universitySearch: "",
       showUniversityModal: false,
       searchTimeout: null,
       searchOffset: 0,
       searchLimit: 10,
       lastFetchedCount: 0,
       isLoadingMore: false,
-      majorSearch: '',
+      majorSearch: "",
       showMajorModal: false,
       showCustomMajorInput: false,
-      customMajor: '',
-      forgotEmail: ''
-    }
+      customMajor: "",
+      forgotEmail: "",
+      isMobile: false,
+    };
   },
   async mounted() {
-    await this.checkLoginAndFetchConfig()
-    this.initMouseReactiveGradient()
-    this.darkMode = getDarkModePreference()
+    await this.checkLoginAndFetchConfig();
+    // Initialize dark mode from stored preference
+    this.darkMode = getDarkModePreference();
     if (this.darkMode) {
-      document.body.classList.add('dark-mode')
+      document.body.classList.add("dark-mode");
     } else {
-      document.body.classList.remove('dark-mode')
+      document.body.classList.remove("dark-mode");
     }
+    // Immediately update the background gradient using default center coordinates
+    this.updateBackgroundGradient();
+    // Also attach the mousemove listener for reactive gradient changes
+    this.initMouseReactiveGradient();
+    // Set up mobile detection
+    this.checkMobile();
+    window.addEventListener("resize", this.checkMobile);
+    // Listen to localStorage changes (in case dark mode is toggled elsewhere)
+    window.addEventListener("storage", this.onStorageChange);
+  },
+  beforeUnmount() {
+    window.removeEventListener("resize", this.checkMobile);
+    window.removeEventListener("storage", this.onStorageChange);
+    document.body.style.overflow = "";
   },
   methods: {
-    toggleDarkMode() {
-      this.darkMode = !this.darkMode
-      setDarkModePreference(this.darkMode)
-      if (this.darkMode) {
-        document.body.classList.add('dark-mode')
-      } else {
-        document.body.classList.remove('dark-mode')
-      }
-    },
     initMouseReactiveGradient() {
-      const container = this.$refs.dashboardRef
+      const container = this.$refs.dashboardRef;
       if (container) {
-        container.addEventListener('mousemove', (e) => {
-          const rect = container.getBoundingClientRect()
-          const x = e.clientX - rect.left
-          const y = e.clientY - rect.top
-          const percentX = (x / rect.width) * 100
-          const percentY = (y / rect.height) * 100
+        container.addEventListener("mousemove", (e) => {
+          const rect = container.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          const percentX = (x / rect.width) * 100;
+          const percentY = (y / rect.height) * 100;
           const gradient = this.darkMode
               ? `radial-gradient(circle at ${percentX}% ${percentY}%, #444, #000)`
-              : `radial-gradient(circle at ${percentX}% ${percentY}%, #b191fc, #f2f2f2)`
-          container.style.background = gradient
-        })
+              : `radial-gradient(circle at ${percentX}% ${percentY}%, #b191fc, #f2f2f2)`;
+          container.style.background = gradient;
+        });
+      }
+    },
+    updateBackgroundGradient() {
+      const container = this.$refs.dashboardRef;
+      if (container) {
+        // Use center coordinates (50%,50%) for initial gradient update
+        const gradient = this.darkMode
+            ? `radial-gradient(circle at 50% 50%, #444, #000)`
+            : `radial-gradient(circle at 50% 50%, #b191fc, #f2f2f2)`;
+        container.style.background = gradient;
+      }
+    },
+    onStorageChange(e) {
+      if (e.key === "darkMode") {
+        this.darkMode = e.newValue === "true";
+        if (this.darkMode) {
+          document.body.classList.add("dark-mode");
+        } else {
+          document.body.classList.remove("dark-mode");
+        }
+        this.updateBackgroundGradient();
       }
     },
     async checkLoginAndFetchConfig() {
       try {
-        const userConfigResponse = await axios.get(`${API_URL}/user/config`, { withCredentials: true })
+        const userConfigResponse = await axios.get(`${API_URL}/user/config`, { withCredentials: true });
         if (userConfigResponse.data) {
-          this.userConfig = userConfigResponse.data
+          this.userConfig = userConfigResponse.data;
         }
         if (!this.userConfig.academicLevel || !this.userConfig.enrollmentType) {
-          this.showSetupWizard = true
+          this.showSetupWizard = true;
         }
-        const calcResponse = await axios.get(`${API_URL}/calculator`, { withCredentials: true })
+        const calcResponse = await axios.get(`${API_URL}/calculator`, { withCredentials: true });
         if (calcResponse.data && calcResponse.data.years) {
-          this.calculatorConfig = calcResponse.data
+          this.calculatorConfig = calcResponse.data;
         }
       } catch (error) {
-        console.error('Error fetching config:', error)
+        console.error("Error fetching config:", error);
         if (error.response && error.response.status === 401) {
-          this.notLoggedIn = true
-          this.$router.push('/login')
+          this.notLoggedIn = true;
+          this.$router.push("/login");
         }
       }
     },
     async saveUserConfig() {
       try {
-        await axios.put(`${API_URL}/user/config`, this.userConfig, { withCredentials: true })
-        notify({ type: 'success', message: 'Preferences saved successfully!' })
-        this.showSetupWizard = false
+        await axios.put(`${API_URL}/user/config`, this.userConfig, { withCredentials: true });
+        notify({ type: "success", message: "Preferences saved successfully!" });
+        this.showSetupWizard = false;
       } catch (error) {
-        console.error('Error saving user config:', error)
-        notify({ type: 'error', message: 'Failed to save your preferences.' })
+        console.error("Error saving user config:", error);
+        notify({ type: "error", message: "Failed to save your preferences." });
       }
     },
     async saveYears() {
       try {
-        await axios.put(`${API_URL}/calculator`, this.calculatorConfig, { withCredentials: true })
-        notify({ type: 'success', message: 'Calculator configuration saved successfully!' })
+        await axios.put(`${API_URL}/calculator`, this.calculatorConfig, { withCredentials: true });
+        notify({ type: "success", message: "Calculator configuration saved successfully!" });
       } catch (error) {
-        console.error('Error saving calculator config:', error)
-        notify({ type: 'error', message: 'Failed to save calculator configuration.' })
+        console.error("Error saving calculator config:", error);
+        notify({ type: "error", message: "Failed to save calculator configuration." });
       }
     },
     onCreditsChange(index) {
       if (this.calculatorConfig.years[index].credits < 0) {
-        this.calculatorConfig.years[index].credits = 0
+        this.calculatorConfig.years[index].credits = 0;
       }
     },
     onWeightChange(index) {
       if (this.calculatorConfig.years[index].weight < 0) {
-        this.calculatorConfig.years[index].weight = 0
+        this.calculatorConfig.years[index].weight = 0;
       }
       if (this.calculatorConfig.years[index].weight > 100) {
-        this.calculatorConfig.years[index].weight = 100
+        this.calculatorConfig.years[index].weight = 100;
       }
     },
-    // Modal functions for university & degree selection
+    // Modal functions for university & degree selection (unchanged)
     openUniversityModal() {
-      console.log("openUniversityModal triggered")
-      this.showUniversityModal = true
-      this.universitySearch = ''
-      this.universityDocs = []
-      this.searchOffset = 0
-      this.searchLimit = 10
-      document.body.style.overflow = 'hidden'
+      console.log("openUniversityModal triggered");
+      this.showUniversityModal = true;
+      this.universitySearch = "";
+      this.universityDocs = [];
+      this.searchOffset = 0;
+      this.searchLimit = 10;
+      document.body.style.overflow = "hidden";
     },
     closeUniversityModal() {
-      this.showUniversityModal = false
-      document.body.style.overflow = ''
+      this.showUniversityModal = false;
+      document.body.style.overflow = "";
     },
     selectUniversity(uniDoc) {
-      this.selectedUniversityDoc = uniDoc
-      this.closeUniversityModal()
+      this.selectedUniversityDoc = uniDoc;
+      this.closeUniversityModal();
     },
     openMajorModal() {
       if (!this.selectedUniversityDoc) {
-        notify({ type: 'warning', message: 'Please select a university first.' })
-        return
+        notify({ type: "warning", message: "Please select a university first." });
+        return;
       }
-      this.showMajorModal = true
-      this.majorSearch = ''
-      this.showCustomMajorInput = false
-      this.customMajor = ''
-      document.body.style.overflow = 'hidden'
+      this.showMajorModal = true;
+      this.majorSearch = "";
+      this.showCustomMajorInput = false;
+      this.customMajor = "";
+      document.body.style.overflow = "hidden";
     },
     closeMajorModal() {
-      this.showMajorModal = false
-      this.showCustomMajorInput = false
-      document.body.style.overflow = ''
+      this.showMajorModal = false;
+      this.showCustomMajorInput = false;
+      document.body.style.overflow = "";
     },
     selectMajor(majorName) {
-      this.degree = majorName
-      this.closeMajorModal()
+      this.degree = majorName;
+      this.closeMajorModal();
     },
     enableCustomMajor() {
-      this.showCustomMajorInput = true
-      this.customMajor = ''
+      this.showCustomMajorInput = true;
+      this.customMajor = "";
     },
     saveCustomMajor() {
-      if (this.customMajor.trim() !== '') {
-        this.degree = this.customMajor.trim()
-        this.closeMajorModal()
+      if (this.customMajor.trim() !== "") {
+        this.degree = this.customMajor.trim();
+        this.closeMajorModal();
       } else {
-        notify({ type: 'warning', message: 'Please enter your degree.' })
+        notify({ type: "warning", message: "Please enter your degree." });
       }
     },
     async handleSignUp() {
@@ -326,20 +375,20 @@ export default {
           firstName: this.firstName,
           email: this.signUpEmail,
           password: this.signUpPassword,
-          university: this.selectedUniversityDoc ? this.selectedUniversityDoc.name : '',
+          university: this.selectedUniversityDoc ? this.selectedUniversityDoc.name : "",
           degree: this.degree,
-          calcType: this.calcType
-        }
-        const response = await axios.post(`${API_URL}/register`, payload, { withCredentials: true })
-        notify({ type: 'success', message: 'Sign up successful: ' + response.data.message })
+          calcType: this.calcType,
+        };
+        const response = await axios.post(`${API_URL}/register`, payload, { withCredentials: true });
+        notify({ type: "success", message: "Sign up successful: " + response.data.message });
         if (this.selectedUniversityDoc) {
-          const updatedResponse = await axios.get(`${API_URL}/stats/university`, { params: { name: this.selectedUniversityDoc.name } })
-          this.selectedUniversityDoc = updatedResponse.data
+          const updatedResponse = await axios.get(`${API_URL}/stats/university`, { params: { name: this.selectedUniversityDoc.name } });
+          this.selectedUniversityDoc = updatedResponse.data;
         }
       } catch (error) {
-        console.error(error)
-        const errMsg = error.response?.data?.error || error.message
-        notify({ type: 'error', message: 'Sign up failed: ' + errMsg })
+        console.error(error);
+        const errMsg = error.response?.data?.error || error.message;
+        notify({ type: "error", message: "Sign up failed: " + errMsg });
       }
     },
     async handleLogin() {
@@ -347,89 +396,95 @@ export default {
         await axios.post(`${API_URL}/login`, {
           email: this.loginEmail,
           password: this.loginPassword,
-        }, { withCredentials: true })
-        notify({ type: 'success', message: 'Login successful.' })
-        this.$router.push('/dashboard')
+        }, { withCredentials: true });
+        notify({ type: "success", message: "Login successful." });
+        this.$router.push("/dashboard");
       } catch (error) {
-        notify({ type: 'error', message: 'Login failed: ' + (error.response?.data?.error || error.message) })
+        notify({ type: "error", message: "Login failed: " + (error.response?.data?.error || error.message) });
       }
     },
     async handleForgot() {
-      notify({ type: 'info', message: 'Forgot password request sent for ' + this.forgotEmail })
+      notify({ type: "info", message: "Forgot password request sent for " + this.forgotEmail });
     },
     switchToSignup() {
-      this.formMode = 'signup'
-      this.signUpStep = 1
-      this.$router.push({ path: '/login', query: { mode: 'signup' } })
+      this.formMode = "signup";
+      this.signUpStep = 1;
+      this.$router.push({ path: "/login", query: { mode: "signup" } });
     },
     switchToLogin() {
-      this.formMode = 'login'
-      this.$router.push({ path: '/login', query: { mode: 'login' } })
+      this.formMode = "login";
+      this.$router.push({ path: "/login", query: { mode: "login" } });
     },
     switchToForgot() {
-      this.formMode = 'forgot'
+      this.formMode = "forgot";
     },
     loginWithGoogle() {
-      window.location.href = `${API_URL}/auth/google`
+      window.location.href = `${API_URL}/auth/google`;
     },
     async searchUniversities(query, loadMore = false) {
       try {
         if (!loadMore) {
-          this.searchLimit = 10
-          this.searchOffset = 0
+          this.searchLimit = 10;
+          this.searchOffset = 0;
         } else {
-          this.searchLimit = 20
-          this.isLoadingMore = true
+          this.searchLimit = 20;
+          this.isLoadingMore = true;
         }
         const response = await axios.get(`${API_URL}/universities/search`, {
           params: {
             query,
             limit: this.searchLimit,
-            offset: this.searchOffset
-          }
-        })
-        const results = response.data
-        this.lastFetchedCount = results.length
+            offset: this.searchOffset,
+          },
+        });
+        const results = response.data;
+        this.lastFetchedCount = results.length;
         if (loadMore) {
-          const newResults = results.filter(u => !this.universityDocs.some(existing => existing.id === u.id))
-          this.universityDocs = this.universityDocs.concat(newResults)
-          this.searchOffset += newResults.length
-          this.isLoadingMore = false
+          const newResults = results.filter(
+              (u) => !this.universityDocs.some((existing) => existing.id === u.id)
+          );
+          this.universityDocs = this.universityDocs.concat(newResults);
+          this.searchOffset += newResults.length;
+          this.isLoadingMore = false;
         } else {
-          this.universityDocs = results
-          this.searchOffset = results.length
+          this.universityDocs = results;
+          this.searchOffset = results.length;
         }
       } catch (err) {
-        console.error('Error searching universities:', err)
-        this.isLoadingMore = false
+        console.error("Error searching universities:", err);
+        this.isLoadingMore = false;
       }
     },
     loadMoreUniversities() {
-      this.searchUniversities(this.universitySearch, true)
-    }
+      this.searchUniversities(this.universitySearch, true);
+    },
   },
   watch: {
     universitySearch(newQuery) {
-      if (this.searchTimeout) clearTimeout(this.searchTimeout)
+      if (this.searchTimeout) clearTimeout(this.searchTimeout);
       if (newQuery.trim().length >= 3) {
-        this.searchOffset = 0
+        this.searchOffset = 0;
         this.searchTimeout = setTimeout(() => {
-          this.searchUniversities(newQuery, false)
-        }, 300)
+          this.searchUniversities(newQuery, false);
+        }, 300);
       } else {
-        this.universityDocs = []
+        this.universityDocs = [];
       }
     },
-    '$route.query.mode'(newMode) {
-      if (newMode === 'signup') {
-        this.formMode = 'signup'
-        this.signUpStep = 1
+    "$route.query.mode"(newMode) {
+      if (newMode === "signup") {
+        this.formMode = "signup";
+        this.signUpStep = 1;
       } else {
-        this.formMode = 'login'
+        this.formMode = "login";
       }
-    }
-  }
-}
+    },
+    // Watch darkMode and update the background gradient immediately
+    darkMode(newVal) {
+      this.updateBackgroundGradient();
+    },
+  },
+};
 </script>
 
 <style scoped>
@@ -445,6 +500,11 @@ export default {
 .dashboard {
   padding: 2rem;
   text-align: center;
+}
+
+/* Wrapper to push content below NavBar */
+.dashboard-content-wrapper {
+  margin-top: 5rem; /* Adjust spacing as needed */
 }
 
 /* Setup Wizard */
@@ -464,7 +524,7 @@ export default {
   font-weight: 600;
 }
 
-/* New select-group styles for buttons */
+/* Select-group styles */
 .select-group {
   display: flex;
   flex-wrap: wrap;
@@ -483,12 +543,10 @@ export default {
   font-size: 0.9rem;
   transition: background 0.3s ease, color 0.3s ease;
 }
-
 .select-btn:hover {
   background: var(--link-color);
   color: #fff;
 }
-
 .select-btn.active {
   background: var(--link-color);
   color: #fff;
@@ -528,7 +586,13 @@ export default {
   background-color: #f2f2f2;
 }
 
-/* Existing styles */
+.years-table td {
+  border: 1px solid #ccc;
+  padding: 0.75rem;
+  text-align: center;
+}
+
+/* Existing styles remain unchanged */
 .auth-container {
   display: flex;
   flex-direction: column;
@@ -555,34 +619,7 @@ export default {
   color: #512DA8;
 }
 
-.nav-button {
-  margin: 0 0.5rem;
-  padding: 0.8rem 1.2rem;
-  border: 2px solid #000;
-  background: transparent;
-  color: #000;
-  border-radius: 24px;
-  cursor: pointer;
-  transition: 0.3s;
-  font-weight: 600;
-  text-decoration: none;
-  box-shadow: 0 0 8px rgba(0,0,0,0.2);
-}
-
-.nav-button:hover {
-  background: #000;
-  color: #fff;
-  transform: translateY(-2px);
-  box-shadow: 0 0 12px rgba(0,0,0,0.4);
-}
-
-.auth-wrapper {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 3rem;
-}
+/* Remove Footer styling for Dashboard */
 
 .auth-main {
   --link-color: #512da8;
@@ -918,66 +955,5 @@ export default {
   width: 20px;
   height: 20px;
   margin-right: 0.5rem;
-}
-
-.dark-mode .auth-main {
-  --link-color: #B191FC;
-  background: #2b2b2b;
-  color: #fff;
-}
-
-.dark-mode .auth-main h1,
-.dark-mode .auth-main p,
-.dark-mode .form-group label {
-  color: #fff;
-}
-
-.dark-mode .form-group input,
-.dark-mode .form-group select,
-.dark-mode .university-selector {
-  background: #444;
-  color: #fff;
-  border: 1px solid #555;
-}
-
-.dark-mode .form-group input:focus,
-.dark-mode .form-group select:focus {
-  border-color: var(--link-color);
-  outline: none;
-}
-
-.dark-mode .forgot-link,
-.dark-mode .auth-main p a {
-  color: var(--link-color);
-}
-
-.dark-mode .modal-content {
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.dark-mode .google-btn {
-  background: #000;
-  color: #fff;
-}
-
-.dark-mode .google-btn:hover {
-  background: #000;
-}
-
-/* Toggle mode button */
-.toggle-mode-btn {
-  margin: 1rem auto;
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 24px;
-  background: var(--link-color);
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.3s ease, transform 0.3s ease;
-}
-.toggle-mode-btn:hover {
-  background: #3f1e8c;
-  transform: scale(1.05);
 }
 </style>

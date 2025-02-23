@@ -66,7 +66,7 @@
         </svg>
       </router-link>
 
-      <!-- Only show dark mode toggle if not mobile -->
+      <!-- Dark/Light Mode Toggle (only shown on non-mobile devices) -->
       <button
           v-if="!isMobile"
           @click="toggleDarkMode"
@@ -74,6 +74,11 @@
       >
         <i v-if="!darkMode" class="fas fa-moon"></i>
         <i v-else class="fas fa-sun"></i>
+      </button>
+
+      <!-- Logout Button -->
+      <button @click="handleLogout" class="nav-button logout-btn">
+        Logout
       </button>
     </nav>
   </header>
@@ -85,18 +90,25 @@ export default {
   props: {
     mode: {
       type: String,
-      default: "login"
+      default: "login",
     },
-    // Prop to indicate if device is mobile (so we hide the toggle if true)
     isMobile: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   data() {
     return {
-      darkMode: false
+      darkMode: false,
     };
+  },
+  mounted() {
+    // Initialize dark mode from stored preference
+    const stored = localStorage.getItem("darkMode");
+    this.darkMode = stored === "true";
+    if (this.darkMode) {
+      document.body.classList.add("dark-mode");
+    }
   },
   methods: {
     toggleDarkMode() {
@@ -106,8 +118,14 @@ export default {
       } else {
         document.body.classList.remove("dark-mode");
       }
-    }
-  }
+      localStorage.setItem("darkMode", this.darkMode);
+    },
+    handleLogout() {
+      // Clear any session tokens as needed and redirect to login
+      localStorage.removeItem("session");
+      this.$router.push("/login");
+    },
+  },
 };
 </script>
 
@@ -120,10 +138,7 @@ export default {
   padding: 1rem 2rem;
 }
 
-/*
-  LOGO STYLES
-  Light mode: text color #512da8 with a neon glow of #b191fc
-*/
+/* Logo styles */
 .logo {
   font-size: 2rem;
   font-weight: bold;
@@ -131,158 +146,42 @@ export default {
   color: #512da8;
   transition: color 0.3s ease;
 }
-
-/*
-  On hover in light mode, apply the neon flicker effect and a slight scale animation.
-*/
 .logo:hover {
   animation: neonFlickerLight 2s ease-in-out infinite alternate,
   logoScale 2s ease-in-out infinite alternate;
 }
-
-/*
-  DARK MODE
-  Text color white
-*/
 .dark-mode .logo {
   color: #ffffff;
 }
-
-/*
-  On hover in dark mode, apply a neon flicker effect with a white glow and scaling.
-*/
 .dark-mode .logo:hover {
   animation: neonFlickerDark 2s ease-in-out infinite alternate,
   logoScale 2s ease-in-out infinite alternate;
 }
 
-/*
-  KEYFRAMES FOR LIGHT MODE NEON FLICKER
-  This creates a creative flicker effect with subtle shifts in shadow and position.
-*/
+/* Keyframes for neon flicker and scale (same as provided) */
 @keyframes neonFlickerLight {
-  0% {
-    text-shadow:
-        0 0 5px #b191fc,
-        0 0 10px #b191fc,
-        0 0 20px #b191fc,
-        0 0 30px #b191fc;
-    transform: translate(0, 0);
-  }
-  10% {
-    text-shadow:
-        0 0 8px #b191fc,
-        0 0 16px #b191fc,
-        0 0 24px #b191fc,
-        0 0 32px #b191fc;
-    transform: translate(-2px, 2px);
-  }
-  20% {
-    text-shadow:
-        0 0 12px #b191fc,
-        0 0 24px #b191fc,
-        0 0 36px #b191fc,
-        0 0 48px #b191fc;
-    transform: translate(2px, -2px);
-  }
-  30% {
-    text-shadow:
-        0 0 10px #b191fc,
-        0 0 20px #b191fc,
-        0 0 30px #b191fc,
-        0 0 40px #b191fc;
-    transform: translate(0, 0);
-  }
-  50% {
-    text-shadow:
-        0 0 14px #b191fc,
-        0 0 28px #b191fc,
-        0 0 42px #b191fc,
-        0 0 56px #b191fc;
-    transform: translate(1px, -1px);
-  }
-  100% {
-    text-shadow:
-        0 0 10px #b191fc,
-        0 0 20px #b191fc,
-        0 0 30px #b191fc,
-        0 0 40px #b191fc;
-    transform: translate(0, 0);
-  }
+  0% { text-shadow: 0 0 5px #b191fc, 0 0 10px #b191fc, 0 0 20px #b191fc, 0 0 30px #b191fc; transform: translate(0, 0); }
+  10% { text-shadow: 0 0 8px #b191fc, 0 0 16px #b191fc, 0 0 24px #b191fc, 0 0 32px #b191fc; transform: translate(-2px, 2px); }
+  20% { text-shadow: 0 0 12px #b191fc, 0 0 24px #b191fc, 0 0 36px #b191fc, 0 0 48px #b191fc; transform: translate(2px, -2px); }
+  30% { text-shadow: 0 0 10px #b191fc, 0 0 20px #b191fc, 0 0 30px #b191fc, 0 0 40px #b191fc; transform: translate(0, 0); }
+  50% { text-shadow: 0 0 14px #b191fc, 0 0 28px #b191fc, 0 0 42px #b191fc, 0 0 56px #b191fc; transform: translate(1px, -1px); }
+  100% { text-shadow: 0 0 10px #b191fc, 0 0 20px #b191fc, 0 0 30px #b191fc, 0 0 40px #b191fc; transform: translate(0, 0); }
 }
-
-/*
-  KEYFRAMES FOR DARK MODE NEON FLICKER
-  White glow around white text.
-*/
 @keyframes neonFlickerDark {
-  0% {
-    text-shadow:
-        0 0 5px #ffffff,
-        0 0 10px #ffffff,
-        0 0 20px #ffffff,
-        0 0 30px #ffffff;
-    transform: translate(0, 0);
-  }
-  10% {
-    text-shadow:
-        0 0 8px #ffffff,
-        0 0 16px #ffffff,
-        0 0 24px #ffffff,
-        0 0 32px #ffffff;
-    transform: translate(-2px, 2px);
-  }
-  20% {
-    text-shadow:
-        0 0 12px #ffffff,
-        0 0 24px #ffffff,
-        0 0 36px #ffffff,
-        0 0 48px #ffffff;
-    transform: translate(2px, -2px);
-  }
-  30% {
-    text-shadow:
-        0 0 10px #ffffff,
-        0 0 20px #ffffff,
-        0 0 30px #ffffff,
-        0 0 40px #ffffff;
-    transform: translate(0, 0);
-  }
-  50% {
-    text-shadow:
-        0 0 14px #ffffff,
-        0 0 28px #ffffff,
-        0 0 42px #ffffff,
-        0 0 56px #ffffff;
-    transform: translate(1px, -1px);
-  }
-  100% {
-    text-shadow:
-        0 0 10px #ffffff,
-        0 0 20px #ffffff,
-        0 0 30px #ffffff,
-        0 0 40px #ffffff;
-    transform: translate(0, 0);
-  }
+  0% { text-shadow: 0 0 5px #ffffff, 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px #ffffff; transform: translate(0, 0); }
+  10% { text-shadow: 0 0 8px #ffffff, 0 0 16px #ffffff, 0 0 24px #ffffff, 0 0 32px #ffffff; transform: translate(-2px, 2px); }
+  20% { text-shadow: 0 0 12px #ffffff, 0 0 24px #ffffff, 0 0 36px #ffffff, 0 0 48px #ffffff; transform: translate(2px, -2px); }
+  30% { text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px #ffffff, 0 0 40px #ffffff; transform: translate(0, 0); }
+  50% { text-shadow: 0 0 14px #ffffff, 0 0 28px #ffffff, 0 0 42px #ffffff, 0 0 56px #ffffff; transform: translate(1px, -1px); }
+  100% { text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px #ffffff, 0 0 40px #ffffff; transform: translate(0, 0); }
 }
-
-/*
-  KEYFRAMES FOR SCALE ANIMATION
-  A slight pulse effect on the logo.
-*/
 @keyframes logoScale {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }
 
-/* Arrow button styling for sign up / login links */
+/* Arrow button styles */
 .arrow-btn {
   font-size: 16px;
   font-weight: 600;
@@ -306,7 +205,7 @@ export default {
   z-index: 5;
 }
 .arrow-btn::before {
-  content: '';
+  content: "";
   background-color: #b39ddb;
   width: 28px;
   height: 28px;
