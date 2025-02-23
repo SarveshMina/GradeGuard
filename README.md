@@ -1,5 +1,3 @@
-Here’s a well-structured and visually appealing README.md file with better formatting, clear sections, and improved readability:
-
 📚 GradeHome
 
  
