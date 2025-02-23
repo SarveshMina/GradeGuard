@@ -66,8 +66,12 @@
         </svg>
       </router-link>
 
-      <!-- Dark mode toggle button -->
-      <button @click="toggleDarkMode" class="nav-button dark-mode-toggle">
+      <!-- Only show dark mode toggle if not mobile -->
+      <button
+          v-if="!isMobile"
+          @click="toggleDarkMode"
+          class="nav-button dark-mode-toggle"
+      >
         <i v-if="!darkMode" class="fas fa-moon"></i>
         <i v-else class="fas fa-sun"></i>
       </button>
@@ -82,6 +86,11 @@ export default {
     mode: {
       type: String,
       default: "login"
+    },
+    // Prop to indicate if device is mobile (so we hide the toggle if true)
+    isMobile: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
@@ -111,33 +120,166 @@ export default {
   padding: 1rem 2rem;
 }
 
-/* Logo styling with glowing text effect */
+/*
+  LOGO STYLES
+  Light mode: text color #512da8 with a neon glow of #b191fc
+*/
 .logo {
   font-size: 2rem;
   font-weight: bold;
   text-decoration: none;
-  /* In light mode, set text color to purple */
   color: #512da8;
-  transition: text-shadow 0.3s ease;
+  transition: color 0.3s ease;
 }
 
-/* Light mode glow: when hovered or active, glow white with increased intensity */
+/*
+  On hover in light mode, apply the neon flicker effect and a slight scale animation.
+*/
 .logo:hover {
-  text-shadow: 0 0 12px #ffffff;
-}
-.logo:active {
-  text-shadow: 0 0 20px #ffffff;
+  animation: neonFlickerLight 2s ease-in-out infinite alternate,
+  logoScale 2s ease-in-out infinite alternate;
 }
 
-/* Dark mode override: when body has dark-mode class */
+/*
+  DARK MODE
+  Text color white
+*/
 .dark-mode .logo {
   color: #ffffff;
 }
+
+/*
+  On hover in dark mode, apply a neon flicker effect with a white glow and scaling.
+*/
 .dark-mode .logo:hover {
-  text-shadow: 0 0 12px #512da8;
+  animation: neonFlickerDark 2s ease-in-out infinite alternate,
+  logoScale 2s ease-in-out infinite alternate;
 }
-.dark-mode .logo:active {
-  text-shadow: 0 0 20px #512da8;
+
+/*
+  KEYFRAMES FOR LIGHT MODE NEON FLICKER
+  This creates a creative flicker effect with subtle shifts in shadow and position.
+*/
+@keyframes neonFlickerLight {
+  0% {
+    text-shadow:
+        0 0 5px #b191fc,
+        0 0 10px #b191fc,
+        0 0 20px #b191fc,
+        0 0 30px #b191fc;
+    transform: translate(0, 0);
+  }
+  10% {
+    text-shadow:
+        0 0 8px #b191fc,
+        0 0 16px #b191fc,
+        0 0 24px #b191fc,
+        0 0 32px #b191fc;
+    transform: translate(-2px, 2px);
+  }
+  20% {
+    text-shadow:
+        0 0 12px #b191fc,
+        0 0 24px #b191fc,
+        0 0 36px #b191fc,
+        0 0 48px #b191fc;
+    transform: translate(2px, -2px);
+  }
+  30% {
+    text-shadow:
+        0 0 10px #b191fc,
+        0 0 20px #b191fc,
+        0 0 30px #b191fc,
+        0 0 40px #b191fc;
+    transform: translate(0, 0);
+  }
+  50% {
+    text-shadow:
+        0 0 14px #b191fc,
+        0 0 28px #b191fc,
+        0 0 42px #b191fc,
+        0 0 56px #b191fc;
+    transform: translate(1px, -1px);
+  }
+  100% {
+    text-shadow:
+        0 0 10px #b191fc,
+        0 0 20px #b191fc,
+        0 0 30px #b191fc,
+        0 0 40px #b191fc;
+    transform: translate(0, 0);
+  }
+}
+
+/*
+  KEYFRAMES FOR DARK MODE NEON FLICKER
+  White glow around white text.
+*/
+@keyframes neonFlickerDark {
+  0% {
+    text-shadow:
+        0 0 5px #ffffff,
+        0 0 10px #ffffff,
+        0 0 20px #ffffff,
+        0 0 30px #ffffff;
+    transform: translate(0, 0);
+  }
+  10% {
+    text-shadow:
+        0 0 8px #ffffff,
+        0 0 16px #ffffff,
+        0 0 24px #ffffff,
+        0 0 32px #ffffff;
+    transform: translate(-2px, 2px);
+  }
+  20% {
+    text-shadow:
+        0 0 12px #ffffff,
+        0 0 24px #ffffff,
+        0 0 36px #ffffff,
+        0 0 48px #ffffff;
+    transform: translate(2px, -2px);
+  }
+  30% {
+    text-shadow:
+        0 0 10px #ffffff,
+        0 0 20px #ffffff,
+        0 0 30px #ffffff,
+        0 0 40px #ffffff;
+    transform: translate(0, 0);
+  }
+  50% {
+    text-shadow:
+        0 0 14px #ffffff,
+        0 0 28px #ffffff,
+        0 0 42px #ffffff,
+        0 0 56px #ffffff;
+    transform: translate(1px, -1px);
+  }
+  100% {
+    text-shadow:
+        0 0 10px #ffffff,
+        0 0 20px #ffffff,
+        0 0 30px #ffffff,
+        0 0 40px #ffffff;
+    transform: translate(0, 0);
+  }
+}
+
+/*
+  KEYFRAMES FOR SCALE ANIMATION
+  A slight pulse effect on the logo.
+*/
+@keyframes logoScale {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 /* Arrow button styling for sign up / login links */
@@ -208,12 +350,12 @@ export default {
   transition: 0.3s;
   font-weight: 600;
   text-decoration: none;
-  box-shadow: 0 0 8px rgba(0,0,0,0.2);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
 }
 .nav-button:hover {
   background: #000;
   color: #fff;
   transform: translateY(-2px);
-  box-shadow: 0 0 12px rgba(0,0,0,0.4);
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
 }
 </style>

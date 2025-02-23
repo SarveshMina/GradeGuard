@@ -1,19 +1,11 @@
 <template>
   <div class="auth-container" ref="authContainer">
-    <!-- NavBar for desktop -->
-    <NavBar v-if="!isMobile" :mode="formMode" />
+    <!-- NavBar with isMobile passed from Login -->
+    <NavBar :mode="formMode" :isMobile="isMobile" />
 
-    <!-- Mobile header -->
+    <!-- Mobile header (if applicable) -->
     <div v-if="isMobile" class="mobile-header">
       <div class="mobile-logo">GradeHome</div>
-    </div>
-
-    <!-- Dark mode toggle -->
-    <div class="dark-mode-toggle-container">
-      <button @click="toggleDarkMode" class="nav-button dark-mode-toggle">
-        <i v-if="!darkMode" class="fas fa-moon"></i>
-        <i v-else class="fas fa-sun"></i>
-      </button>
     </div>
 
     <!-- Main form transition -->
@@ -139,7 +131,7 @@
       </div>
     </transition>
 
-    <!-- Footer -->
+    <!-- Footer (only on desktop) -->
     <Footer v-if="!isMobile" />
 
     <!-- University Selection Modal -->
@@ -206,19 +198,21 @@
 </template>
 
 <script>
-import axios from 'axios';
-import NavBar from '@/components/NavBar.vue';
-import Footer from '@/components/Footer.vue';
+import axios from 'axios'
+import { notify } from '@/services/toastService.js'
+import NavBar from '@/components/NavBar.vue'
+import Footer from '@/components/Footer.vue'
+import { getDarkModePreference, setDarkModePreference } from '@/services/darkModeService.js'
+import { API_URL } from '/src/config.js'
 
-const API_URL = 'http://localhost:7071/api'; // Azure Functions backend
 
 export default {
   name: 'Login',
   components: { NavBar, Footer },
   data() {
     return {
-      isMobile: false,
       darkMode: false,
+      isMobile: false,
       formMode: 'login',
       signUpStep: 1,
       loginEmail: '',
@@ -233,7 +227,6 @@ export default {
       universitySearch: '',
       showUniversityModal: false,
       searchTimeout: null,
-      // Pagination for university search
       searchOffset: 0,
       searchLimit: 10,
       lastFetchedCount: 0,
@@ -243,95 +236,107 @@ export default {
       showCustomMajorInput: false,
       customMajor: '',
       forgotEmail: ''
-    };
+    }
   },
   computed: {
     filteredMajors() {
-      if (!this.selectedUniversityDoc) return [];
-      const term = this.majorSearch.toLowerCase();
+      if (!this.selectedUniversityDoc) return []
+      const term = this.majorSearch.toLowerCase()
       return this.selectedUniversityDoc.majors.filter(m =>
           m.major_name.toLowerCase().includes(term)
-      );
+      )
     },
     canLoadMore() {
-      return this.universitySearch.trim().length >= 3 && this.lastFetchedCount === this.searchLimit;
+      return this.universitySearch.trim().length >= 3 && this.lastFetchedCount === this.searchLimit
     }
   },
   mounted() {
-    this.checkMobile();
-    window.addEventListener('resize', this.checkMobile);
-    this.setBackgroundGradient();
+    this.darkMode = getDarkModePreference()
+    if (this.darkMode) {
+      document.body.classList.add('dark-mode')
+    } else {
+      document.body.classList.remove('dark-mode')
+    }
+    // The rest of your existing mounted code...
+    this.checkMobile()
+    window.addEventListener('resize', this.checkMobile)
+    this.setBackgroundGradient()
   },
   beforeUnmount() {
-    window.removeEventListener('resize', this.checkMobile);
-    document.body.style.overflow = '';
+    window.removeEventListener('resize', this.checkMobile)
+    document.body.style.overflow = ''
   },
   methods: {
     checkMobile() {
-      this.isMobile = window.innerWidth <= 768;
+      this.isMobile = window.innerWidth <= 768
     },
     setBackgroundGradient() {
-      const container = this.$refs.authContainer;
+      const container = this.$refs.authContainer
       if (container) {
-        container.style.background = 'linear-gradient(160deg, #B191FC, #ffffff)';
+        container.style.background = 'var(--bg-gradient)'
       }
     },
     toggleDarkMode() {
-      this.darkMode = !this.darkMode;
-      document.body.classList.toggle('dark-mode', this.darkMode);
+      this.darkMode = !this.darkMode
+      setDarkModePreference(this.darkMode)
+
+      if (this.darkMode) {
+        document.body.classList.add('dark-mode')
+      } else {
+        document.body.classList.remove('dark-mode')
+      }
     },
     openUniversityModal() {
-      console.log("openUniversityModal triggered");
-      this.showUniversityModal = true;
-      // Reset search state
-      this.universitySearch = '';
-      this.universityDocs = [];
-      this.searchOffset = 0;
-      this.searchLimit = 10;
-      document.body.style.overflow = 'hidden';
+      console.log("openUniversityModal triggered")
+      this.showUniversityModal = true
+      this.universitySearch = ''
+      this.universityDocs = []
+      this.searchOffset = 0
+      this.searchLimit = 10
+      document.body.style.overflow = 'hidden'
     },
     closeUniversityModal() {
-      this.showUniversityModal = false;
-      document.body.style.overflow = '';
+      this.showUniversityModal = false
+      document.body.style.overflow = ''
     },
     selectUniversity(uniDoc) {
-      this.selectedUniversityDoc = uniDoc;
-      this.closeUniversityModal();
+      this.selectedUniversityDoc = uniDoc
+      this.closeUniversityModal()
     },
     openMajorModal() {
       if (!this.selectedUniversityDoc) {
-        alert("Please select a university first.");
-        return;
+        notify({ type: 'warning', message: 'Please select a university first.' })
+        return
       }
-      this.showMajorModal = true;
-      this.majorSearch = '';
-      this.showCustomMajorInput = false;
-      this.customMajor = '';
-      document.body.style.overflow = 'hidden';
+      this.showMajorModal = true
+      this.majorSearch = ''
+      this.showCustomMajorInput = false
+      this.customMajor = ''
+      document.body.style.overflow = 'hidden'
     },
     closeMajorModal() {
-      this.showMajorModal = false;
-      this.showCustomMajorInput = false;
-      document.body.style.overflow = '';
+      this.showMajorModal = false
+      this.showCustomMajorInput = false
+      document.body.style.overflow = ''
     },
     selectMajor(majorName) {
-      this.degree = majorName;
-      this.closeMajorModal();
+      this.degree = majorName
+      this.closeMajorModal()
     },
     enableCustomMajor() {
-      this.showCustomMajorInput = true;
-      this.customMajor = '';
+      this.showCustomMajorInput = true
+      this.customMajor = ''
     },
     saveCustomMajor() {
       if (this.customMajor.trim() !== '') {
-        this.degree = this.customMajor.trim();
-        this.closeMajorModal();
+        this.degree = this.customMajor.trim()
+        this.closeMajorModal()
       } else {
-        alert('Please enter your degree.');
+        notify({ type: 'warning', message: 'Please enter your degree.' })
       }
     },
     goToSignUpStep(step) {
-      this.signUpStep = step;
+      this.signUpStep = step
     },
     async handleSignUp() {
       try {
@@ -342,60 +347,63 @@ export default {
           university: this.selectedUniversityDoc ? this.selectedUniversityDoc.name : '',
           degree: this.degree,
           calcType: this.calcType
-        };
-        const response = await axios.post(`${API_URL}/register`, payload);
-        alert("Sign up successful: " + response.data.message);
+        }
+        const response = await axios.post(`${API_URL}/register`, payload, {
+          withCredentials: true
+        })
+        notify({ type: 'success', message: 'Sign up successful: ' + response.data.message })
         if (this.selectedUniversityDoc) {
           const updatedResponse = await axios.get(`${API_URL}/stats/university`, {
             params: { name: this.selectedUniversityDoc.name }
-          });
-          this.selectedUniversityDoc = updatedResponse.data;
+          })
+          this.selectedUniversityDoc = updatedResponse.data
         }
       } catch (error) {
-        console.error(error);
-        const errMsg = error.response?.data?.error || error.message;
-        alert("Sign up failed: " + errMsg);
+        console.error(error)
+        const errMsg = error.response?.data?.error || error.message
+        notify({ type: 'error', message: 'Sign up failed: ' + errMsg })
       }
     },
     async handleLogin() {
       try {
-        const response = await axios.post(`${API_URL}/login`, {
+        await axios.post(`${API_URL}/login`, {
           email: this.loginEmail,
           password: this.loginPassword,
-        });
-        alert("Login successful: " + response.data.message);
-        this.$router.push('/dashboard');
+        }, {
+          withCredentials: true
+        })
+        notify({ type: 'success', message: 'Login successful.' })
+        this.$router.push('/dashboard')
       } catch (error) {
-        alert("Login failed: " + (error.response?.data?.error || error.message));
+        notify({ type: 'error', message: 'Login failed: ' + (error.response?.data?.error || error.message) })
       }
     },
     async handleForgot() {
-      alert("Forgot password request sent for " + this.forgotEmail);
+      notify({ type: 'info', message: 'Forgot password request sent for ' + this.forgotEmail })
     },
     switchToSignup() {
-      this.formMode = 'signup';
-      this.signUpStep = 1;
-      this.$router.push({ path: '/login', query: { mode: 'signup' } });
+      this.formMode = 'signup'
+      this.signUpStep = 1
+      this.$router.push({ path: '/login', query: { mode: 'signup' } })
     },
     switchToLogin() {
-      this.formMode = 'login';
-      this.$router.push({ path: '/login', query: { mode: 'login' } });
+      this.formMode = 'login'
+      this.$router.push({ path: '/login', query: { mode: 'login' } })
     },
     switchToForgot() {
-      this.formMode = 'forgot';
+      this.formMode = 'forgot'
     },
     loginWithGoogle() {
-      window.location.href = `${API_URL}/auth/google`;
+      window.location.href = `${API_URL}/auth/google`
     },
-    // Main search function accepts a flag indicating if it's a "load more" request.
     async searchUniversities(query, loadMore = false) {
       try {
         if (!loadMore) {
-          this.searchLimit = 10;
-          this.searchOffset = 0;
+          this.searchLimit = 10
+          this.searchOffset = 0
         } else {
-          this.searchLimit = 20;
-          this.isLoadingMore = true;
+          this.searchLimit = 20
+          this.isLoadingMore = true
         }
         const response = await axios.get(`${API_URL}/universities/search`, {
           params: {
@@ -403,58 +411,58 @@ export default {
             limit: this.searchLimit,
             offset: this.searchOffset
           }
-        });
-        const results = response.data;
-        this.lastFetchedCount = results.length;
+        })
+        const results = response.data
+        this.lastFetchedCount = results.length
         if (loadMore) {
-          const newResults = results.filter(u => !this.universityDocs.some(existing => existing.id === u.id));
-          this.universityDocs = this.universityDocs.concat(newResults);
-          this.searchOffset += newResults.length;
-          this.isLoadingMore = false;
+          const newResults = results.filter(u => !this.universityDocs.some(existing => existing.id === u.id))
+          this.universityDocs = this.universityDocs.concat(newResults)
+          this.searchOffset += newResults.length
+          this.isLoadingMore = false
         } else {
-          this.universityDocs = results;
-          this.searchOffset = results.length;
+          this.universityDocs = results
+          this.searchOffset = results.length
         }
       } catch (err) {
-        console.error('Error searching universities:', err);
-        this.isLoadingMore = false;
+        console.error('Error searching universities:', err)
+        this.isLoadingMore = false
       }
     },
     loadMoreUniversities() {
-      this.searchUniversities(this.universitySearch, true);
+      this.searchUniversities(this.universitySearch, true)
     }
   },
   watch: {
-    // Only trigger a new search if the search text is at least 3 characters.
     universitySearch(newQuery) {
-      if (this.searchTimeout) clearTimeout(this.searchTimeout);
+      if (this.searchTimeout) clearTimeout(this.searchTimeout)
       if (newQuery.trim().length >= 3) {
-        this.searchOffset = 0;
+        this.searchOffset = 0
         this.searchTimeout = setTimeout(() => {
-          this.searchUniversities(newQuery, false);
-        }, 300);
+          this.searchUniversities(newQuery, false)
+        }, 300)
       } else {
-        this.universityDocs = [];
+        this.universityDocs = []
       }
     },
     '$route.query.mode'(newMode) {
       if (newMode === 'signup') {
-        this.formMode = 'signup';
-        this.signUpStep = 1;
+        this.formMode = 'signup'
+        this.signUpStep = 1
       } else {
-        this.formMode = 'login';
+        this.formMode = 'login'
       }
     }
   }
-};
+}
 </script>
 
 <style scoped>
+/* (Your existing CSS remains unchanged) */
 .auth-container {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: linear-gradient(160deg, #B191FC, #ffffff);
+  background: var(--bg-gradient);
   color: var(--text-color);
   font-family: "Montserrat", sans-serif;
 }
@@ -703,7 +711,8 @@ export default {
 .modal-content {
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37),
+  0 0 20px 5px rgba(81,45,168,0.6);
   border-radius: 16px;
   padding: 1.5rem;
   width: 100%;
@@ -713,6 +722,11 @@ export default {
   position: relative;
   box-sizing: border-box;
   max-height: 70vh;
+}
+
+.dark-mode .modal-content {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .modal-header {
@@ -802,7 +816,6 @@ export default {
   color: var(--link-color);
 }
 
-/* Loading spinner styles */
 .spinner {
   display: inline-block;
   width: 20px;
@@ -817,7 +830,6 @@ export default {
   to { transform: rotate(360deg); }
 }
 
-/* Google OAuth Button Styles */
 .oauth-container {
   margin-top: 1rem;
   display: flex;
@@ -848,7 +860,6 @@ export default {
   margin-right: 0.5rem;
 }
 
-/* Dark mode adjustments */
 .dark-mode .auth-main {
   --link-color: #B191FC;
   background: #2b2b2b;
@@ -883,5 +894,14 @@ export default {
 .dark-mode .modal-content {
   background: rgba(0, 0, 0, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark-mode .google-btn {
+  background: #000;
+  color: #fff;
+}
+
+.dark-mode .google-btn:hover {
+  background: #000;
 }
 </style>

@@ -7,25 +7,19 @@ import uuid
 import requests
 from azure.functions import HttpRequest, HttpResponse
 
-# Import helper functions from your project
 from database import create_user, get_user_by_email
-from user_routes import create_jwt
+from user_routes import create_session, SESSION_COOKIE_NAME, SESSION_TIMEOUT_SECONDS
 
-# Google OAuth configuration from environment variables
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI")
 
-# Google endpoints
 GOOGLE_AUTH_URI = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URI = "https://www.googleapis.com/oauth2/v3/userinfo"
 
 
 def google_login_redirect(req: HttpRequest) -> HttpResponse:
-    """
-    Redirect the user to Google OAuth 2.0 consent screen.
-    """
     auth_url = (
         f"{GOOGLE_AUTH_URI}"
         f"?client_id={GOOGLE_CLIENT_ID}"
@@ -35,17 +29,10 @@ def google_login_redirect(req: HttpRequest) -> HttpResponse:
         f"&access_type=offline"
         f"&prompt=consent"
     )
-    # Return a 302 redirect to the Google auth URL
     return HttpResponse(status_code=302, headers={"Location": auth_url})
 
 
 def google_auth_callback(req: HttpRequest) -> HttpResponse:
-    """
-    Handle the OAuth callback from Google.
-    Exchange the authorization code for tokens, fetch user info,
-    create a new user record if needed, and return a JWT.
-    """
-    # Retrieve the code from the query parameters
     code = req.params.get("code")
     if not code:
         return HttpResponse(
@@ -54,7 +41,6 @@ def google_auth_callback(req: HttpRequest) -> HttpResponse:
             mimetype="application/json"
         )
 
-    # Exchange the authorization code for tokens
     token_data = {
         "code": code,
         "client_id": GOOGLE_CLIENT_ID,
@@ -79,7 +65,6 @@ def google_auth_callback(req: HttpRequest) -> HttpResponse:
             mimetype="application/json"
         )
 
-    # Retrieve user information from Google using the access token
     headers = {"Authorization": f"Bearer {access_token}"}
     userinfo_response = requests.get(GOOGLE_USERINFO_URI, headers=headers)
     if userinfo_response.status_code != 200:
@@ -92,29 +77,37 @@ def google_auth_callback(req: HttpRequest) -> HttpResponse:
     email = userinfo.get("email")
     first_name = userinfo.get("given_name", "User")
 
-    # Check if the user already exists in our database
+    # Check existing user
     user_doc = get_user_by_email(email)
     if not user_doc:
-        # Create a new user record
         generated_userid = str(uuid.uuid4())
         user_doc = {
-            "id": email,  # using email as the document ID
+            "id": email,
             "userid": generated_userid,
             "firstName": first_name,
             "email": email,
-            "password": "",  # Password not needed for Google-auth users
-            "university": "",  # Optional: let the user fill this in later
+            "password": "", 
+            "university": "",
             "degree": "",
             "calcType": "",
             "createdAt": datetime.datetime.utcnow().isoformat()
         }
         create_user(user_doc)
 
-    # Generate a JWT token for the user
-    token = create_jwt(email)
+    # Create a session
+    session_id = create_session(email)
+    expire_time = (datetime.datetime.utcnow() + datetime.timedelta(seconds=SESSION_TIMEOUT_SECONDS)) \
+        .strftime("%a, %d-%b-%Y %H:%M:%S GMT")
 
-    # Instead of returning JSON, redirect to the frontend.
-    # Set your frontend URL (adjust the port/path as needed)
+    response = HttpResponse(
+        json.dumps({"message": "Authentication successful."}),
+        status_code=302,
+        mimetype="application/json"
+    )
+    # IMPORTANT: Add SameSite=None; Secure
+    response.headers["Set-Cookie"] = (
+        f"{SESSION_COOKIE_NAME}={session_id}; Expires={expire_time}; HttpOnly; Path=/; SameSite=None; Secure"
+    )
     frontend_redirect_url = os.environ.get("FRONTEND_REDIRECT_URL", "http://localhost:8080/dashboard")
-    redirect_url = f"{frontend_redirect_url}?token={token}"
-    return HttpResponse(status_code=302, headers={"Location": redirect_url})
+    response.headers["Location"] = frontend_redirect_url
+    return response

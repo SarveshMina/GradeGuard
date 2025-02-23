@@ -185,6 +185,8 @@ import AOS from 'aos'
 import 'aos/dist/aos.css'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+// 1) Import the helper if you created it
+import { getDarkModePreference, setDarkModePreference } from '@/services/darkModeService.js'
 
 export default {
   name: 'Landing',
@@ -214,12 +216,16 @@ export default {
     },
     toggleDarkMode() {
       this.darkMode = !this.darkMode
+      // 2) Save preference
+      setDarkModePreference(this.darkMode)
+
       if (this.darkMode) {
         document.body.classList.add('dark-mode')
       } else {
         document.body.classList.remove('dark-mode')
       }
-      // Immediately update the gradient using a default angle (135deg)
+
+      // Re-apply gradient logic
       const container = this.$refs.landingContainer
       const angle = 135
       const gradient = this.darkMode
@@ -232,6 +238,14 @@ export default {
     }
   },
   mounted() {
+    this.darkMode = getDarkModePreference();
+
+    if (this.darkMode) {
+      document.body.classList.add('dark-mode')
+    } else {
+      document.body.classList.remove('dark-mode')
+    }
+
     AOS.init({
       duration: 1000,
       offset: 120,
