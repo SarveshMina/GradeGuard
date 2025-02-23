@@ -1,9 +1,10 @@
 # GradeHome &middot; ![Azure Functions](https://img.shields.io/badge/Azure%20Functions-Python-blue?logo=azurefunctions&logoColor=white) ![VueJS](https://img.shields.io/badge/Vue-Capacitor%20Frontend-4FC08D?logo=vue.js&logoColor=white)
 
-**GradeHome** is a university grade‐tracking and calculator application. It offers:
+**GradeHome** is a university grade‐tracking and calculator application. It provides:
 
-- **Session-based authentication** using **Azure Functions** (Python) and **Azure Cosmos DB**.
-- A **Vue + Capacitor** frontend that can be run as a web app or packaged into mobile apps.
+- **Session-based authentication** (Azure Functions in Python + Azure Cosmos DB)
+- A **Vue + Capacitor** frontend (runs in a browser or packaged into mobile apps)
+- Google OAuth integration (optional)
 
 ---
 
@@ -23,57 +24,56 @@
 ## Project Structure
 
 GradeHome/
+├─ backend/                   # Azure Functions backend (Python)
+│  ├─ function_app.py         # Main Azure Functions entry point
+│  ├─ user_routes.py          # Session-based auth routes
+│  ├─ google_auth.py          # Google OAuth logic
+│  ├─ database.py             # Cosmos DB logic
+│  ├─ models.py               # Pydantic models
+│  ├─ requirements.txt        # Python dependencies
+│  └─ …                     # Additional function files, etc.
 │
-├── backend/                 # Azure Functions backend (Python)
-│   ├── function_app.py      # Main Azure Functions entry point
-│   ├── user_routes.py       # Session-based auth routes
-│   ├── google_auth.py       # Google OAuth logic
-│   ├── database.py          # Cosmos DB logic
-│   ├── models.py            # Pydantic models
-│   ├── requirements.txt     # Python dependencies
-│   └── …                  # Other function files, etc.
+├─ filter/                    # (Optional / not used if empty)
 │
-├── filter/                  # (Optional / not used if empty)
+├─ gradehome-frontend/        # Frontend (Vue + Capacitor)
+│  ├─ android/                # Android Capacitor project
+│  ├─ ios/                    # iOS Capacitor project
+│  ├─ public/                 # Public assets
+│  ├─ src/                    # Vue source code
+│  │  ├─ assets/
+│  │  ├─ components/
+│  │  ├─ plugins/
+│  │  ├─ services/
+│  │  ├─ views/
+│  │  ├─ App.vue
+│  │  ├─ main.js
+│  │  ├─ router.js
+│  │  └─ style.css
+│  ├─ package.json
+│  ├─ vite.config.js
+│  └─ …                     # Additional config (Capacitor, etc.)
 │
-├── gradehome-frontend/      # Frontend (Vue + Capacitor)
-│   ├── android/             # Android Capacitor project
-│   ├── ios/                 # iOS Capacitor project
-│   ├── public/              # Public assets
-│   ├── src/                 # Vue source code
-│   │   ├── assets/
-│   │   ├── components/
-│   │   ├── plugins/
-│   │   ├── services/
-│   │   ├── views/
-│   │   ├── App.vue
-│   │   ├── main.js
-│   │   ├── router.js
-│   │   └── style.css
-│   ├── package.json
-│   ├── vite.config.js       # Vite config
-│   └── …                  # Additional config (Capacitor, etc.)
-│
-└── .gitignore
+└─ .gitignore
 
 ---
 
 ## Prerequisites
 
 - **Azure Functions Core Tools** (for local backend testing)  
-  [Installation docs](https://learn.microsoft.com/azure/azure-functions/functions-run-local)
+  [Install Docs](https://learn.microsoft.com/azure/azure-functions/functions-run-local)
 
-- **Python 3.9+** (3.10/3.11/3.12 are also fine)  
+- **Python 3.9+** (3.10/3.11/3.12 are fine)  
   [Download Python](https://www.python.org/downloads/)
 
 - **Node.js 14+** (preferably Node 16 or 18)  
   [Download Node.js](https://nodejs.org/)
 
-- **npm** or **yarn** (for installing frontend dependencies)
+- **npm** or **yarn** (for frontend dependencies)
 
-- **Azure Cosmos DB** (or a local emulator)  
-  [Cosmos DB Emulator Docs](https://learn.microsoft.com/azure/cosmos-db/local-emulator)
+- **Azure Cosmos DB** (or the local Cosmos DB Emulator)  
+  [Cosmos Emulator Docs](https://learn.microsoft.com/azure/cosmos-db/local-emulator)
 
-- **Capacitor CLI** (optional if building mobile apps)  
+- **Capacitor CLI** (optional, if building mobile apps)  
   ```bash
   npm install -g @ionic/cli @capacitor/cli
 
@@ -81,14 +81,16 @@ Backend Setup
 	1.	Install Python dependencies:
 
 cd backend
-python -m venv venv          # create a virtual environment
-source venv/bin/activate     # or "venv\Scripts\activate" on Windows
+python -m venv venv
+# Activate the venv (Windows PowerShell):
+venv\Scripts\activate
+# Or (macOS/Linux):
+source venv/bin/activate
 
 pip install -r requirements.txt
 
 
-	2.	Set environment variables (see Environment Variables below).
-Example on Windows PowerShell:
+	2.	Set environment variables. Example in Windows PowerShell:
 
 $env:COSMOS_ENDPOINT="https://your-cosmos-url/"
 $env:COSMOS_KEY="your-cosmos-key"
@@ -105,9 +107,7 @@ $env:FRONTEND_REDIRECT_URL="http://localhost:5173/dashboard"
 
 func start
 
-By default, it listens at http://localhost:7071.
-
-	Note: If you see an error about missing modules, ensure your requirements.txt is correct and that you have installed all dependencies.
+By default, it listens on http://localhost:7071.
 
 Frontend Setup
 	1.	Install Node.js dependencies:
@@ -115,40 +115,40 @@ Frontend Setup
 cd gradehome-frontend
 npm install
 
-(or yarn install if you prefer Yarn)
+(or yarn install)
 
 	2.	Start the development server:
 
 npm run dev
 
-This typically runs at http://localhost:5173. Adjust environment variables (like FRONTEND_REDIRECT_URL) if needed.
+By default, runs at http://localhost:5173.
 
-	3.	(Optional) Capacitor Setup (for mobile):
+	3.	(Optional) Capacitor for mobile:
 
-# iOS
+# For iOS:
 npx cap add ios
-npx cap open ios   # opens Xcode
+npx cap open ios
 
-# Android
+# For Android:
 npx cap add android
 npx cap open android
 
-Then run npx cap sync after changing web code.
+Then npx cap sync after changes to web code.
 
 Environment Variables
 
-Backend
+Backend (in Azure or local .env / environment):
 
 Variable	Description	Example
 COSMOS_ENDPOINT	Cosmos DB endpoint URL	https://<your-db-name>.documents.azure.com
 COSMOS_KEY	Cosmos DB primary key	xxxxxx==
-COSMOS_DBNAME	Name of your Cosmos database	gradehome-db
+COSMOS_DBNAME	Your Cosmos DB name	gradehome-db
 COSMOS_CONTAINER	Container name for users	users
 COSMOS_UNI_CONTAINER	Container name for universities	universities
 GOOGLE_CLIENT_ID	Google OAuth client ID	123456-abcdef.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET	Google OAuth client secret	GOCSPX-xyz
 GOOGLE_REDIRECT_URI	Google OAuth callback URL	https://your-site.com/auth/google/callback
-FRONTEND_REDIRECT_URL	Frontend redirect after successful Google auth	http://localhost:5173/dashboard
+FRONTEND_REDIRECT_URL	Frontend redirect after Google auth success	http://localhost:5173/dashboard
 
 Running the App
 	1.	Start the backend:
@@ -156,32 +156,33 @@ Running the App
 cd backend
 func start
 
-Runs on http://localhost:7071.
+This runs on http://localhost:7071.
 
 	2.	Start the frontend:
 
 cd gradehome-frontend
 npm run dev
 
-Runs on http://localhost:5173.
+This runs on http://localhost:5173.
 
 	3.	Test:
-	•	Go to http://localhost:5173/ (landing page).
-	•	Register or Login at http://localhost:5173/login.
-	•	The backend sets a session cookie upon successful login.
-	•	Check protected endpoints (like /dashboard) to confirm the session works.
+	•	Visit http://localhost:5173/ for the landing page.
+	•	Go to http://localhost:5173/login to register or login.
+	•	On success, a session cookie is set by the backend.
+	•	Access protected routes (e.g. /dashboard) to confirm session-based auth.
 
 Deploying
-	•	Backend: Deploy the backend/ Azure Functions project to Azure. Make sure your environment variables (Cosmos, Google OAuth, etc.) are configured in the Azure Function App settings.
+	•	Backend:
+	•	Deploy the backend/ Azure Functions project to Azure.
+	•	Ensure your environment variables (Cosmos, Google OAuth, etc.) are configured in Azure Function App settings.
 	•	Frontend:
-	•	For a web build: npm run build inside gradehome-frontend/ to produce a production build in dist/. Host the dist/ folder on a static site (Azure Static Web Apps, Netlify, etc.).
-	•	For mobile: run npx cap copy to sync your web build into iOS/Android, then open in Xcode/Android Studio.
+	•	For web: npm run build inside gradehome-frontend to produce the dist/ folder. Host dist/ on a static site (Azure Static Web Apps, Netlify, etc.).
+	•	For mobile: run npx cap copy to sync the web build to iOS/Android. Open in Xcode/Android Studio for final packaging.
 
 License
 
 Licensed under the MIT License. See LICENSE for details.
 
 Happy coding with GradeHome!
-If you have any questions or issues, please open an issue in the repository.
-Enjoy building your grade-tracking application!
+If you have questions or issues, please open an issue in this repository. Enjoy building your grade‐tracking application!
 
