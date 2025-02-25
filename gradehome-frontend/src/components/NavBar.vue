@@ -5,66 +5,68 @@
       GradeHome
     </router-link>
     <nav>
-      <!-- When in login mode, show a Sign Up link; otherwise, show Login -->
-      <router-link
-          v-if="mode === 'login'"
-          :to="{ path: '/login', query: { mode: 'signup' } }"
-          class="arrow-btn"
-      >
-        <span class="text">Sign Up</span>
-        <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+      <!-- Only show Login/Sign Up links if not in dashboard mode -->
+      <template v-if="mode !== 'dashboard'">
+        <router-link
+            v-if="mode === 'login'"
+            :to="{ path: '/login', query: { mode: 'signup' } }"
+            class="arrow-btn"
         >
-          <path
-              d="M4.66669 11.3334L11.3334 4.66669"
-              stroke="white"
-              stroke-width="1.33333"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-          />
-          <path
-              d="M4.66669 4.66669H11.3334V11.3334"
-              stroke="white"
-              stroke-width="1.33333"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-          />
-        </svg>
-      </router-link>
+          <span class="text">Sign Up</span>
+          <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+                d="M4.66669 11.3334L11.3334 4.66669"
+                stroke="white"
+                stroke-width="1.33333"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            />
+            <path
+                d="M4.66669 4.66669H11.3334V11.3334"
+                stroke="white"
+                stroke-width="1.33333"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            />
+          </svg>
+        </router-link>
 
-      <router-link
-          v-else
-          :to="{ path: '/login', query: { mode: 'login' } }"
-          class="arrow-btn"
-      >
-        <span class="text">Login</span>
-        <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
+        <router-link
+            v-else
+            :to="{ path: '/login', query: { mode: 'login' } }"
+            class="arrow-btn"
         >
-          <path
-              d="M4.66669 11.3334L11.3334 4.66669"
-              stroke="white"
-              stroke-width="1.33333"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-          />
-          <path
-              d="M4.66669 4.66669H11.3334V11.3334"
-              stroke="white"
-              stroke-width="1.33333"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-          />
-        </svg>
-      </router-link>
+          <span class="text">Login</span>
+          <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+                d="M4.66669 11.3334L11.3334 4.66669"
+                stroke="white"
+                stroke-width="1.33333"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            />
+            <path
+                d="M4.66669 4.66669H11.3334V11.3334"
+                stroke="white"
+                stroke-width="1.33333"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            />
+          </svg>
+        </router-link>
+      </template>
 
       <!-- Dark/Light Mode Toggle (only shown on non-mobile devices) -->
       <button
@@ -76,8 +78,8 @@
         <i v-else class="fas fa-sun"></i>
       </button>
 
-      <!-- Logout Button -->
-      <button @click="handleLogout" class="nav-button logout-btn">
+      <!-- Logout Button (always visible when in dashboard mode) -->
+      <button v-if="mode === 'dashboard'" @click="handleLogout" class="nav-button logout-btn">
         Logout
       </button>
     </nav>
@@ -121,8 +123,10 @@ export default {
       localStorage.setItem("darkMode", this.darkMode);
     },
     handleLogout() {
-      // Clear any session tokens as needed and redirect to login
+      // Here you can clear session tokens as needed.
+      // For example, remove a session cookie or clear localStorage.
       localStorage.removeItem("session");
+      // Optionally, you might also call an API endpoint to invalidate the session.
       this.$router.push("/login");
     },
   },
@@ -158,7 +162,7 @@ export default {
   logoScale 2s ease-in-out infinite alternate;
 }
 
-/* Keyframes for neon flicker and scale (same as provided) */
+/* Keyframes for neon flicker and scale */
 @keyframes neonFlickerLight {
   0% { text-shadow: 0 0 5px #b191fc, 0 0 10px #b191fc, 0 0 20px #b191fc, 0 0 30px #b191fc; transform: translate(0, 0); }
   10% { text-shadow: 0 0 8px #b191fc, 0 0 16px #b191fc, 0 0 24px #b191fc, 0 0 32px #b191fc; transform: translate(-2px, 2px); }
