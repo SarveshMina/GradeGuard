@@ -1,8 +1,13 @@
-<!-- src/views/DashBoard.vue (Complete Code) -->
 <template>
   <div class="dashboard" :class="{ 'dark-mode': darkMode }">
-    <!-- NavBar at the very top -->
-    <NavBar mode="dashboard" :isMobile="isMobile" />
+    <!-- Dashboard NavBar at the top - use this instead of the regular NavBar -->
+    <DashboardNavBar
+        :userName="userProfile.firstName || 'User'"
+        :userEmail="userProfile.email || 'user@example.com'"
+        :userAvatar="userProfile.avatar"
+        :isMobile="isMobile"
+        @logout="handleLogout"
+    />
 
     <!-- Layout container: main content and sidebar -->
     <div class="dashboard-layout">
@@ -23,25 +28,6 @@
       <div class="dashboard-main-content" :class="{ 'expanded': !sidebarVisible }">
         <div class="dashboard-header">
           <h1>My Dashboard</h1>
-          <div class="header-actions">
-            <button class="theme-toggle" @click="toggleDarkMode">
-              <!-- Sun/Moon icon depending on dark mode -->
-              <svg v-if="!darkMode" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-              </svg>
-              <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="5"></circle>
-                <line x1="12" y1="1" x2="12" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="23"></line>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                <line x1="1" y1="12" x2="3" y2="12"></line>
-                <line x1="21" y1="12" x2="23" y2="12"></line>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-              </svg>
-            </button>
-          </div>
         </div>
 
         <!-- If not logged in -->
@@ -392,14 +378,14 @@
 <script>
 import axios from "axios";
 import { notify } from "@/services/toastService.js";
-import NavBar from "@/components/NavBar.vue";
+import DashboardNavBar from "@/components/DashboardNavBar.vue";
 import CalendarSidebar from "@/components/CalendarSidebar.vue";
-import { getDarkModePreference, setDarkModePreference } from "@/services/darkModeService.js";
+import { getDarkModePreference } from "@/services/darkModeService.js";
 import { API_URL } from "@/config.js";
 
 export default {
   name: "Dashboard",
-  components: { NavBar, CalendarSidebar },
+  components: { DashboardNavBar, CalendarSidebar },
   data() {
     return {
       darkMode: false,
@@ -428,6 +414,12 @@ export default {
         customCredits: 0,
       },
       isMobile: false,
+      // User profile information
+      userProfile: {
+        firstName: "",
+        email: "",
+        avatar: ""
+      }
     };
   },
   computed: {
@@ -442,12 +434,8 @@ export default {
 
     // Handle dark mode
     this.darkMode = getDarkModePreference();
-    if (this.darkMode) {
-      document.body.classList.add("dark-mode");
-    } else {
-      document.body.classList.remove("dark-mode");
-    }
 
+    // Check for mobile
     this.checkMobile();
     window.addEventListener("resize", this.checkMobile);
 
@@ -456,9 +444,13 @@ export default {
     if (storedSidebarState !== null) {
       this.sidebarVisible = storedSidebarState === 'true';
     }
+
+    // Listen for dark mode changes from other components
+    window.addEventListener('darkModeChange', this.onDarkModeChange);
   },
   beforeUnmount() {
     window.removeEventListener("resize", this.checkMobile);
+    window.removeEventListener('darkModeChange', this.onDarkModeChange);
   },
   methods: {
     toggleSidebar() {
@@ -466,32 +458,45 @@ export default {
       // Save preference to localStorage
       localStorage.setItem('sidebarVisible', this.sidebarVisible);
     },
-    toggleDarkMode() {
-      this.darkMode = !this.darkMode;
-      setDarkModePreference(this.darkMode);
-      if (this.darkMode) {
-        document.body.classList.add("dark-mode");
-      } else {
-        document.body.classList.remove("dark-mode");
-      }
+    onDarkModeChange(event) {
+      this.darkMode = event.detail.isDark;
+    },
+    handleLogout() {
+      // This method is here to handle the logout event from the navbar
+      // The actual logout functionality is in the navbar component
+      this.notLoggedIn = true;
     },
     async checkLoginAndFetchConfig() {
       try {
+        // Get user profile information
+        const userProfileResponse = await axios.get(`${API_URL}/user/profile`, {
+          withCredentials: true,
+        });
+
+        if (userProfileResponse.data) {
+          this.userProfile = userProfileResponse.data;
+        }
+
+        // Get user configuration
         const userConfigResponse = await axios.get(`${API_URL}/user/config`, {
           withCredentials: true,
         });
+
         if (userConfigResponse.data) {
           this.userConfig = userConfigResponse.data;
         }
+
         // Show wizard if no basic preferences yet
         if (!this.userConfig.academicLevel || !this.userConfig.enrollmentType) {
           this.showSetupWizard = true;
           return;
         }
+
         // Fetch calculator config if it exists
         const calcResponse = await axios.get(`${API_URL}/calculator`, {
           withCredentials: true,
         });
+
         if (calcResponse.data?.years?.length) {
           this.calculatorConfig = calcResponse.data;
         } else {
@@ -625,138 +630,46 @@ export default {
 </script>
 
 <style scoped>
-/* CSS Variables for colors */
-:root {
-  --primary-color: #7b49ff;
-  --primary-light: #9170ff;
-  --primary-dark: #512da8;
-  --primary-bg: #f8f6ff;
-  --secondary-color: #b39ddb;
-  --secondary-light: #d1c4e9;
-  --accent-color: #ff4081;
-  --success-color: #4caf50;
-  --warning-color: #ffc107;
-  --error-color: #f44336;
-
-  --text-primary: #333333;
-  --text-secondary: #666666;
-  --text-muted: #888888;
-
-  --bg-light: #ffffff;
-  --bg-card: #ffffff;
-  --border-color: #e0e0e0;
-  --shadow-color: rgba(123, 73, 255, 0.1);
-
-  /* Transitions */
-  --transition-speed: 0.3s;
-}
-
-/* Dark mode variables */
-.dark-mode {
-  --primary-color: #9170ff;
-  --primary-light: #b39ddb;
-  --primary-dark: #5e35b1;
-  --primary-bg: #1a1a2e;
-  --secondary-color: #d1c4e9;
-  --secondary-light: #ede7f6;
-
-  --text-primary: #e0e0e0;
-  --text-secondary: #b0b0b0;
-  --text-muted: #888888;
-
-  --bg-light: #121212;
-  --bg-card: #1e1e30;
-  --border-color: #333333;
-  --shadow-color: rgba(0, 0, 0, 0.25);
-}
-
-.center-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-}
-
 .dashboard {
   min-height: 100vh;
-  background-color: var(--primary-bg);
-  transition: background-color var(--transition-speed) ease;
+  background-color: var(--bg-light);
   color: var(--text-primary);
+  transition: background-color var(--transition-speed) ease,
+  color var(--transition-speed) ease;
 }
 
-/* Dashboard header */
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.dashboard-header h1 {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 600;
-  color: var(--primary-dark);
-  transition: color var(--transition-speed) ease;
-}
-
-.dark-mode .dashboard-header h1 {
-  color: var(--primary-light);
-}
-
-.header-actions {
-  display: flex;
-  gap: 1rem;
-}
-
-.theme-toggle {
-  background: transparent;
-  border: none;
-  color: var(--primary-color);
-  cursor: pointer;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background-color var(--transition-speed) ease;
-}
-
-.theme-toggle:hover {
-  background-color: rgba(123, 73, 255, 0.1);
-}
-
-.dark-mode .theme-toggle:hover {
-  background-color: rgba(177, 156, 217, 0.2);
-}
-
-/* Flex layout for main content and sidebar */
 .dashboard-layout {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
   position: relative;
-  padding: 2rem;
-  gap: 2rem;
-  min-height: calc(100vh - 4rem);
+  padding-top: 70px; /* Space for fixed navbar */
+  min-height: calc(100vh - 70px);
 }
 
 /* Main content styles */
 .dashboard-main-content {
   flex: 1;
-  max-width: 1200px;
-  margin: 0 auto;
   padding: 2rem;
-  background-color: var(--bg-light);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px var(--shadow-color);
   transition: all var(--transition-speed) ease;
 }
 
 .dashboard-main-content.expanded {
   margin-right: 0;
+}
+
+.dashboard-header {
+  margin-bottom: 2rem;
+}
+
+.dashboard-header h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  margin: 0;
+}
+
+body.dark-mode .dashboard-header h1 {
+  color: var(--primary-light);
 }
 
 /* Sidebar toggle buttons */
@@ -772,7 +685,7 @@ export default {
   padding: 0.6rem 1.2rem;
   cursor: pointer;
   font-weight: 500;
-  box-shadow: 0 2px 8px var(--shadow-color);
+  box-shadow: var(--shadow-sm);
   transition: all 0.2s ease;
   z-index: 10;
 }
@@ -804,24 +717,34 @@ export default {
 /* Sidebar styles */
 .dashboard-sidebar {
   width: 320px;
-  background-color: var(--bg-light);
-  border-radius: 12px;
-  box-shadow: 0 4px 20px var(--shadow-color);
-  overflow: hidden;
+  background-color: var(--bg-card);
+  border-left: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
   transition: all var(--transition-speed) ease;
   position: relative;
+  overflow: hidden;
 }
 
 /* Slide transition for sidebar */
 .slide-enter-active,
 .slide-leave-active {
-  transition: transform var(--transition-speed) ease, opacity var(--transition-speed) ease;
+  transition: transform var(--transition-speed) ease,
+  opacity var(--transition-speed) ease;
 }
 
 .slide-enter-from,
 .slide-leave-to {
   transform: translateX(100%);
   opacity: 0;
+}
+
+/* Center content container */
+.center-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
 }
 
 /* Authentication prompt */
@@ -835,9 +758,9 @@ export default {
 
 .auth-card {
   background-color: var(--bg-card);
-  border-radius: 12px;
+  border-radius: var(--border-radius-lg);
   padding: 3rem 2rem;
-  box-shadow: 0 4px 20px var(--shadow-color);
+  box-shadow: var(--shadow-md);
   text-align: center;
   max-width: 400px;
   width: 100%;
@@ -858,10 +781,6 @@ export default {
   color: var(--primary-dark);
 }
 
-.dark-mode .auth-card h2 {
-  color: var(--primary-light);
-}
-
 .auth-card p {
   margin: 0;
   color: var(--text-secondary);
@@ -875,7 +794,7 @@ export default {
   border-radius: 24px;
   text-decoration: none;
   font-weight: 500;
-  box-shadow: 0 2px 10px rgba(123, 73, 255, 0.3);
+  box-shadow: var(--shadow-sm);
   transition: all 0.2s ease;
 }
 
@@ -884,12 +803,12 @@ export default {
   transform: translateY(-2px);
 }
 
-/* Wizard card styling */
+/* Wizard styles */
 .wizard-card {
   background-color: var(--bg-card);
-  border-radius: 12px;
+  border-radius: var(--border-radius-lg);
   padding: 2rem;
-  box-shadow: 0 4px 20px var(--shadow-color);
+  box-shadow: var(--shadow-md);
   max-width: 700px;
   width: 100%;
   margin: 0 auto;
@@ -919,10 +838,6 @@ export default {
   color: var(--primary-dark);
 }
 
-.dark-mode .wizard-header h2 {
-  color: var(--primary-light);
-}
-
 .wizard-header p {
   margin: 0;
   color: var(--text-secondary);
@@ -944,9 +859,9 @@ export default {
   width: 100%;
   padding: 0.75rem;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--border-radius);
   font-size: 1rem;
-  background-color: var(--bg-light);
+  background-color: var(--bg-input);
   color: var(--text-primary);
   transition: border-color var(--transition-speed) ease;
 }
@@ -972,7 +887,7 @@ export default {
   background: transparent;
   color: var(--primary-color);
   padding: 0.75rem 1.25rem;
-  border-radius: 8px;
+  border-radius: var(--border-radius);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 500;
@@ -1004,7 +919,7 @@ export default {
   background-color: var(--primary-color);
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--border-radius);
   cursor: pointer;
   transition: all 0.3s ease;
   width: 100%;
@@ -1034,7 +949,7 @@ export default {
   background-color: transparent;
   color: var(--primary-color);
   border: 2px solid var(--primary-color);
-  border-radius: 8px;
+  border-radius: var(--border-radius);
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -1051,9 +966,9 @@ export default {
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
   color: white;
   padding: 2rem;
-  border-radius: 12px;
+  border-radius: var(--border-radius-lg);
   margin-bottom: 2rem;
-  box-shadow: 0 4px 12px rgba(123, 73, 255, 0.2);
+  box-shadow: var(--shadow-md);
 }
 
 .banner-content h2 {
@@ -1074,9 +989,9 @@ export default {
 /* Calculator card */
 .calculator-card {
   background-color: var(--bg-card);
-  border-radius: 12px;
+  border-radius: var(--border-radius-lg);
   padding: 2rem;
-  box-shadow: 0 4px 20px var(--shadow-color);
+  box-shadow: var(--shadow-md);
 }
 
 .calculator-card h2 {
@@ -1084,10 +999,6 @@ export default {
   font-size: 1.5rem;
   font-weight: 600;
   color: var(--primary-dark);
-}
-
-.dark-mode .calculator-card h2 {
-  color: var(--primary-light);
 }
 
 .card-description {
@@ -1119,18 +1030,13 @@ export default {
   font-weight: 500;
 }
 
-.dark-mode .years-table th {
-  background-color: rgba(123, 73, 255, 0.15);
-  color: var(--primary-light);
-}
-
 .years-table input[type="number"] {
   width: 80px;
   padding: 0.5rem;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--border-radius);
   text-align: center;
-  background-color: var(--bg-light);
+  background-color: var(--bg-input);
   color: var(--text-primary);
 }
 
@@ -1222,8 +1128,7 @@ input:checked + .toggle-slider:before {
 @media (max-width: 768px) {
   .dashboard-layout {
     flex-direction: column;
-    padding: 1rem;
-    gap: 1rem;
+    padding-top: 60px; /* Smaller navbar height */
   }
 
   .dashboard-main-content {
@@ -1233,12 +1138,13 @@ input:checked + .toggle-slider:before {
   .dashboard-sidebar {
     width: 100%;
     position: fixed;
-    top: 0;
+    top: 60px;
     left: 0;
     right: 0;
     bottom: 0;
     z-index: 100;
     border-radius: 0;
+    border-left: none;
   }
 
   .sidebar-hide-button {

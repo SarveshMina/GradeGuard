@@ -1,12 +1,13 @@
 <template>
-  <header class="auth-header">
+  <header class="app-header" :class="{ 'dashboard-header': isDashboard }">
     <!-- Clickable Logo -->
     <router-link to="/" class="logo">
-      GradeHome
+      GradeGuard
     </router-link>
+
     <nav>
       <!-- Only show Login/Sign Up links if not in dashboard mode -->
-      <template v-if="mode !== 'dashboard'">
+      <template v-if="!isDashboard">
         <router-link
             v-if="mode === 'login'"
             :to="{ path: '/login', query: { mode: 'signup' } }"
@@ -68,25 +69,54 @@
         </router-link>
       </template>
 
-      <!-- Dark/Light Mode Toggle (only shown on non-mobile devices) -->
+      <!-- Dashboard-specific controls -->
+      <template v-if="isDashboard">
+        <div class="dashboard-controls">
+          <!-- User name/avatar could go here -->
+          <div class="user-info" v-if="userName">
+            <span class="welcome-text">Welcome, {{ userName }}</span>
+          </div>
+        </div>
+      </template>
+
+      <!-- Dark/Light Mode Toggle (visible on all screens) -->
       <button
-          v-if="!isMobile"
           @click="toggleDarkMode"
-          class="nav-button dark-mode-toggle"
+          class="theme-toggle"
+          aria-label="Toggle dark mode"
       >
-        <i v-if="!darkMode" class="fas fa-moon"></i>
-        <i v-else class="fas fa-sun"></i>
+        <svg v-if="darkMode" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"></circle>
+          <line x1="12" y1="1" x2="12" y2="3"></line>
+          <line x1="12" y1="21" x2="12" y2="23"></line>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+          <line x1="1" y1="12" x2="3" y2="12"></line>
+          <line x1="21" y1="12" x2="23" y2="12"></line>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
       </button>
 
-      <!-- Logout Button (always visible when in dashboard mode) -->
-      <button v-if="mode === 'dashboard'" @click="handleLogout" class="nav-button logout-btn">
-        Logout
+      <!-- Logout Button (only visible in dashboard mode) -->
+      <button v-if="isDashboard" @click="handleLogout" class="logout-btn">
+        <span>Logout</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
       </button>
     </nav>
   </header>
 </template>
 
 <script>
+import { getDarkModePreference, setDarkModePreference, toggleDarkMode } from '@/services/darkModeService.js';
+
 export default {
   name: "NavBar",
   props: {
@@ -98,36 +128,49 @@ export default {
       type: Boolean,
       default: false,
     },
+    userName: {
+      type: String,
+      default: '',
+    }
   },
   data() {
     return {
-      darkMode: false,
+      darkMode: getDarkModePreference(),
     };
+  },
+  computed: {
+    isDashboard() {
+      return this.mode === 'dashboard';
+    }
   },
   mounted() {
     // Initialize dark mode from stored preference
-    const stored = localStorage.getItem("darkMode");
-    this.darkMode = stored === "true";
-    if (this.darkMode) {
-      document.body.classList.add("dark-mode");
-    }
+    this.darkMode = getDarkModePreference();
+
+    // Listen for dark mode changes from other components
+    window.addEventListener('darkModeChange', this.onDarkModeChange);
+  },
+  beforeUnmount() {
+    // Clean up event listener
+    window.removeEventListener('darkModeChange', this.onDarkModeChange);
   },
   methods: {
     toggleDarkMode() {
-      this.darkMode = !this.darkMode;
-      if (this.darkMode) {
-        document.body.classList.add("dark-mode");
-      } else {
-        document.body.classList.remove("dark-mode");
-      }
-      localStorage.setItem("darkMode", this.darkMode);
+      this.darkMode = toggleDarkMode();
+    },
+    onDarkModeChange(event) {
+      this.darkMode = event.detail.isDark;
     },
     handleLogout() {
-      // Here you can clear session tokens as needed.
-      // For example, remove a session cookie or clear localStorage.
-      localStorage.removeItem("session");
-      // Optionally, you might also call an API endpoint to invalidate the session.
-      this.$router.push("/login");
+      // Clear local storage or cookies used for authentication
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+
+      // Emit event so parent components can react
+      this.$emit('logout');
+
+      // Redirect to login page
+      this.$router.push('/login');
     },
   },
 };
@@ -135,62 +178,67 @@ export default {
 
 <style scoped>
 /* Base header styles */
-.auth-header {
+.app-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
+  width: 100%;
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+/* Dashboard-specific header styling */
+.dashboard-header {
+  background-color: var(--bg-light, #ffffff);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+body.dark-mode .dashboard-header {
+  background-color: var(--bg-dark, #1a1a2e);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 /* Logo styles */
 .logo {
-  font-size: 2rem;
-  font-weight: bold;
+  font-size: 1.8rem;
+  font-weight: 700;
   text-decoration: none;
-  color: #512da8;
-  transition: color 0.3s ease;
-}
-.logo:hover {
-  animation: neonFlickerLight 2s ease-in-out infinite alternate,
-  logoScale 2s ease-in-out infinite alternate;
-}
-.dark-mode .logo {
-  color: #ffffff;
-}
-.dark-mode .logo:hover {
-  animation: neonFlickerDark 2s ease-in-out infinite alternate,
-  logoScale 2s ease-in-out infinite alternate;
+  color: var(--primary-dark, #512da8);
+  transition: color 0.3s ease, transform 0.3s ease;
 }
 
-/* Keyframes for neon flicker and scale */
-@keyframes neonFlickerLight {
-  0% { text-shadow: 0 0 5px #b191fc, 0 0 10px #b191fc, 0 0 20px #b191fc, 0 0 30px #b191fc; transform: translate(0, 0); }
-  10% { text-shadow: 0 0 8px #b191fc, 0 0 16px #b191fc, 0 0 24px #b191fc, 0 0 32px #b191fc; transform: translate(-2px, 2px); }
-  20% { text-shadow: 0 0 12px #b191fc, 0 0 24px #b191fc, 0 0 36px #b191fc, 0 0 48px #b191fc; transform: translate(2px, -2px); }
-  30% { text-shadow: 0 0 10px #b191fc, 0 0 20px #b191fc, 0 0 30px #b191fc, 0 0 40px #b191fc; transform: translate(0, 0); }
-  50% { text-shadow: 0 0 14px #b191fc, 0 0 28px #b191fc, 0 0 42px #b191fc, 0 0 56px #b191fc; transform: translate(1px, -1px); }
-  100% { text-shadow: 0 0 10px #b191fc, 0 0 20px #b191fc, 0 0 30px #b191fc, 0 0 40px #b191fc; transform: translate(0, 0); }
+.logo:hover {
+  color: var(--primary-color, #7b49ff);
+  transform: scale(1.05);
 }
-@keyframes neonFlickerDark {
-  0% { text-shadow: 0 0 5px #ffffff, 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px #ffffff; transform: translate(0, 0); }
-  10% { text-shadow: 0 0 8px #ffffff, 0 0 16px #ffffff, 0 0 24px #ffffff, 0 0 32px #ffffff; transform: translate(-2px, 2px); }
-  20% { text-shadow: 0 0 12px #ffffff, 0 0 24px #ffffff, 0 0 36px #ffffff, 0 0 48px #ffffff; transform: translate(2px, -2px); }
-  30% { text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px #ffffff, 0 0 40px #ffffff; transform: translate(0, 0); }
-  50% { text-shadow: 0 0 14px #ffffff, 0 0 28px #ffffff, 0 0 42px #ffffff, 0 0 56px #ffffff; transform: translate(1px, -1px); }
-  100% { text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px #ffffff, 0 0 40px #ffffff; transform: translate(0, 0); }
+
+body.dark-mode .logo {
+  color: var(--primary-light, #b39ddb);
 }
-@keyframes logoScale {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+
+/* NavBar content */
+nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* User info */
+.user-info {
+  margin-right: 1rem;
+}
+
+.welcome-text {
+  font-weight: 500;
 }
 
 /* Arrow button styles */
 .arrow-btn {
   font-size: 16px;
   font-weight: 600;
-  background-color: #512da8;
-  color: #fff;
+  background-color: var(--primary-dark, #512da8);
+  color: white;
   text-decoration: none;
   padding: 0.6rem 1.8rem 0.6rem 1.2rem;
   border-radius: 99px;
@@ -200,17 +248,18 @@ export default {
   display: inline-flex;
   align-items: center;
   transition: 0.4s ease;
-  margin-left: 0.5rem;
 }
+
 .arrow-btn .text {
   line-height: 1;
   margin-right: 2rem;
   position: relative;
   z-index: 5;
 }
+
 .arrow-btn::before {
   content: "";
-  background-color: #b39ddb;
+  background-color: var(--secondary-color, #b39ddb);
   width: 28px;
   height: 28px;
   border-radius: 99px;
@@ -221,6 +270,7 @@ export default {
   transition: all 0.4s ease;
   z-index: 1;
 }
+
 .arrow-btn svg {
   width: 14px;
   height: 14px;
@@ -232,33 +282,99 @@ export default {
   transition: 0.4s ease;
   z-index: 5;
 }
+
 .arrow-btn:hover svg {
   transform: translateY(-50%) rotate(45deg);
 }
+
 .arrow-btn:hover::before {
   width: 100%;
   height: 100%;
   right: 0;
 }
 
-/* Dark mode toggle button styling */
-.nav-button {
-  margin: 0 0.5rem;
-  padding: 0.8rem 1.2rem;
-  border: 2px solid #000;
-  background: transparent;
-  color: #000;
-  border-radius: 24px;
+/* Theme toggle button */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  color: var(--text-primary, #333333);
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
   cursor: pointer;
-  transition: 0.3s;
-  font-weight: 600;
-  text-decoration: none;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s ease, transform 0.3s ease;
 }
-.nav-button:hover {
-  background: #000;
-  color: #fff;
+
+.theme-toggle:hover {
+  background-color: rgba(123, 73, 255, 0.1);
+  transform: scale(1.1);
+}
+
+body.dark-mode .theme-toggle {
+  color: var(--text-primary, #e0e0e0);
+}
+
+body.dark-mode .theme-toggle:hover {
+  background-color: rgba(177, 156, 217, 0.2);
+}
+
+/* Logout button */
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--primary-color, #7b49ff);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+.logout-btn:hover {
+  background-color: var(--primary-dark, #512da8);
   transform: translateY(-2px);
-  box-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
+}
+
+.logout-btn svg {
+  transition: transform 0.3s ease;
+}
+
+.logout-btn:hover svg {
+  transform: translateX(3px);
+}
+
+/* Media queries for responsive design */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 0.8rem 1.5rem;
+  }
+
+  .logo {
+    font-size: 1.6rem;
+  }
+
+  .welcome-text {
+    display: none;
+  }
+
+  .logout-btn span {
+    display: none;
+  }
+
+  .logout-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+  }
 }
 </style>

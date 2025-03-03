@@ -5,6 +5,7 @@ import router from './router'
 import './style.css'  // your global styles
 import vuetify from './plugins/vuetify'
 import axios from 'axios'
+import { initDarkMode } from './services/darkModeService'
 
 // IMPORT the default VCalendar stylesheet:
 import 'v-calendar/style.css'
@@ -17,6 +18,7 @@ axios.defaults.withCredentials = true
 
 const app = createApp(App)
 
+initDarkMode()
 app.use(router)
 app.use(vuetify)
 
