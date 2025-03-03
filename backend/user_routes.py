@@ -63,7 +63,9 @@ def verify_session(req: HttpRequest) -> (bool, str):
 
     return True, session["email"]
 
+
 def register_user(req: HttpRequest) -> HttpResponse:
+    # (unchanged from your code)
     try:
         body = req.get_json()
     except Exception:
@@ -73,13 +75,11 @@ def register_user(req: HttpRequest) -> HttpResponse:
             mimetype="application/json"
         )
 
-    # Validate the incoming user data
     try:
         user_in = User(**body)
     except ValidationError as e:
         return HttpResponse(e.json(), status_code=400, mimetype="application/json")
 
-    # Check if user already exists
     if get_user_by_email(user_in.email):
         return HttpResponse(
             json.dumps({"error": "Email already in use."}),
@@ -87,7 +87,6 @@ def register_user(req: HttpRequest) -> HttpResponse:
             mimetype="application/json"
         )
 
-    # Create user doc
     generated_userid = str(uuid.uuid4())
     hashed_password = bcrypt.hash(user_in.password)
     user_doc = {
@@ -104,18 +103,14 @@ def register_user(req: HttpRequest) -> HttpResponse:
     create_user(user_doc)
     increment_university_and_major_counter(user_in.university, user_in.degree)
 
-    # Automatically log in the user (session-based)
     session_id = create_session(user_in.email)
     response = HttpResponse(
         json.dumps({"message": "User registered successfully."}),
         status_code=201,
         mimetype="application/json"
     )
-
-    # 30-day expiration
     expire_time = (datetime.datetime.utcnow() + datetime.timedelta(seconds=SESSION_TIMEOUT_SECONDS)) \
                   .strftime("%a, %d-%b-%Y %H:%M:%S GMT")
-    # IMPORTANT: Add SameSite=None; Secure for cross-site
     response.headers["Set-Cookie"] = (
         f"{SESSION_COOKIE_NAME}={session_id}; "
         f"Expires={expire_time}; "
@@ -124,7 +119,9 @@ def register_user(req: HttpRequest) -> HttpResponse:
     )
     return response
 
+
 def login_user(req: HttpRequest) -> HttpResponse:
+    # (unchanged from your code)
     try:
         body = req.get_json()
     except Exception:
@@ -134,7 +131,6 @@ def login_user(req: HttpRequest) -> HttpResponse:
             mimetype="application/json"
         )
 
-    # Validate login data
     try:
         user_in = UserLogin(**body)
     except ValidationError as e:
@@ -148,7 +144,6 @@ def login_user(req: HttpRequest) -> HttpResponse:
             mimetype="application/json"
         )
 
-    # Verify password
     if not bcrypt.verify(user_in.password, user_doc["password"]):
         return HttpResponse(
             json.dumps({"error": "Invalid email or password."}),
@@ -156,7 +151,6 @@ def login_user(req: HttpRequest) -> HttpResponse:
             mimetype="application/json"
         )
 
-    # Create session
     session_id = create_session(user_doc["email"])
     response = HttpResponse(
         json.dumps({"message": "Login successful."}),
@@ -165,7 +159,6 @@ def login_user(req: HttpRequest) -> HttpResponse:
     )
     expire_time = (datetime.datetime.utcnow() + datetime.timedelta(seconds=SESSION_TIMEOUT_SECONDS)) \
                   .strftime("%a, %d-%b-%Y %H:%M:%S GMT")
-    # IMPORTANT: Add SameSite=None; Secure for cross-site
     response.headers["Set-Cookie"] = (
         f"{SESSION_COOKIE_NAME}={session_id}; "
         f"Expires={expire_time}; "
@@ -174,7 +167,9 @@ def login_user(req: HttpRequest) -> HttpResponse:
     )
     return response
 
+
 def protected_resource(req: HttpRequest) -> HttpResponse:
+    # (unchanged)
     is_valid, result = verify_session(req)
     if not is_valid:
         return HttpResponse(
@@ -189,7 +184,9 @@ def protected_resource(req: HttpRequest) -> HttpResponse:
         mimetype="application/json"
     )
 
+
 def get_universities_endpoint(req: HttpRequest) -> HttpResponse:
+    # (unchanged)
     try:
         from database import get_all_universities_docs
         docs = get_all_universities_docs()
@@ -199,7 +196,9 @@ def get_universities_endpoint(req: HttpRequest) -> HttpResponse:
                             status_code=500,
                             mimetype="application/json")
 
+
 def get_university_endpoint(req: HttpRequest) -> HttpResponse:
+    # (unchanged)
     name = req.params.get("name")
     if not name:
         return HttpResponse(
@@ -221,37 +220,90 @@ def get_university_endpoint(req: HttpRequest) -> HttpResponse:
                             status_code=500,
                             mimetype="application/json")
 
+
 def update_calculator_config(req: HttpRequest) -> HttpResponse:
+    """
+    This function is called when the frontend sends a PUT request to /calculator
+    with JSON like: { "numYears": 3, "semesters": 2, "credits": 90 }
+    We'll build the 'years' array automatically, then store it in user_doc["calculator"].
+    Or if you still want to accept an array, you can handle both.
+    """
     is_valid, result = verify_session(req)
     if not is_valid:
         return HttpResponse(json.dumps({"error": result}),
                             status_code=401,
                             mimetype="application/json")
     email = result
+
     try:
         body = req.get_json()
     except Exception:
         return HttpResponse(json.dumps({"error": "Invalid JSON in request body."}),
                             status_code=400,
                             mimetype="application/json")
-    try:
-        from models import CalculatorConfig
-        config = CalculatorConfig(**body)
-    except Exception as e:
-        return HttpResponse(json.dumps({"error": str(e)}),
-                            status_code=400,
-                            mimetype="application/json")
-    try:
-        update_user_calculator(email, config.dict())
-        return HttpResponse(json.dumps({"message": "Calculator configuration updated successfully."}),
+
+    # Check if the request has "numYears, semesters, credits" - i.e. from the wizard
+    num_years = body.get("numYears")
+    sem = body.get("semesters")
+    cred = body.get("credits")
+
+    if num_years and sem and cred:
+        # We assume the user is sending the simpler object
+        # Build the array
+        new_years = []
+        for i in range(num_years):
+            new_years.append({
+                "year": f"Year {i+1}",
+                "active": False,
+                "credits": cred,
+                "weight": 0,
+                # If you want to store 'semesters' for each year
+                "semesters": sem
+            })
+        # Now store in user_doc["calculator"]["years"] = new_years
+        from database import get_user_by_email, _container
+        user_doc = get_user_by_email(email)
+        if not user_doc:
+            return HttpResponse(json.dumps({"error": "User not found."}),
+                                status_code=404,
+                                mimetype="application/json")
+
+        # If user_doc doesn't have "calculator", create an empty dict
+        if "calculator" not in user_doc:
+            user_doc["calculator"] = {}
+        user_doc["calculator"]["years"] = new_years
+
+        # Upsert
+        _container.upsert_item(user_doc)
+
+        return HttpResponse(json.dumps({"message": "Degree configuration saved."}),
                             status_code=200,
                             mimetype="application/json")
-    except Exception as e:
-        return HttpResponse(json.dumps({"error": str(e)}),
-                            status_code=500,
-                            mimetype="application/json")
+
+    else:
+        # Otherwise, fallback to your original logic that expects a "CalculatorConfig"
+        # e.g. { "years": [ { "year": "Year 1", "active": true, "credits": 120, "weight": 0 } ... ] }
+        try:
+            from models import CalculatorConfig
+            config = CalculatorConfig(**body)  # Will raise if invalid
+        except Exception as e:
+            return HttpResponse(json.dumps({"error": str(e)}),
+                                status_code=400,
+                                mimetype="application/json")
+
+        try:
+            update_user_calculator(email, config.dict())
+            return HttpResponse(json.dumps({"message": "Calculator configuration updated successfully."}),
+                                status_code=200,
+                                mimetype="application/json")
+        except Exception as e:
+            return HttpResponse(json.dumps({"error": str(e)}),
+                                status_code=500,
+                                mimetype="application/json")
+
 
 def get_calculator_config(req: HttpRequest) -> HttpResponse:
+    # (unchanged)
     is_valid, result = verify_session(req)
     if not is_valid:
         return HttpResponse(json.dumps({"error": result}),
@@ -266,7 +318,9 @@ def get_calculator_config(req: HttpRequest) -> HttpResponse:
     config = user_doc.get("calculator", {})
     return HttpResponse(json.dumps(config), status_code=200, mimetype="application/json")
 
+
 def search_universities_endpoint(req: HttpRequest) -> HttpResponse:
+    # (unchanged)
     query = req.params.get("query")
     if not query:
         return HttpResponse(json.dumps({"error": "Missing 'query' parameter"}),

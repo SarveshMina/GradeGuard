@@ -135,34 +135,21 @@ def user_config_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     # 2. GET request -> return user_doc["config"] (or empty if not set)
     if req.method == "GET":
         user_config = user_doc.get("config", {})
-        resp = func.HttpResponse(json.dumps(user_config), status_code=200, mimetype="application/json")
-        return add_cors_headers(resp)
+        return func.HttpResponse(json.dumps(user_config), status_code=200, mimetype="application/json")
 
-    # 3. PUT request -> update user_doc["config"] with request body
     if req.method == "PUT":
-        try:
-            config_update = req.get_json()
-        except json.JSONDecodeError:
-            return add_cors_headers(func.HttpResponse(
-                json.dumps({"error": "Invalid JSON in request body."}),
-                status_code=400,
-                mimetype="application/json"
-            ))
-
-        # If "config" doesn't exist, create an empty dict
+        config_update = req.get_json()
         if "config" not in user_doc:
             user_doc["config"] = {}
-
-        # Merge or overwrite with the new fields
+        
+        # Merge or overwrite fields
         for key, value in config_update.items():
             user_doc["config"][key] = value
 
-        # Upsert
         _container.upsert_item(user_doc)
 
-        resp = func.HttpResponse(
+        return func.HttpResponse(
             json.dumps({"message": "User config updated."}),
             status_code=200,
             mimetype="application/json"
         )
-        return add_cors_headers(resp)

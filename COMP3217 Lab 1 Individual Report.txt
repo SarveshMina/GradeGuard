@@ -1,0 +1,182 @@
+COMP3217 Lab 1 Individual Report
+
+Username: sim1g21
+Lab Partner Username:
+
+
+Task 1
+======
+A1: I began by taking the Base64 photo provided in the LDAP file and decoding it into a JPG image (e.g., using base64 -d). Once I had the portrait in .jpg form:
+
+- Reference & Layout: I looked up existing University of Southampton staff ID cards online (for instance, “Ms Zoe Marlow”’s card). I noticed the older-style University logo, the “University Staff” text, and the typical arrangement of photo, name, and barcode.
+
+- Fonts & Text: The card seems to use Georgia (for “University Staff”), Kievit (for the staff name/title), and a typeface similar to Calma for the ID number. I sourced those fonts (or close equivalents) and installed them in my design tool.
+
+- Barcode Generation: Scanning a real staff card revealed the barcode is Codabar. I used an online Codabar generator to encode “Donald Trump”’s employee ID (2345678) into a Codabar pattern. On my own real card, the integer in the bottom left started with a digit (e.g., 1 2983206 or 4…), so I added a leading “1” for Mr. Trump’s ID (or used “1 2345678”).
+
+- Designing in Canva:
+        - In Canva, I set up a new project approximating a standard ID card size (~85 mm × 55 mm) at a high DPI (600).
+        - Placed the university logo top-right, used Georgia for “University Staff,” and typed “Mr Donald Trump” in Kievit to mimic the staff title and name.
+        - Inserted the decoded JPG portrait on the left, aligned similarly to the reference.
+        - Added the Codabar barcode plus ID number under the photo.
+        - Ensured no expiry date was included, since staff cards often omit it.
+
+    Finishing Touches:
+        - Checked color consistency and fonts.
+        - Exported the final design as a .png at 600 dpi to match the lab instructions.
+
+In summary, I replicated the style of the official card—photo on the left, “University of Southampton” logo and “University Staff,” staff name in bold/large text, plus the Codabar barcode with the ID beneath the portrait. By referencing a real staff card for fonts, layout, and barcode type, I produced a faithful replica for “Mr Donald Trump” using Canva.
+
+Task 2
+=======
+B1: The card looks like a MIFARE Classic 1k NFC token.
+
+B2: The token’s current UID is BA 5E BA 11 (4 bytes in hex). Since MIFARE Classic 1K cards have 4 byte UIDs, the theoretical range is from 0x00000000 to 0xFFFFFFFF. This means there are up to 4,294,967,296 possible unique 4 byte UIDs in total.
+
+B3: The ATQA (Answer To Request) field is a two-byte response sent by the card when it is first activated by an NFC reader. In this case, the ATQA value is 00 04. This value indicates that the card complies with the ISO/IEC 14443A standard and is typical of a MIFARE Classic card. It doesn’t reveal user data but rather informs the reader about the card’s technology and, indirectly, its memory organization—helping it determine the proper communication and authentication protocols.
+
+B4: Access cards have UIDs that come in different sizes. The most common sizes are 4-byte (32-bit) and 7-byte (56-bit) UIDs. In some cases, you may also encounter 10-byte UIDs. Thus, they are not all the same size; the variation usually depends on the card’s type and manufacturer.
+
+B5: No, you cannot directly read Key A or Key B. These keys are stored in the sector trailer blocks in a protected form and are only accessible after successful authentication. They are not provided in plaintext by the card, so you must use key-cracking techniques or have prior knowledge of the keys to retrieve them.
+
+B6: In our run of mfoc, the key cracking process took approximately 62 seconds (as indicated by the ‘real’ time output). This duration reflects the time mfoc needed to try a range of default keys and successfully authenticate to most sectors. To speed up this process, you could consider:
+
+    Using alternative tools like mfcuk, which may leverage GPU acceleration.
+    Optimizing your system by ensuring no interfering drivers are loaded (e.g., unloading pn533 modules).
+    Incorporating any known partial keys to narrow the search space.
+
+B7:In Sector 2 (Blocks 8–10), the card stores ASCII text. Specifically:
+
+    Block 8: flag{A123456789}
+    Block 9: this sector is
+    Block 10: unsecured! (with leading spaces)
+
+All together, it reads as ‘flag{A123456789} this sector is unsecured!’.
+
+B8:In Sector 4, the Key A is 434f46464545 (hex) which spells ‘COFFEE’ in ASCII, and the Key B is 414343453535 (hex) which corresponds to ‘ACCE55’ in ASCII. Using these keys, we can read:
+
+    Block 16: flag{B123456789}
+    Block 17: this sector was.
+    Block 18: secure once...
+
+Hence, the data stored here is three lines of ASCII text referencing a ‘flag’ and a note that the sector was once secure.
+
+B9: In the mfoc output, each sector uses unique custom keys:
+
+    Sector 6: Key A = fbca81f081ff and Key B = a1b563489211
+    Sector 7: Key A = 9999816deb0b and Key B = b00b801243aa
+    Sector 8: Key A = 556594012fee and Key B = 9876c0bbfe90
+    Sector 9: Key A = 818031a0f0f9 and Key B = f24439956803
+
+Examining Blocks 24–39 (Sectors 6–9) in the hexdump shows mostly non-ASCII bytes. For instance, the start of Block 24 includes ‘GIF87a’, which indicates the data is likely part of a GIF image. The remaining blocks continue this pattern of raw, binary data, suggesting these sectors hold image or similarly encoded content rather than plain text.
+
+B10: In each MIFARE Classic sector, ‘User Data’ is located in byte 9 of the sector trailer (Block 3). That trailer block contains Key A (bytes 0–5), access bits (bytes 6–8), the user-data byte (byte 9), and then Key B (bytes 10–15).
+Upon inspecting my dump, I see that Sector 4 (Blocks 16–19) has different access bits and a unique user-data byte in its trailer block, making it stand out from the other sectors.
+
+B11: In MIFARE Classic, bytes 6–8 in the sector trailer define the access bits for each block and the trailer itself. Unlike the usual FF 07 80 69 pattern, Sector 4 uses 07 88 7F 69 (or similar), indicating a more restrictive configuration. For example, certain operations might require Key B only, or Key A might be limited to read-only. This means you can’t simply write data with the default keys or Key A if the bits disallow it; you must authenticate with the appropriate key as dictated by these custom access bits.
+
+B12: To write “jbl1n22, sim1g21” into Sector 1, Block 4, I did the following:
+
+I converted the String to Hex using:
+echo -n "jbl1n22, sim1g21" | xxd -p
+
+This gave me: 6a626c316e32322c2073696d31673231
+
+Edited the Dump File
+    I opened my previously cracked dump file (dump.mfd) in a hex editor.
+    I located Sector 1, Block 4 (which is offset 0x40 in the file).
+    I replaced the original bytes with the hex string: 6a 62 6c 31 6e 32 32 2c 20 73 69 6d 31 67 32 31
+
+    (That is the ASCII for “jbl1n22, sim1g21”.)
+
+Writing Back to the Card
+    Because Sector 1 still uses the default keys (FFFFFFFFFFFF), I could rewrite the updated dump to the card using:
+     nfc-mfclassic W A updated.mfd final.mfd
+     (Or another method, depending on the tool like Andriod MiFare Classic Tool)
+
+After writing, I ran mfoc -O dump.mfd again or used xxd dump.mfd to confirm that Block 4 of Sector 1 now contains the ASCII text “jbl1n22, sim1g21”.
+Hence, Sector 1, Block 4 correctly stores my message: jbl1n22, sim1g21.
+
+B13: A Magic Card is a cloneable version of the MIFARE Classic card that allows rewriting of the normally ‘locked’ manufacturer sector (Sector 0). This means you can change the UID and other factory data, which is not possible on official, stock MIFARE cards whose Sector 0 is permanently burned at the factory. Magic Cards often come with a ‘backdoor’ command that bypasses normal authentication rules, enabling full read/write access to all sectors (including the manufacturer block). By contrast, genuine manufacturer cards cannot be easily duplicated because their UID is fixed, and the factory-set data in Sector 0 is read-only.
+
+B14: In Sector 3, the access bits in the sector trailer differ from the standard settings. They specify that Key A has only read permissions for the data blocks, while Key B is required to perform writes. Consequently, if you try to write to Sector 3 using Key A, the operation will fail. You must authenticate with Key B—or alter the access bits themselves—to allow writing. This configuration effectively protects the sector’s data from unauthorized modification by restricting which key can write.
+
+B15: 
+Identifying That the Card is Magic
+	The nfc card provided to us is a special “Magic” MIFARE Classic card rather than a standard one.	
+	I confirm this because I could run special “backdoor” or “format” operations on Sector 0 or on locked sectors—something that isn’t possible on genuine MIFARE cards.
+
+Unlocking Sector 3 on the Magic Card
+	Since Sector 3 had restrictive access bits, we used the magic backdoor functionality (built into certain tools like mfcuk or the MIFARE Classic Tool on Android) to reset or overwrite the sector trailer keys.
+    	After that, Sector 3 was writable with default keys (FFFFFFFFFFFF).
+
+Writing the ECSIDs (‘jbl1n22, sim1g21’) to Block 12
+	First, I converted the string to hex: echo -n "jbl1n22, sim1g21" | xxd -p
+	which produced: 6a626c316e32322c2073696d31673231
+
+Then, using nfc-mfclassic (or an Android NFC app that supports Magic Cards) I wrote this data into Block 12 (the first data block of Sector 3). An example command-line flow might be:
+   	nfc-mfclassic W A magic_dump.mfd final_dump.mfd
+
+Verifying via mfoc and Hex Dump
+    	- To confirm the data was written correctly, I ran:
+
+	  sudo mfoc -O verify.mfd
+	  xxd verify.mfd
+
+	- In the output, Sector 3, Block 12 (offset 0xC0 for a 1K card) contained: 6a 62 6c 31 6e 32 32 2c 20 73 69 6d 31 67 32 31
+	  which, converted to ASCII, is jbl1n22, sim1g21.
+
+By completing these steps, I confirmed that I could bypass the usual access restrictions on Sector 3 (thanks to the Magic Card’s special backdoor) and successfully store the message "jbl1n22, sim1g21" in Block 12 of Sector 3.
+
+B16: Confirming You Have a Magic Card
+	- A regular MIFARE Classic 1K cannot have its UID changed, since Sector 0 (Block 0) is permanently locked by the manufacturer.
+    	- A Magic MIFARE card, however, has a “backdoor” that allows rewriting Block 0, including the UID bytes.
+
+Enabling the Magic Backdoor/Unlock
+	- Using a tool like mfcuk or an NFC app with Magic Card support (e.g., “MIFARE Classic Tool” on Android), perform a “format” or “unlock” operation that resets the manufacturer block so you can write it.
+
+Rewrite Block 0
+	- Block 0 is 16 bytes. The first 4 bytes typically store the UID.
+    	- Write BA 5E BA 11 into the first four bytes of Block 0. The rest of the block (bytes 4–15) usually includes the BCC (Block Check Character) and other manufacturer info—depending on your tool, it might generate those automatically or let you specify them.
+    	- An example approach with a Magic-compatible tool:
+        	# Some versions of nfc-mfclassic or mfcuk can do:
+        	nfc-mfclassic W A newuid.mfd final.mfd -M
+	        …where newuid.mfd is a dump file you edited so that Block 0 includes BA 5E BA 11 in the UID bytes.
+
+Copy Any Additional Required Data
+        - If Building 59’s system checks not only the UID but also certain sector data, you may need to clone those sectors from a known “working” card. However, in simpler setups, changing just the UID is enough to emulate the original card.
+
+Verifying:
+        - Dump the card again (e.g., mfoc -O verify.mfd) and inspect Block 0 with xxd to see the new UID BA 5E BA 11.
+        - At this point, the card will present itself to any reader as if it were the original 0xBA5EBA11 card.
+
+Thus, by rewriting Block 0 on a Magic Card to 0xBA5EBA11, you emulate the authorized credential that grants access to Building 59 Level 3 Labs. This technique exploits the fact that Magic Cards allow rewriting of the normally locked manufacturer block.
+
+
+Task 3
+=======
+C1: Yes, you can. The EMV card reader application is in C#; you just need Mono (on Linux) or .NET (on Windows), plus a PC/SC-compatible card reader. The Git repository is archived on Google Code, so you’d clone or download it, add the .config file mapping winscard.dll to libpcsclite.so in Linux, then compile with mcs (Mono C# compiler) or use Visual Studio. Though there aren’t elaborate build instructions, the readme gives enough hints to get it running if you’re familiar with C# + PC/SC.
+
+C2: In principle, yes—it can work because it replicates the same EMV commands that a physical CAP device issues. To test it safely:
+
+    1) Use a Dedicated Test Environment: a non-critical PC or a virtual machine so that you’re not exposing real banking credentials or personal data.
+    2) Try a Test Card: If possible, use a sample / pre-paid / test EMV card to see if responses match those from an actual hardware reader.
+    3) Avoid Real Credentials: Initially, never use your personal (live) bank account. Testing in a closed environment ensures you don’t accidentally expose real banking data.
+       Provided you follow best practices (e.g., not storing PINs), it can emulate the CAP process reliably.
+
+C3: From a pure coding or research angle, it’s an interesting proof-of-concept. However, from a security standpoint, it’s risky. One of the main CAP advantages is having an offline, separate hardware device to protect you from PC malware. By moving CAP onto the same machine that might be infected, you’re losing the hardware isolation. Consequently:
+
+    - Banks discourage software-based CAP or PIN entry on a computer.
+    - It can undermine the security model (just as the paper explains how CAP was meant to offset PC infections).
+So it’s technically feasible but questionable from a real-world security perspective.
+
+C4: Many modern UK/EU ‘Chip-and-PIN’ debit cards support CAP or a similar EMV-based authentication. In theory, that means you can get it working with a lot of cards that have CAP enabled. But:
+
+    - Different Banks, Different Bit Masks: The paper highlights that each bank uses different ‘bit filters’ or proprietary fields (e.g. NatWest vs. Barclays). So you may need to adapt the code for each bank.
+    - Updates / Protocol Changes: Banks occasionally update their card software. If your application doesn’t track those changes, it may stop working or produce invalid codes.
+    - Security / Liability: Even if it can be done, you reduce or eliminate the hardware-isolation benefit. This can place the user at greater risk, and banks may claim you’ve violated terms by not using the official hardware CAP reader.
+
+In short, you could adapt the software for many modern cards, but it’s not recommended from a security or liability perspective.
+
+
+Can you add zoe's id here as a reference by making a reference tab. Use IEEE style referencing and also cite it.

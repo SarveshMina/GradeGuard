@@ -3,23 +3,18 @@
     <!-- GradeHome Logo -->
     <div class="mobile-logo">GradeHome</div>
 
-    <!-- (Optional Hero image removed for now) -->
-
     <h1>Connect your content</h1>
     <p>
       A short tagline about your app. Keep it concise for a mobile screen.
     </p>
 
     <div class="buttons">
-      <!-- Sign up goes to your login page in signup mode -->
       <router-link
           :to="{ path: '/login', query: { mode: 'signup' } }"
           class="btn sign-up"
       >
         Sign up
       </router-link>
-
-      <!-- Log in goes to your login page in login mode -->
       <router-link
           :to="{ path: '/login', query: { mode: 'login' } }"
           class="btn login"
