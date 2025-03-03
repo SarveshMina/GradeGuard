@@ -3,241 +3,226 @@
     <!-- Use the improved NavBar component - pass the correct mode -->
     <NavBar :mode="formMode" :isMobile="isMobile" />
 
-    <!-- Authentication content wrapper -->
+    <!-- Authentication content wrapper - redesigned to be side-by-side without separate panel -->
     <div class="auth-content-wrapper">
-      <!-- Left side branding panel (desktop only) -->
-      <div v-if="!isMobile" class="brand-panel">
-        <div class="brand-content">
-          <div class="logo-container">
+      <!-- Main content area with both branding and form -->
+      <div class="main-content">
+        <!-- Branding elements (desktop only) -->
+        <div v-if="!isMobile" class="brand-content">
+          <div class="brand-logo-container">
             <h1 class="brand-logo">GradeGuard</h1>
+            <p class="brand-tagline">Secure Your Academic Success</p>
           </div>
-          <div class="brand-tagline">
-            <h2>Secure Your Academic Success</h2>
-            <p>Track, analyze, and improve your grades with our powerful platform.</p>
-          </div>
+
+          <!-- Simple feature boxes -->
           <div class="brand-features">
             <div class="feature">
-              <div class="feature-icon">
-                <i class="fas fa-chart-line"></i>
-              </div>
-              <div class="feature-text">
-                <h3>Track Progress</h3>
-                <p>Monitor your academic journey in real-time</p>
-              </div>
+              <i class="fas fa-chart-line"></i>
+              <span>Track Progress</span>
             </div>
             <div class="feature">
-              <div class="feature-icon">
-                <i class="fas fa-calculator"></i>
-              </div>
-              <div class="feature-text">
-                <h3>Calculate GPA</h3>
-                <p>Accurate grade calculations for your institution</p>
-              </div>
+              <i class="fas fa-calculator"></i>
+              <span>Calculate GPA</span>
             </div>
             <div class="feature">
-              <div class="feature-icon">
-                <i class="fas fa-graduation-cap"></i>
-              </div>
-              <div class="feature-text">
-                <h3>Set Goals</h3>
-                <p>Define and achieve your academic targets</p>
-              </div>
+              <i class="fas fa-graduation-cap"></i>
+              <span>Set Goals</span>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Mobile header (if applicable) -->
-      <div v-if="isMobile" class="mobile-header">
-        <div class="mobile-logo">GradeGuard</div>
-      </div>
+        <!-- Mobile header (if applicable) -->
+        <div v-if="isMobile" class="mobile-header">
+          <div class="mobile-logo">GradeGuard</div>
+        </div>
 
-      <!-- Main form container -->
-      <div class="form-container">
-        <!-- Main form transition -->
-        <transition name="slide-fade" mode="out-in">
-          <!-- Login Form -->
-          <div v-if="formMode === 'login'" key="login" class="auth-wrapper">
-            <main class="auth-main">
-              <h1 class="form-title">Welcome Back</h1>
-              <p class="form-subtitle">
-                Don't have an account?
-                <a href="#" @click.prevent="switchToSignup" class="text-link">Sign up</a>
-              </p>
-              <form @submit.prevent="handleLogin" class="auth-form">
-                <div class="form-group">
-                  <label for="login-email">Email</label>
-                  <div class="input-wrapper">
-                    <i class="fas fa-envelope input-icon"></i>
-                    <input type="email" v-model="loginEmail" id="login-email" placeholder="Enter your email" required />
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label for="login-password">Password</label>
-                  <div class="input-wrapper">
-                    <i class="fas fa-lock input-icon"></i>
-                    <input type="password" v-model="loginPassword" id="login-password" placeholder="Enter your password" required />
-                  </div>
-                </div>
-                <div class="forgot-container">
-                  <a href="#" @click.prevent="switchToForgot" class="forgot-link">Forgot your password?</a>
-                </div>
-                <button type="submit" class="auth-button">
-                  <span>Login</span>
-                  <i class="fas fa-arrow-right"></i>
-                </button>
-              </form>
-              <div class="divider">
-                <span>OR</span>
-              </div>
-              <div class="oauth-container">
-                <button class="google-btn" @click="loginWithGoogle">
-                  <img src="/assets/google-logo.png" alt="Google logo" class="google-logo" />
-                  <span>Sign in with Google</span>
-                </button>
-              </div>
-            </main>
-          </div>
-
-          <!-- Sign Up Form -->
-          <div v-else-if="formMode === 'signup'" key="signup" class="auth-wrapper">
-            <main class="auth-main">
-              <h1 class="form-title">Create Account</h1>
-              <p class="form-subtitle">
-                Already have an account?
-                <a href="#" @click.prevent="switchToLogin" class="text-link">Log in</a>
-              </p>
-              <form @submit.prevent="handleSignUp" class="auth-form">
-                <transition name="slide-fade" mode="out-in">
-                  <!-- Step 1: Email & Password -->
-                  <div v-if="signUpStep === 1" key="signup-step1" class="signup-step">
-                    <div class="step-indicator">
-                      <div class="step active">1</div>
-                      <div class="step-line"></div>
-                      <div class="step">2</div>
-                    </div>
-                    <div class="form-group">
-                      <label for="signup-email">Email</label>
-                      <div class="input-wrapper">
-                        <i class="fas fa-envelope input-icon"></i>
-                        <input type="email" v-model="signUpEmail" id="signup-email" placeholder="you@example.com" required />
-                      </div>
-                    </div>
-                    <div class="form-group">
-                      <label for="signup-password">Password</label>
-                      <div class="input-wrapper">
-                        <i class="fas fa-lock input-icon"></i>
-                        <input type="password" v-model="signUpPassword" id="signup-password" placeholder="••••••••••" required />
-                      </div>
-                    </div>
-                    <div class="next-btn-container">
-                      <button type="button" class="auth-button" @click="goToSignUpStep(2)">
-                        <span>Continue</span>
-                        <i class="fas fa-arrow-right"></i>
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- Step 2: Additional Info -->
-                  <div v-else key="signup-step2" class="signup-step">
-                    <div class="step-indicator">
-                      <div class="step completed">1</div>
-                      <div class="step-line completed"></div>
-                      <div class="step active">2</div>
-                    </div>
-                    <div class="signup-back">
-                      <a href="#" @click.prevent="goToSignUpStep(1)" class="back-link">
-                        <i class="fas fa-chevron-left"></i> Back
-                      </a>
-                    </div>
-                    <div class="form-group">
-                      <label for="first-name">First Name</label>
-                      <div class="input-wrapper">
-                        <i class="fas fa-user input-icon"></i>
-                        <input type="text" v-model="firstName" id="first-name" placeholder="Enter your first name" required />
-                      </div>
-                    </div>
-
-                    <!-- University selection -->
-                    <div class="form-group">
-                      <label>University/College</label>
-                      <div class="selector-wrapper" @click="openUniversityModal">
-                        <i class="fas fa-university input-icon"></i>
-                        <div class="university-selector">
-                          <span v-if="selectedUniversityDoc">
-                            {{ selectedUniversityDoc.name }} – {{ selectedUniversityDoc.counter }} students
-                          </span>
-                          <span v-else class="placeholder">Select your University/College</span>
-                        </div>
-                        <i class="fas fa-chevron-down selector-arrow"></i>
-                      </div>
-                    </div>
-
-                    <!-- Degree (Major) selection -->
-                    <div class="form-group">
-                      <label>Degree</label>
-                      <div class="selector-wrapper" @click="openMajorModal">
-                        <i class="fas fa-graduation-cap input-icon"></i>
-                        <div class="university-selector">
-                          <span v-if="degree">{{ degree }}</span>
-                          <span v-else class="placeholder">Select your Degree</span>
-                        </div>
-                        <i class="fas fa-chevron-down selector-arrow"></i>
-                      </div>
-                    </div>
-
-                    <!-- Calculator type -->
-                    <div class="form-group">
-                      <label for="calc-type">Select Calculator Type</label>
-                      <div class="selector-wrapper">
-                        <i class="fas fa-calculator input-icon"></i>
-                        <select v-model="calcType" id="calc-type" required>
-                          <option value="UK Percentage">UK Percentage</option>
-                          <option value="US GPA 5.0">US GPA 5.0</option>
-                          <option value="US GPA 4.0">US GPA 4.0</option>
-                        </select>
-                        <i class="fas fa-chevron-down selector-arrow"></i>
-                      </div>
-                    </div>
-
-                    <div class="signup-buttons">
-                      <button type="submit" class="auth-button">
-                        <span>Create Account</span>
-                        <i class="fas fa-check"></i>
-                      </button>
-                    </div>
-                  </div>
-                </transition>
-              </form>
-            </main>
-          </div>
-
-          <!-- Forgot Password Form -->
-          <div v-else-if="formMode === 'forgot'" key="forgot" class="auth-wrapper">
-            <main class="auth-main">
-              <h1 class="form-title">Reset Password</h1>
-              <p class="form-subtitle">Enter your email and we'll send you instructions to reset your password.</p>
-              <form @submit.prevent="handleForgot" class="auth-form">
-                <div class="form-group">
-                  <label for="forgot-email">Email</label>
-                  <div class="input-wrapper">
-                    <i class="fas fa-envelope input-icon"></i>
-                    <input type="email" v-model="forgotEmail" id="forgot-email" placeholder="Enter your email" required />
-                  </div>
-                </div>
-                <button type="submit" class="auth-button">
-                  <span>Send Reset Link</span>
-                  <i class="fas fa-paper-plane"></i>
-                </button>
-                <p class="back-link-container">
-                  <a href="#" @click.prevent="switchToLogin" class="back-link">
-                    <i class="fas fa-chevron-left"></i> Back to login
-                  </a>
+        <!-- Form container -->
+        <div class="form-container">
+          <!-- Main form transition -->
+          <transition name="slide-fade" mode="out-in">
+            <!-- Login Form -->
+            <div v-if="formMode === 'login'" key="login" class="auth-wrapper">
+              <main class="auth-main">
+                <h1 class="form-title">Welcome Back</h1>
+                <p class="form-subtitle">
+                  Don't have an account?
+                  <a href="#" @click.prevent="switchToSignup" class="text-link">Sign up</a>
                 </p>
-              </form>
-            </main>
-          </div>
-        </transition>
+                <form @submit.prevent="handleLogin" class="auth-form">
+                  <div class="form-group">
+                    <label for="login-email">Email</label>
+                    <div class="input-wrapper">
+                      <i class="fas fa-envelope input-icon"></i>
+                      <input type="email" v-model="loginEmail" id="login-email" placeholder="Enter your email" required />
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <div class="input-wrapper">
+                      <i class="fas fa-lock input-icon"></i>
+                      <input type="password" v-model="loginPassword" id="login-password" placeholder="Enter your password" required />
+                    </div>
+                  </div>
+                  <div class="forgot-container">
+                    <a href="#" @click.prevent="switchToForgot" class="forgot-link">Forgot your password?</a>
+                  </div>
+                  <button type="submit" class="auth-button">
+                    <span>Login</span>
+                    <i class="fas fa-arrow-right"></i>
+                  </button>
+                </form>
+                <div class="divider">
+                  <span>OR</span>
+                </div>
+                <div class="oauth-container">
+                  <button class="google-btn" @click="loginWithGoogle">
+                    <img src="/assets/google-logo.png" alt="Google logo" class="google-logo" />
+                    <span>Sign in with Google</span>
+                  </button>
+                </div>
+              </main>
+            </div>
+
+            <!-- Sign Up Form -->
+            <div v-else-if="formMode === 'signup'" key="signup" class="auth-wrapper">
+              <main class="auth-main">
+                <h1 class="form-title">Create Account</h1>
+                <p class="form-subtitle">
+                  Already have an account?
+                  <a href="#" @click.prevent="switchToLogin" class="text-link">Log in</a>
+                </p>
+                <form @submit.prevent="handleSignUp" class="auth-form">
+                  <transition name="slide-fade" mode="out-in">
+                    <!-- Step 1: Email & Password -->
+                    <div v-if="signUpStep === 1" key="signup-step1" class="signup-step">
+                      <div class="step-indicator">
+                        <div class="step active">1</div>
+                        <div class="step-line"></div>
+                        <div class="step">2</div>
+                      </div>
+                      <div class="form-group">
+                        <label for="signup-email">Email</label>
+                        <div class="input-wrapper">
+                          <i class="fas fa-envelope input-icon"></i>
+                          <input type="email" v-model="signUpEmail" id="signup-email" placeholder="you@example.com" required />
+                        </div>
+                      </div>
+                      <div class="form-group">
+                        <label for="signup-password">Password</label>
+                        <div class="input-wrapper">
+                          <i class="fas fa-lock input-icon"></i>
+                          <input type="password" v-model="signUpPassword" id="signup-password" placeholder="••••••••••" required />
+                        </div>
+                      </div>
+                      <div class="next-btn-container">
+                        <button type="button" class="auth-button" @click="goToSignUpStep(2)">
+                          <span>Continue</span>
+                          <i class="fas fa-arrow-right"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Step 2: Additional Info -->
+                    <div v-else key="signup-step2" class="signup-step">
+                      <div class="step-indicator">
+                        <div class="step completed">1</div>
+                        <div class="step-line completed"></div>
+                        <div class="step active">2</div>
+                      </div>
+                      <div class="signup-back">
+                        <a href="#" @click.prevent="goToSignUpStep(1)" class="back-link">
+                          <i class="fas fa-chevron-left"></i> Back
+                        </a>
+                      </div>
+                      <div class="form-group">
+                        <label for="first-name">First Name</label>
+                        <div class="input-wrapper">
+                          <i class="fas fa-user input-icon"></i>
+                          <input type="text" v-model="firstName" id="first-name" placeholder="Enter your first name" required />
+                        </div>
+                      </div>
+
+                      <!-- University selection -->
+                      <div class="form-group">
+                        <label>University/College</label>
+                        <div class="selector-wrapper" @click="openUniversityModal">
+                          <i class="fas fa-university input-icon"></i>
+                          <div class="university-selector">
+                            <span v-if="selectedUniversityDoc">
+                              {{ selectedUniversityDoc.name }} – {{ selectedUniversityDoc.counter }} students
+                            </span>
+                            <span v-else class="placeholder">Select your University/College</span>
+                          </div>
+                          <i class="fas fa-chevron-down selector-arrow"></i>
+                        </div>
+                      </div>
+
+                      <!-- Degree (Major) selection -->
+                      <div class="form-group">
+                        <label>Degree</label>
+                        <div class="selector-wrapper" @click="openMajorModal">
+                          <i class="fas fa-graduation-cap input-icon"></i>
+                          <div class="university-selector">
+                            <span v-if="degree">{{ degree }}</span>
+                            <span v-else class="placeholder">Select your Degree</span>
+                          </div>
+                          <i class="fas fa-chevron-down selector-arrow"></i>
+                        </div>
+                      </div>
+
+                      <!-- Calculator type -->
+                      <div class="form-group">
+                        <label for="calc-type">Select Calculator Type</label>
+                        <div class="selector-wrapper">
+                          <i class="fas fa-calculator input-icon"></i>
+                          <select v-model="calcType" id="calc-type" required>
+                            <option value="UK Percentage">UK Percentage</option>
+                            <option value="US GPA 5.0">US GPA 5.0</option>
+                            <option value="US GPA 4.0">US GPA 4.0</option>
+                          </select>
+                          <i class="fas fa-chevron-down selector-arrow"></i>
+                        </div>
+                      </div>
+
+                      <div class="signup-buttons">
+                        <button type="submit" class="auth-button">
+                          <span>Create Account</span>
+                          <i class="fas fa-check"></i>
+                        </button>
+                      </div>
+                    </div>
+                  </transition>
+                </form>
+              </main>
+            </div>
+
+            <!-- Forgot Password Form -->
+            <div v-else-if="formMode === 'forgot'" key="forgot" class="auth-wrapper">
+              <main class="auth-main">
+                <h1 class="form-title">Reset Password</h1>
+                <p class="form-subtitle">Enter your email and we'll send you instructions to reset your password.</p>
+                <form @submit.prevent="handleForgot" class="auth-form">
+                  <div class="form-group">
+                    <label for="forgot-email">Email</label>
+                    <div class="input-wrapper">
+                      <i class="fas fa-envelope input-icon"></i>
+                      <input type="email" v-model="forgotEmail" id="forgot-email" placeholder="Enter your email" required />
+                    </div>
+                  </div>
+                  <button type="submit" class="auth-button">
+                    <span>Send Reset Link</span>
+                    <i class="fas fa-paper-plane"></i>
+                  </button>
+                  <p class="back-link-container">
+                    <a href="#" @click.prevent="switchToLogin" class="back-link">
+                      <i class="fas fa-chevron-left"></i> Back to login
+                    </a>
+                  </p>
+                </form>
+              </main>
+            </div>
+          </transition>
+        </div>
       </div>
     </div>
 
@@ -388,14 +373,24 @@ export default {
     // Listen for dark mode changes from other components
     window.addEventListener('darkModeChange', (event) => {
       this.darkMode = event.detail.isDark;
+      // Apply dark mode class to the container for proper styling
+      if (this.$refs.authContainer) {
+        if (this.darkMode) {
+          this.$refs.authContainer.classList.add('dark-mode');
+        } else {
+          this.$refs.authContainer.classList.remove('dark-mode');
+        }
+      }
     });
+
+    // Apply initial dark mode class if needed
+    if (this.darkMode && this.$refs.authContainer) {
+      this.$refs.authContainer.classList.add('dark-mode');
+    }
 
     // Check for mobile view
     this.checkMobile();
     window.addEventListener('resize', this.checkMobile);
-
-    // Set background gradient
-    this.setBackgroundGradient();
 
     // Check for mode in URL query params
     const mode = this.$route.query.mode;
@@ -416,10 +411,8 @@ export default {
       this.isMobile = window.innerWidth <= 768;
     },
     setBackgroundGradient() {
-      const container = this.$refs.authContainer;
-      if (container) {
-        container.style.background = 'var(--bg-gradient)';
-      }
+      // No need to set the background here, we'll use CSS variables
+      // that respond to dark mode changes automatically
     },
     openUniversityModal() {
       console.log("openUniversityModal triggered")
@@ -611,124 +604,121 @@ export default {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: var(--bg-gradient);
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%); /* Light mode gradient */
   color: var(--text-primary);
   font-family: "Montserrat", sans-serif;
   transition: all var(--transition-speed) ease;
 }
 
-/* Two-panel layout */
+/* Dark mode specific styles */
+.auth-container.dark-mode {
+  background: linear-gradient(135deg, #2a2d3e 0%, #1a1c2a 100%); /* Dark mode gradient */
+}
+
+/* Content wrapper */
 .auth-content-wrapper {
   display: flex;
   flex: 1;
-  position: relative;
-}
-
-/* Branding panel (left side) */
-.brand-panel {
-  display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-  color: white;
-  width: 40%;
   padding: 2rem;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  position: relative;
-  overflow: hidden;
 }
 
-.brand-panel::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: url('/assets/pattern.svg') center/cover;
-  opacity: 0.07;
-  pointer-events: none;
+/* Main content area - branding elements and form side by side */
+.main-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4rem;
+  max-width: 1200px;
+  width: 100%;
 }
 
+/* Branding content */
 .brand-content {
-  position: relative;
-  z-index: 1;
-  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: #673ab7; /* Primary purple color for branding */
 }
 
-.logo-container {
-  margin-bottom: 3rem;
-  text-align: center;
+.dark-mode .brand-content {
+  color: white; /* White text in dark mode */
+}
+
+.brand-logo-container {
+  margin-bottom: 2rem;
 }
 
 .brand-logo {
-  font-size: 3rem;
+  font-size: 2.5rem;
   font-weight: 700;
-  margin: 0;
+  margin: 0 0 0.5rem;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
 .brand-tagline {
-  margin-bottom: 3rem;
-  text-align: center;
-}
-
-.brand-tagline h2 {
-  font-size: 1.8rem;
-  margin-bottom: 1rem;
-  font-weight: 600;
-}
-
-.brand-tagline p {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   opacity: 0.9;
-  line-height: 1.6;
+  margin: 0;
 }
 
+/* Feature boxes */
 .brand-features {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
+  margin-top: 3rem;
 }
 
 .feature {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 1rem;
+  justify-content: center;
+  background: rgba(103, 58, 183, 0.1); /* Light purple background */
   border-radius: 12px;
-  backdrop-filter: blur(5px);
+  padding: 1.25rem;
+  width: 120px;
+  height: 80px;
   transition: transform 0.3s ease, background 0.3s ease;
 }
 
+.dark-mode .feature {
+  background: rgba(103, 58, 183, 0.2); /* Slightly brighter purple in dark mode */
+}
+
 .feature:hover {
-  transform: translateY(-5px);
-  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-8px) rotate(2deg);
+  background: rgba(103, 58, 183, 0.2);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
 }
 
-.feature-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+.dark-mode .feature:hover {
+  background: rgba(103, 58, 183, 0.3);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+.feature i {
   font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
-.feature-text h3 {
-  font-size: 1.1rem;
-  margin: 0 0 0.25rem;
-  font-weight: 600;
+.feature:hover i {
+  transform: scale(1.2);
+  color: #673ab7;
 }
 
-.feature-text p {
+.dark-mode .feature:hover i {
+  color: #fff;
+}
+
+.feature span {
   font-size: 0.9rem;
-  margin: 0;
-  opacity: 0.8;
+  font-weight: 500;
+  text-align: center;
 }
 
 /* Mobile header */
@@ -746,45 +736,33 @@ export default {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Form container (right side) */
+/* Form container */
 .form-container {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  background-color: var(--bg-body);
+  width: 100%;
+  max-width: 420px;
 }
 
 .auth-wrapper {
   width: 100%;
-  max-width: 420px;
-  animation: fadeInUp 0.5s ease;
+  animation: fadeInUp 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 /* Form styling */
 .auth-main {
-  background: var(--bg-card);
+  background: white;
   padding: 2.5rem;
   border-radius: 16px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
   width: 100%;
   color: var(--text-primary);
   transition: all var(--transition-speed) ease;
-  position: relative;
-  overflow: hidden;
 }
 
-.auth-main::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 100px;
-  height: 100px;
-  background: linear-gradient(135deg, var(--primary-color-transparent) 0%, transparent 70%);
-  border-radius: 0 16px 0 100%;
-  opacity: 0.5;
+/* Dark mode form background */
+.dark-mode .auth-main {
+  background: #2a2d3e;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  color: #f5f7fa;
 }
 
 .form-title {
@@ -799,11 +777,18 @@ export default {
 .form-title::after {
   content: "";
   display: block;
-  width: 40px;
+  width: 0;
   height: 4px;
-  background: var(--primary-color);
+  background: #673ab7;
   margin: 0.5rem auto 0;
   border-radius: 2px;
+  transition: width 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: titleUnderline 0.8s 0.3s forwards;
+}
+
+@keyframes titleUnderline {
+  0% { width: 0; }
+  100% { width: 40px; }
 }
 
 .form-subtitle {
@@ -845,40 +830,73 @@ export default {
   position: relative;
   display: flex;
   align-items: center;
+  overflow: hidden;
+}
+
+.input-wrapper::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(to right, #673ab7, #9c27b0);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+  transform-origin: right;
+}
+
+.input-wrapper:focus-within::after {
+  transform: scaleX(1);
+  transform-origin: left;
 }
 
 .input-icon {
   position: absolute;
   left: 1rem;
   font-size: 0.9rem;
-  color: var(--text-muted);
-  transition: all 0.3s ease;
+  color: #9e9e9e;
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.dark-mode .input-icon {
+  color: #7e7e8f;
 }
 
 .input-wrapper input:focus + .input-icon,
 .selector-wrapper:hover .input-icon {
-  color: var(--primary-color);
+  color: #673ab7;
+  transform: scale(1.2);
 }
 
 .input-wrapper input,
 .form-group select {
   width: 100%;
   padding: 0.9rem 1rem 0.9rem 2.8rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid #e0e0e0;
   border-radius: 12px;
   font-size: 1rem;
-  color: var(--text-primary);
-  background: var(--bg-input);
+  color: #333;
+  background: #f5f7fa;
   box-sizing: border-box;
   transition: all 0.3s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
+.dark-mode .input-wrapper input,
+.dark-mode .form-group select {
+  border-color: #3f4156;
+  color: #f5f7fa;
+  background: #1e2030;
+}
+
 .input-wrapper input:focus,
 .form-group select:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px var(--primary-color-transparent);
+  border-color: #673ab7;
+  box-shadow: 0 0 0 3px rgba(103, 58, 183, 0.2);
   outline: none;
+  transform: translateY(-2px);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .selector-wrapper {
@@ -947,17 +965,33 @@ export default {
   padding: 0.9rem 1.5rem;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+  background: linear-gradient(135deg, #673ab7 0%, #512da8 100%); /* Purple gradient */
+  background-size: 200% 100%;
+  background-position: right bottom;
   color: white;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
-  box-shadow: 0 4px 12px var(--primary-color-transparent);
+  box-shadow: 0 4px 12px rgba(103, 58, 183, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 100%);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
 }
 
 .auth-button i {
@@ -966,17 +1000,24 @@ export default {
 }
 
 .auth-button:hover {
-  box-shadow: 0 6px 18px var(--primary-color-transparent);
-  transform: translateY(-2px);
+  box-shadow: 0 6px 22px rgba(103, 58, 183, 0.5);
+  transform: translateY(-3px) scale(1.01);
+  background-position: left bottom;
 }
 
 .auth-button:hover i {
-  transform: translateX(3px);
+  transform: translateX(5px) rotate(5deg);
+  transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.auth-button:hover::after {
+  transform: translateX(100%);
 }
 
 .auth-button:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px var(--primary-color-transparent);
+  transform: translateY(1px) scale(0.98);
+  box-shadow: 0 2px 8px rgba(103, 58, 183, 0.4);
+  transition: all 0.1s ease;
 }
 
 /* Divider */
@@ -1025,10 +1066,48 @@ export default {
   font-weight: 500;
 }
 
+.google-btn {
+  position: relative;
+  overflow: hidden;
+}
+
 .google-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-color: var(--primary-color);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+  border-color: #673ab7;
+}
+
+.google-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(103, 58, 183, 0.3);
+  opacity: 0;
+  border-radius: 100%;
+  transform: scale(1, 1) translate(-50%);
+  transform-origin: 50% 50%;
+}
+
+.google-btn:focus:not(:active)::after {
+  animation: ripple 1s ease-out;
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0, 0);
+    opacity: 0.5;
+  }
+  20% {
+    transform: scale(25, 25);
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(40, 40);
+  }
 }
 
 .google-logo {
@@ -1058,14 +1137,37 @@ export default {
 }
 
 .step.active {
-  background: var(--primary-color);
+  background: #673ab7;
   color: white;
-  box-shadow: 0 0 0 3px var(--primary-color-transparent);
+  box-shadow: 0 0 0 3px rgba(103, 58, 183, 0.3);
+  animation: pulseStep 1.5s infinite alternate;
 }
 
 .step.completed {
-  background: var(--success-color);
+  background: #4caf50;
   color: white;
+  animation: scaleStep 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes pulseStep {
+  0% {
+    box-shadow: 0 0 0 3px rgba(103, 58, 183, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 6px rgba(103, 58, 183, 0.1);
+  }
+}
+
+@keyframes scaleStep {
+  0% {
+    transform: scale(0.5);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .step-line {
@@ -1124,19 +1226,41 @@ export default {
 }
 
 .modal-content {
-  background: var(--bg-card);
+  background: white;
   border: none;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
   border-radius: 16px;
   padding: 1.5rem;
   width: 100%;
   max-width: 400px;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   position: relative;
   box-sizing: border-box;
   max-height: 70vh;
-  color: var(--text-primary);
+  color: #333;
+  animation: modalEntrance 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.dark-mode .modal-content {
+  background: #2a2d3e;
+  color: #f5f7fa;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes modalEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(30px);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.03) translateY(-5px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .modal-header {
@@ -1169,9 +1293,19 @@ export default {
   transition: all 0.2s ease;
 }
 
+.close-button {
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
 .close-button:hover {
-  background: var(--bg-hover);
-  transform: rotate(90deg);
+  background: rgba(103, 58, 183, 0.1);
+  transform: rotate(180deg);
+  color: #673ab7;
+}
+
+.dark-mode .close-button:hover {
+  background: rgba(103, 58, 183, 0.3);
+  color: white;
 }
 
 .search-container {
@@ -1250,9 +1384,38 @@ export default {
   margin-bottom: 0.5rem;
 }
 
+.university-list li {
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  overflow: hidden;
+}
+
 .university-list li:hover {
-  background: var(--bg-hover);
-  transform: translateX(5px);
+  background: rgba(103, 58, 183, 0.05);
+  transform: translateX(8px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.dark-mode .university-list li:hover {
+  background: rgba(103, 58, 183, 0.15);
+}
+
+.university-list li::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 3px;
+  background: #673ab7;
+  transform: scaleY(0);
+  transition: transform 0.3s ease;
+  transform-origin: bottom;
+}
+
+.university-list li:hover::after {
+  transform: scaleY(1);
+  transform-origin: top;
 }
 
 .list-icon {
@@ -1308,27 +1471,42 @@ export default {
   border: 3px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   border-top-color: white;
-  animation: spin 1s ease-in-out infinite;
+  border-right-color: white;
+  animation: enhancedSpin 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+@keyframes enhancedSpin {
+  0% {
+    transform: rotate(0deg) scale(1);
+    border-width: 3px;
+  }
+  50% {
+    transform: rotate(180deg) scale(1.1);
+    border-width: 2px;
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+    border-width: 3px;
+  }
 }
 
 /* Transitions */
-.slide-fade-enter-active,
+.slide-fade-enter-active {
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
 .slide-fade-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
 .slide-fade-enter-from {
   opacity: 0;
-  transform: translateY(20px);
+  transform: translateY(30px) scale(0.9);
 }
 
 .slide-fade-leave-to {
   opacity: 0;
-  transform: translateY(-20px);
+  transform: translateY(-30px) scale(0.9);
 }
 
 .modal-enter-active,
@@ -1347,38 +1525,39 @@ export default {
 }
 
 @keyframes fadeInUp {
-  from {
+  0% {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px) scale(0.95);
   }
-  to {
+  70% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(-5px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
 /* Responsive styles */
 @media (max-width: 1024px) {
-  .brand-panel {
-    padding: 1.5rem;
-  }
-
-  .form-container {
-    padding: 1.5rem;
+  .main-content {
+    gap: 2rem;
   }
 }
 
 @media (max-width: 768px) {
-  .brand-panel {
+  .brand-content {
     display: none;
   }
 
   .auth-content-wrapper {
-    padding-top: 0;
+    padding: 0;
   }
 
   .form-container {
     padding: 1rem;
+    max-width: 100%;
   }
 
   .auth-main {
