@@ -96,8 +96,10 @@ def create_calendar_event(user_email: str, event_data: dict):
     event_id = event_data['id']
     event_data['pk'] = f"{user_email}:{event_id}"
     
-    _events_container.create_item(body=event_data)
-    return event_data
+    print(f"Creating event with ID: {event_id} and partition key: {event_data['pk']}")
+    
+    created_item = _events_container.create_item(body=event_data)
+    return created_item  # Return the actual created item from the database
 
 def get_user_events(user_email: str, start_date: str = None, end_date: str = None):
     query = "SELECT * FROM c WHERE c.user_email = @email"
@@ -120,7 +122,8 @@ def get_user_events(user_email: str, start_date: str = None, end_date: str = Non
 def update_calendar_event(user_email: str, event_id: str, update_data: dict):
     pk = f"{user_email}:{event_id}"
     try:
-        # Get existing event
+        # Try to get the existing event with the constructed partition key
+        print(f"Attempting to read event with ID: {event_id} and partition key: {pk}")
         event = _events_container.read_item(item=event_id, partition_key=pk)
         
         # Update fields
@@ -131,12 +134,69 @@ def update_calendar_event(user_email: str, event_id: str, update_data: dict):
         # Save updates
         return _events_container.replace_item(item=event_id, body=event)
     except Exception as e:
-        raise e
+        print(f"Error updating with direct approach: {str(e)}")
+        
+        try:
+            # If direct update fails, try to find the event by query first
+            query = f"SELECT * FROM c WHERE c.id = '{event_id}' AND c.user_email = '{user_email}'"
+            items = list(_events_container.query_items(
+                query=query,
+                enable_cross_partition_query=True
+            ))
+            
+            if items:
+                event = items[0]
+                print(f"Found item by query: {event}")
+                
+                # Update fields
+                for key, value in update_data.items():
+                    if key not in ['id', 'user_email', 'pk']:
+                        event[key] = value
+                
+                # Use the actual partition key from the found item
+                actual_pk = event.get("pk", pk)
+                print(f"Using actual partition key: {actual_pk}")
+                
+                # Save updates
+                return _events_container.replace_item(item=event_id, body=event)
+            else:
+                print(f"Event with ID {event_id} not found in database")
+                raise Exception("Event not found")
+                
+        except Exception as query_error:
+            print(f"Error in query approach: {str(query_error)}")
+            raise query_error
 
 def delete_calendar_event(user_email: str, event_id: str):
     pk = f"{user_email}:{event_id}"
     try:
+        # Try deleting with the constructed partition key
+        print(f"Attempting to delete event with ID: {event_id} and partition key: {pk}")
         _events_container.delete_item(item=event_id, partition_key=pk)
         return True
-    except:
-        return False
+    except Exception as e:
+        print(f"Error deleting with direct approach: {str(e)}")
+        
+        try:
+            # If direct delete fails, try to find the event by query first
+            query = f"SELECT * FROM c WHERE c.id = '{event_id}' AND c.user_email = '{user_email}'"
+            items = list(_events_container.query_items(
+                query=query,
+                enable_cross_partition_query=True
+            ))
+            
+            if items:
+                item = items[0]
+                print(f"Found item by query: {item}")
+                # Use the actual partition key from the found item
+                actual_pk = item.get("pk", pk)
+                print(f"Using actual partition key: {actual_pk}")
+                _events_container.delete_item(item=event_id, partition_key=actual_pk)
+                return True
+            else:
+                print(f"Event with ID {event_id} not found in database")
+                return False
+                
+        except Exception as query_error:
+            print(f"Error in query approach: {str(query_error)}")
+            return False
