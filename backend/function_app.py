@@ -11,6 +11,9 @@ from user_routes import (
 )
 import json
 from google_auth import google_login_redirect, google_auth_callback
+from calendar_routes import get_events, create_event, update_event, delete_event
+from user_profile_routes import get_user_profile, update_user_profile, get_avatar_upload_url
+from account_routes import change_password, get_settings, update_settings
 
 # We'll also import our helper from user_routes to verify session
 from user_routes import verify_session
@@ -104,7 +107,6 @@ def search_universities_route(req: func.HttpRequest) -> func.HttpResponse:
     response = search_universities_endpoint(req)
     return add_cors_headers(response)
 
-
 # ---------------------------------------------------------------------------
 #  NEW ENDPOINT for user config wizard: /api/user/config (GET, PUT)
 # ---------------------------------------------------------------------------
@@ -135,7 +137,11 @@ def user_config_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     # 2. GET request -> return user_doc["config"] (or empty if not set)
     if req.method == "GET":
         user_config = user_doc.get("config", {})
-        return func.HttpResponse(json.dumps(user_config), status_code=200, mimetype="application/json")
+        return add_cors_headers(func.HttpResponse(
+            json.dumps(user_config), 
+            status_code=200, 
+            mimetype="application/json"
+        ))
 
     if req.method == "PUT":
         config_update = req.get_json()
@@ -148,8 +154,97 @@ def user_config_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 
         _container.upsert_item(user_doc)
 
-        return func.HttpResponse(
+        return add_cors_headers(func.HttpResponse(
             json.dumps({"message": "User config updated."}),
             status_code=200,
             mimetype="application/json"
+        ))
+
+# Combined endpoint for calendar events (GET and POST)
+@app.route(route="calendar/events", methods=["GET", "POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def calendar_events(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response()
+    
+    if req.method == "GET":
+        response = get_events(req)
+    elif req.method == "POST":
+        response = create_event(req)
+    else:
+        response = func.HttpResponse(
+            json.dumps({"error": f"Method {req.method} not allowed"}),
+            status_code=405,
+            mimetype="application/json"
         )
+    
+    return add_cors_headers(response)
+
+
+@app.route(route="calendar/events/{id}", methods=["PUT", "DELETE", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def calendar_event_by_id(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response()
+    
+    if req.method == "PUT":
+        response = update_event(req)
+    elif req.method == "DELETE":
+        response = delete_event(req)
+    else:
+        response = func.HttpResponse(
+            json.dumps({"error": f"Method {req.method} not allowed"}),
+            status_code=405,
+            mimetype="application/json"
+        )
+    
+    return add_cors_headers(response)
+
+@app.route(route="user/profile", methods=["GET", "PUT", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def user_profile(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response()
+    
+    if req.method == "GET":
+        response = get_user_profile(req)
+    elif req.method == "PUT":
+        response = update_user_profile(req)
+    else:
+        response = func.HttpResponse(
+            json.dumps({"error": f"Method {req.method} not allowed"}),
+            status_code=405,
+            mimetype="application/json"
+        )
+    
+    return add_cors_headers(response)
+
+@app.route(route="user/avatar-upload", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def avatar_upload(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response()
+    response = get_avatar_upload_url(req)
+    return add_cors_headers(response)
+
+@app.route(route="user/password", methods=["PUT", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def password_change(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response()
+    response = change_password(req)
+    return add_cors_headers(response)
+
+# Combined endpoint for user settings (GET and PUT)
+@app.route(route="user/settings", methods=["GET", "PUT", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def user_settings(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response()
+    
+    if req.method == "GET":
+        response = get_settings(req)
+    elif req.method == "PUT":
+        response = update_settings(req)
+    else:
+        response = func.HttpResponse(
+            json.dumps({"error": f"Method {req.method} not allowed"}),
+            status_code=405,
+            mimetype="application/json"
+        )
+    
+    return add_cors_headers(response)
