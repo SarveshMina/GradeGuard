@@ -1,9 +1,14 @@
+# Create GitHub Actions workflow directory if it doesn't exist
+mkdir -p .github/workflows
+
+# Create deploy.yml file for GitHub Actions
+cat > .github/workflows/deploy.yml << 'EOF'
 name: Deploy to GitHub Pages
 
 on:
   push:
     branches:
-      - master  # Set this to your default branch
+      - master # or main, depending on your default branch
 
 permissions:
   contents: write
@@ -11,30 +16,32 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-
+        
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
           cache: 'npm'
-          cache-dependency-path: 'gradehome-frontend/package-lock.json'
-
+      
       - name: Install dependencies
         run: |
           cd gradehome-frontend
           npm ci
-
+      
       - name: Build
         run: |
           cd gradehome-frontend
           npm run build
-
+        env:
+          VITE_API_URL: https://gradeguard-api.azurewebsites.net/api
+      
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: gradehome-frontend/dist
           branch: gh-pages
+EOF

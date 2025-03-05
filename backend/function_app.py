@@ -14,6 +14,7 @@ from google_auth import google_login_redirect, google_auth_callback
 from calendar_routes import get_events, create_event, update_event, delete_event
 from user_profile_routes import get_user_profile, update_user_profile, get_avatar_upload_url
 from account_routes import change_password, get_settings, update_settings
+from module_routes import get_modules, create_or_update_module, delete_module
 
 # We'll also import our helper from user_routes to verify session
 from user_routes import verify_session
@@ -108,7 +109,7 @@ def search_universities_route(req: func.HttpRequest) -> func.HttpResponse:
     return add_cors_headers(response)
 
 # ---------------------------------------------------------------------------
-#  NEW ENDPOINT for user config wizard: /api/user/config (GET, PUT)
+# ENDPOINT for user config wizard: /api/user/config (GET, PUT)
 # ---------------------------------------------------------------------------
 @app.route(route="user/config", methods=["GET", "PUT", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def user_config_endpoint(req: func.HttpRequest) -> func.HttpResponse:
@@ -230,16 +231,53 @@ def password_change(req: func.HttpRequest) -> func.HttpResponse:
     response = change_password(req)
     return add_cors_headers(response)
 
-# Combined endpoint for user settings (GET and PUT)
-@app.route(route="user/settings", methods=["GET", "PUT", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def user_settings(req: func.HttpRequest) -> func.HttpResponse:
+@app.route(route="settings", methods=["GET", "PUT", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def settings_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response()
-    
+
     if req.method == "GET":
         response = get_settings(req)
     elif req.method == "PUT":
         response = update_settings(req)
+    else:
+        response = func.HttpResponse(
+            json.dumps({"error": f"Method {req.method} not allowed"}),
+            status_code=405,
+            mimetype="application/json"
+        )
+
+    return add_cors_headers(response)
+
+
+
+@app.route(route="modules", methods=["GET", "POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def modules_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response()
+    
+    if req.method == "GET":
+        response = get_modules(req)
+    elif req.method == "POST":
+        response = create_or_update_module(req)
+    else:
+        response = func.HttpResponse(
+            json.dumps({"error": f"Method {req.method} not allowed"}),
+            status_code=405,
+            mimetype="application/json"
+        )
+    
+    return add_cors_headers(response)
+
+@app.route(route="modules/{id}", methods=["PUT", "DELETE", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def module_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response()
+    
+    if req.method == "PUT":
+        response = create_or_update_module(req)
+    elif req.method == "DELETE":
+        response = delete_module(req)
     else:
         response = func.HttpResponse(
             json.dumps({"error": f"Method {req.method} not allowed"}),

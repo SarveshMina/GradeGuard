@@ -5,14 +5,14 @@ import path from 'path'
 
 export default defineConfig({
     plugins: [vue()],
-    base: '/GradeGuard/', // This should match your repository name
+    base: '/GradeGuard/',
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src')
         }
     },
     build: {
-        outDir: 'dist', // Default is 'dist'
+        outDir: 'dist',
         emptyOutDir: true
     }
 })
