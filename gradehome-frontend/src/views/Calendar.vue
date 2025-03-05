@@ -591,7 +591,7 @@
 import axios from "axios";
 import { notify } from "@/services/toastService.js";
 import DashboardNavBar from "@/components/DashboardNavBar.vue";
-import CalendarSidebar from "@/components/CalendarSidebar.vue";
+import CalendarSidebar from "@/components/CalendarSideBar.vue";
 import { getDarkModePreference } from "@/services/darkModeService.js";
 import { API_URL } from "@/config.js";
 
