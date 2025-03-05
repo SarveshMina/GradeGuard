@@ -83,6 +83,122 @@
 
         <!-- Calendar content -->
         <div v-else class="calendar-content">
+          <!-- Search and Filter Bar -->
+          <div class="search-filter-container">
+            <div class="search-box">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input
+                  type="text"
+                  v-model="searchQuery"
+                  placeholder="Search events..."
+                  @input="applyFilters"
+              />
+              <button v-if="searchQuery" @click="clearSearch" class="clear-search">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+            <div class="filter-box">
+              <button @click="toggleFilterPanel" class="filter-button" :class="{'active': showFilterPanel}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                </svg>
+                <span>Filter</span>
+                <span v-if="activeFilterCount > 0" class="filter-count">{{ activeFilterCount }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Filter Panel -->
+          <div v-if="showFilterPanel" class="filter-panel">
+            <div class="filter-section">
+              <h3>Event Type</h3>
+              <div class="filter-options">
+                <label class="checkbox-container" v-for="type in eventTypes" :key="type.value">
+                  <input
+                      type="checkbox"
+                      v-model="filters.types"
+                      :value="type.value"
+                      @change="applyFilters"
+                  />
+                  <span class="checkmark" :style="{ backgroundColor: type.color }"></span>
+                  {{ type.label }}
+                </label>
+              </div>
+            </div>
+            <div class="filter-section">
+              <h3>Status</h3>
+              <div class="filter-options">
+                <label class="checkbox-container">
+                  <input
+                      type="checkbox"
+                      v-model="filters.showCompleted"
+                      @change="applyFilters"
+                  />
+                  <span class="checkmark"></span>
+                  Show Completed
+                </label>
+                <label class="checkbox-container">
+                  <input
+                      type="checkbox"
+                      v-model="filters.showIncomplete"
+                      @change="applyFilters"
+                  />
+                  <span class="checkmark"></span>
+                  Show Incomplete
+                </label>
+              </div>
+            </div>
+            <div class="filter-section">
+              <h3>Time Frame</h3>
+              <div class="filter-options">
+                <label class="checkbox-container">
+                  <input
+                      type="checkbox"
+                      v-model="filters.showAllDay"
+                      @change="applyFilters"
+                  />
+                  <span class="checkmark"></span>
+                  All Day Events
+                </label>
+                <label class="checkbox-container">
+                  <input
+                      type="checkbox"
+                      v-model="filters.showTimedEvents"
+                      @change="applyFilters"
+                  />
+                  <span class="checkmark"></span>
+                  Timed Events
+                </label>
+              </div>
+            </div>
+            <div class="filter-actions">
+              <button @click="resetFilters" class="reset-filter-button">
+                Reset Filters
+              </button>
+              <button @click="showFilterPanel = false" class="apply-filter-button">
+                Apply Filters
+              </button>
+            </div>
+          </div>
+
+          <!-- No Results Message -->
+          <div v-if="filteredEvents.length === 0 && !loading && (searchQuery || activeFilterCount > 0)" class="no-results">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <h3>No events match your search</h3>
+            <p>Try adjusting your search or filters to find what you're looking for.</p>
+            <button @click="resetFilters" class="reset-search-button">Reset All Filters</button>
+          </div>
+
           <div class="calendar-header">
             <div class="month-navigator">
               <button @click="navigatePrevious" class="nav-btn">
@@ -120,7 +236,7 @@
                 <div class="day-number">{{ formatDayNumber(day.date) }}</div>
                 <div class="day-events">
                   <div
-                      v-for="event in getEventsForDay(day.date)"
+                      v-for="event in getFilteredEventsForDay(day.date)"
                       :key="event.id"
                       class="day-event-pill"
                       :class="getEventClass(event)"
@@ -128,8 +244,8 @@
                   >
                     {{ event.title }}
                   </div>
-                  <div v-if="getEventsForDay(day.date).length > 2" class="more-events">
-                    +{{ getEventsForDay(day.date).length - 2 }} more
+                  <div v-if="getFilteredEventsForDay(day.date).length > 2" class="more-events">
+                    +{{ getFilteredEventsForDay(day.date).length - 2 }} more
                   </div>
                 </div>
               </div>
@@ -165,7 +281,7 @@
                       @click="createEventAtTime(day.date, hour)"
                   ></div>
                   <div
-                      v-for="event in getEventsForDay(day.date)"
+                      v-for="event in getFilteredEventsForDay(day.date)"
                       :key="event.id"
                       class="week-event"
                       :class="getEventClass(event)"
@@ -201,7 +317,7 @@
                     @click="createEventAtTime(selectedDate, hour)"
                 ></div>
                 <div
-                    v-for="event in getEventsForDay(selectedDate)"
+                    v-for="event in getFilteredEventsForDay(selectedDate)"
                     :key="event.id"
                     class="day-event"
                     :class="getEventClass(event)"
@@ -233,7 +349,7 @@
             <span class="toggle-text">Hide</span>
           </button>
           <CalendarSidebar
-              :events="events"
+              :events="filteredEvents"
               :selected-date="selectedDate"
               @day-click="selectDate"
               @add-event="openCreateEventModal"
@@ -502,6 +618,26 @@ export default {
       currentView: 'month', // 'month', 'week', 'day'
       weekdays: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
       events: [],
+      filteredEvents: [],
+
+      // Search and Filter state
+      searchQuery: '',
+      showFilterPanel: false,
+      filters: {
+        types: [], // Array of event types to filter by
+        showCompleted: true,
+        showIncomplete: true,
+        showAllDay: true,
+        showTimedEvents: true,
+      },
+      eventTypes: [
+        { value: 'general', label: 'General', color: '#2196F3' },
+        { value: 'assignment', label: 'Assignment', color: '#F44336' },
+        { value: 'exam', label: 'Exam', color: '#E91E63' },
+        { value: 'study', label: 'Study Session', color: '#4CAF50' },
+        { value: 'meeting', label: 'Meeting', color: '#673AB7' },
+        { value: 'celebration', label: 'Celebration', color: '#FF9800' }
+      ],
 
       // Modal state
       showEventModal: false,
@@ -591,6 +727,33 @@ export default {
       }
 
       return days;
+    },
+
+    // Compute the number of active filters
+    activeFilterCount() {
+      let count = 0;
+
+      // Count selected event types
+      if (this.filters.types.length > 0) {
+        count++;
+      }
+
+      // Count status filters if not both are selected (which is effectively no filter)
+      if (!(this.filters.showCompleted && this.filters.showIncomplete)) {
+        count++;
+      }
+
+      // Count time frame filters if not both are selected
+      if (!(this.filters.showAllDay && this.filters.showTimedEvents)) {
+        count++;
+      }
+
+      // Count search query
+      if (this.searchQuery.trim() !== '') {
+        count++;
+      }
+
+      return count;
     }
   },
   async mounted() {
@@ -643,6 +806,73 @@ export default {
       }
     },
 
+    // Search and Filter Methods
+    toggleFilterPanel() {
+      this.showFilterPanel = !this.showFilterPanel;
+    },
+
+    clearSearch() {
+      this.searchQuery = '';
+      this.applyFilters();
+    },
+
+    resetFilters() {
+      this.searchQuery = '';
+      this.filters = {
+        types: [],
+        showCompleted: true,
+        showIncomplete: true,
+        showAllDay: true,
+        showTimedEvents: true
+      };
+      this.applyFilters();
+      this.showFilterPanel = false;
+    },
+
+    applyFilters() {
+      // Start with all events
+      let result = [...this.events];
+
+      // Apply search query filter
+      if (this.searchQuery.trim() !== '') {
+        const query = this.searchQuery.toLowerCase().trim();
+        result = result.filter(event =>
+            event.title.toLowerCase().includes(query) ||
+            (event.description && event.description.toLowerCase().includes(query))
+        );
+      }
+
+      // Apply event type filters
+      if (this.filters.types.length > 0) {
+        result = result.filter(event => this.filters.types.includes(event.type));
+      }
+
+      // Apply completion status filters
+      if (!this.filters.showCompleted) {
+        result = result.filter(event => !event.completed);
+      }
+
+      if (!this.filters.showIncomplete) {
+        result = result.filter(event => event.completed);
+      }
+
+      // Apply time frame filters
+      if (!this.filters.showAllDay) {
+        result = result.filter(event => !event.all_day);
+      }
+
+      if (!this.filters.showTimedEvents) {
+        result = result.filter(event => event.all_day);
+      }
+
+      this.filteredEvents = result;
+    },
+
+    getFilteredEventsForDay(date) {
+      const dateStr = this.formatDateISO(date);
+      return this.filteredEvents.filter(event => event.date === dateStr);
+    },
+
     // API Calls
     async fetchUserProfile() {
       try {
@@ -676,6 +906,8 @@ export default {
         const index = this.events.findIndex(e => e.id === event.id);
         if (index !== -1) {
           this.events[index].completed = !event.completed;
+          // Also update the filtered events array
+          this.applyFilters();
         }
 
         notify({
@@ -702,6 +934,7 @@ export default {
         });
 
         this.events = response.data;
+        this.filteredEvents = [...this.events]; // Initialize filtered events with all events
         this.notLoggedIn = false;
       } catch (error) {
         console.error("Error fetching events:", error);
@@ -738,6 +971,7 @@ export default {
 
         // Important: Use the server-returned event object (with its ID)
         this.events.push(response.data);
+        this.applyFilters(); // Update filtered events
         this.closeEventModal();
         notify({ type: "success", message: "Event created successfully!" });
       } catch (error) {
@@ -773,6 +1007,7 @@ export default {
         const index = this.events.findIndex(e => e.id === this.eventForm.id);
         if (index !== -1) {
           this.events[index] = response.data;
+          this.applyFilters(); // Update filtered events
         }
 
         this.closeEventModal();
@@ -795,6 +1030,7 @@ export default {
 
         // Remove from local events
         this.events = this.events.filter(e => e.id !== this.selectedEvent.id);
+        this.applyFilters(); // Update filtered events
 
         this.showDeleteConfirmModal = false;
         this.closeEventModal();
@@ -2051,8 +2287,240 @@ body.dark-mode .dashboard-header h1 {
   margin-top: 1rem;
 }
 
+/* Search and Filter Styles */
+.search-filter-container {
+  display: flex;
+  margin-bottom: 1rem;
+  gap: 1rem;
+  align-items: center;
+}
+
+.search-box {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-input);
+  border-radius: var(--border-radius);
+  padding: 0 1rem;
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.search-box:focus-within {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(123, 73, 255, 0.1);
+}
+
+.search-box svg {
+  color: var(--text-secondary);
+  margin-right: 0.5rem;
+}
+
+.search-box input {
+  flex: 1;
+  padding: 0.75rem 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1rem;
+  outline: none;
+  width: 100%;
+}
+
+.clear-search {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clear-search:hover {
+  color: var(--text-primary);
+}
+
+.filter-box {
+  display: flex;
+  align-items: center;
+}
+
+.filter-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  position: relative;
+}
+
+.filter-button.active {
+  background-color: var(--bg-hover);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.filter-button svg {
+  transition: transform 0.2s ease;
+}
+
+.filter-button.active svg {
+  transform: rotate(180deg);
+  color: var(--primary-color);
+}
+
+.filter-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: var(--primary-color);
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.filter-panel {
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.filter-section {
+  margin-bottom: 1.5rem;
+}
+
+.filter-section h3 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+  color: var(--text-secondary);
+}
+
+.filter-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.reset-filter-button {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reset-filter-button:hover {
+  background-color: var(--bg-hover);
+}
+
+.apply-filter-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.apply-filter-button:hover {
+  background-color: var(--primary-dark);
+}
+
+.no-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.no-results svg {
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+.no-results h3 {
+  font-size: 1.25rem;
+  margin: 0.5rem 0;
+  color: var(--text-primary);
+}
+
+.no-results p {
+  margin: 0.25rem 0 1.5rem;
+}
+
+.reset-search-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 0.5rem 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.reset-search-button:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-2px);
+}
+
+
+
 /* Responsive styles */
 @media (max-width: 768px) {
+  .search-filter-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-options {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .filter-actions {
+    flex-direction: column;
+  }
+
+  .filter-actions button {
+    width: 100%;
+  }
+
   .dashboard-main-content {
     padding: 1rem;
   }
@@ -2098,6 +2566,15 @@ body.dark-mode .dashboard-header h1 {
 }
 
 @media (max-width: 480px) {
+  .search-box input {
+    font-size: 0.875rem;
+    padding: 0.5rem 0;
+  }
+
+  .filter-panel {
+    padding: 1rem;
+  }
+
   .month-grid-header, .month-grid {
     font-size: 0.75rem;
   }

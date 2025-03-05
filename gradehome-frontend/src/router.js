@@ -7,7 +7,8 @@ import MobileLanding from './views/MobileLanding.vue'
 import Dashboard from './views/Dashboard.vue'
 import { Capacitor } from '@capacitor/core'
 import UserProfile from "@/components/UserProfile.vue";
-import Calendar from "@/components/Calendar.vue"; // Import the Calendar component
+import Calendar from "@/components/Calendar.vue";
+import SettingsPage from "@/components/SettingsPage.vue"; // Import the Calendar component
 
 // Detect mobile via Capacitor or screen width
 const isMobileApp = Capacitor.isNativePlatform() || window.innerWidth <= 768
@@ -48,6 +49,15 @@ const routes = [
         path: '/dashboard',
         name: 'Dashboard',
         component: Dashboard,
+    },
+
+    {
+        path: '/settings',
+        name: 'Settings',
+        component: SettingsPage,
+        meta: {
+            requiresAuth: true
+        }
     }
 ]
 
