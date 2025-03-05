@@ -84,8 +84,36 @@ class PasswordChange(BaseModel):
             raise ValueError("Password must have at least one special character")
         return value
 
+class AppearanceSettings(BaseModel):
+    accentColor: Optional[str] = "purple"
+    fontSize: Optional[str] = "medium"
+    highContrast: Optional[bool] = False
+
+class AcademicSettings(BaseModel):
+    gradingScale: Optional[List[dict]] = None
+    termStartDate: Optional[str] = None
+    termEndDate: Optional[str] = None
+    holidays: Optional[List[dict]] = None
+
+class AccessibilitySettings(BaseModel):
+    screenReaderOptimized: Optional[bool] = False
+    keyboardShortcuts: Optional[bool] = True
+    focusMode: Optional[bool] = False
+
+class CalendarSettings(BaseModel):
+    firstDayOfWeek: Optional[str] = "sunday"
+    defaultEventDuration: Optional[str] = "60"
+    defaultEventType: Optional[str] = "general"
+    timeFormat: Optional[str] = "12h"
+    dateFormat: Optional[str] = "MM/DD/YYYY"
+
+
 class UserSettings(BaseModel):
     dark_mode: Optional[bool] = False
     notifications_enabled: Optional[bool] = True
     calendar_view: Optional[str] = "month"
     language: Optional[str] = "en"
+    appearance: Optional[AppearanceSettings] = None
+    academic: Optional[AcademicSettings] = None
+    accessibility: Optional[AccessibilitySettings] = None
+    calendar: Optional[CalendarSettings] = None

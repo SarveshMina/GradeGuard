@@ -33,7 +33,7 @@ def get_user_by_email(email: str):
 def increment_university_and_major_counter(university_name: str, major_name: str):
     try:
         uni_doc = _uni_container.read_item(item=university_name, partition_key=university_name)
-    except:
+    except Exception:
         uni_doc = {
             "id": university_name,
             "name": university_name,

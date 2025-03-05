@@ -674,6 +674,9 @@ export default {
     this.darkMode = getDarkModePreference();
     this.checkMobile();
 
+    // Set a localStorage item so App.vue can read it
+    localStorage.setItem('keyboardShortcuts', this.settings.accessibility.keyboardShortcuts);
+
     // Add event listeners
     window.addEventListener("resize", this.checkMobile);
     window.addEventListener('darkModeChange', this.onDarkModeChange);
@@ -719,7 +722,7 @@ export default {
     },
     async fetchSettings() {
       try {
-        const response = await axios.get(`${API_URL}/settings`, {
+        const response = await axios.get(`${API_URL}/user/settings`, {
           withCredentials: true,
         });
 
@@ -727,23 +730,21 @@ export default {
           // Merge received settings with defaults to ensure all properties exist
           this.settings = this.mergeDeep(this.settings, response.data);
 
-          // Apply theme
-          this.darkMode = getDarkModePreference();
-
-          // Apply accent color
-          this.applyAccentColor(this.settings.appearance.accentColor);
-
-          // Apply font size
-          this.applyFontSize(this.settings.appearance.fontSize);
-
-          // Apply high contrast if enabled
-          if (this.settings.appearance.highContrast) {
-            document.documentElement.classList.add('high-contrast');
-          }
+          // Apply settings after they're loaded
+          this.applySettings();
         }
       } catch (error) {
         console.error("Error fetching settings:", error);
         // Use defaults if settings can't be fetched
+        if (error.response?.status === 401) {
+          this.notLoggedIn = true;
+          notify({ type: "warning", message: "Please log in to access settings" });
+        } else if (error.response?.status === 404) {
+          // First time user, using defaults is fine
+          console.log("No settings found, using defaults");
+        } else {
+          notify({ type: "error", message: "Failed to load settings. Using defaults." });
+        }
       } finally {
         this.loading = false;
       }
@@ -752,42 +753,71 @@ export default {
       this.isSaving = true;
       try {
         await axios.put(
-            `${API_URL}/settings`,
+            `${API_URL}/user/settings`,
             this.settings,
             { withCredentials: true }
         );
 
-        // Apply settings visually
-        this.applyAccentColor(this.settings.appearance.accentColor);
-        this.applyFontSize(this.settings.appearance.fontSize);
-
-        // Toggle high contrast mode
-        if (this.settings.appearance.highContrast) {
-          document.documentElement.classList.add('high-contrast');
-        } else {
-          document.documentElement.classList.remove('high-contrast');
-        }
+        // Apply all settings
+        this.applySettings();
 
         notify({ type: "success", message: "Settings saved successfully!" });
       } catch (error) {
         console.error("Error saving settings:", error);
-        notify({ type: "error", message: "Failed to save settings. Please try again." });
+
+        if (error.response?.status === 401) {
+          this.notLoggedIn = true;
+          notify({ type: "error", message: "Please log in to save settings." });
+        } else {
+          notify({ type: "error", message: "Failed to save settings. Please try again." });
+        }
       } finally {
         this.isSaving = false;
+      }
+    },
+
+    applySettings() {
+      // Apply theme (dark mode is handled separately through localStorage)
+      this.darkMode = getDarkModePreference();
+
+      // Apply accent color
+      this.applyAccentColor(this.settings.appearance.accentColor);
+
+      // Apply font size
+      this.applyFontSize(this.settings.appearance.fontSize);
+
+      // Apply high contrast if enabled
+      if (this.settings.appearance.highContrast) {
+        document.documentElement.classList.add('high-contrast');
+      } else {
+        document.documentElement.classList.remove('high-contrast');
+      }
+
+      // Apply keyboard shortcuts (emit event for App.vue)
+      window.dispatchEvent(new CustomEvent('settingsChange', {
+        detail: {
+          setting: 'keyboardShortcuts',
+          value: this.settings.accessibility.keyboardShortcuts
+        }
+      }));
+
+      // Apply focus mode if enabled
+      if (this.settings.accessibility.focusMode) {
+        document.documentElement.classList.add('focus-mode');
+      } else {
+        document.documentElement.classList.remove('focus-mode');
       }
     },
     resetSettings() {
       // Reset to default settings
       this.settings = JSON.parse(JSON.stringify(this.defaultSettings));
 
-      // Reset theme to system preference
+      // Apply reset settings
+      this.applySettings();
+
+      // Reset theme may need special handling
       this.darkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
       setDarkModePreference(this.darkMode);
-
-      // Reset visual elements
-      this.applyAccentColor('purple');
-      this.applyFontSize('medium');
-      document.documentElement.classList.remove('high-contrast');
 
       notify({ type: "info", message: "Settings reset to defaults" });
     },
