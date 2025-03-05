@@ -54,7 +54,7 @@
           <div class="setup-wizard">
             <div class="wizard-card">
               <div class="wizard-header">
-                <div class="step-indicator">Step 1 of 2</div>
+                <div class="step-indicator">Step 1 of 3</div>
                 <h2>Welcome! Let's set up your preferences</h2>
                 <p>Please select an option for each question to personalize your experience.</p>
               </div>
@@ -151,9 +151,33 @@
           <div class="next-config">
             <div class="wizard-card">
               <div class="wizard-header">
-                <div class="step-indicator">Step 2 of 2</div>
+                <div class="step-indicator">Step 2 of 3</div>
                 <h2>Degree Configuration</h2>
                 <p>Please provide the details for your degree program.</p>
+              </div>
+
+              <!-- Current Year -->
+              <div class="form-group">
+                <label>What year are you currently in?</label>
+                <div class="select-group">
+                  <button class="select-btn"
+                          v-for="n in 5"
+                          :key="n"
+                          :class="{ active: nextConfig.currentYear === n }"
+                          @click="nextConfig.currentYear = n">
+                    Year {{ n }}
+                  </button>
+                  <button class="select-btn"
+                          :class="{ active: nextConfig.currentYear === 'other' }"
+                          @click="nextConfig.currentYear = 'other'">
+                    Other
+                  </button>
+                </div>
+                <input v-if="nextConfig.currentYear === 'other'"
+                       type="number"
+                       min="1"
+                       placeholder="Enter your current year"
+                       v-model.number="nextConfig.customCurrentYear" />
               </div>
 
               <!-- (A) How many years? -->
@@ -161,24 +185,11 @@
                 <label>How many years in your degree program?</label>
                 <div class="select-group">
                   <button class="select-btn"
-                          :class="{ active: nextConfig.numYears === 1 }"
-                          @click="nextConfig.numYears = 1">
-                    1
-                  </button>
-                  <button class="select-btn"
-                          :class="{ active: nextConfig.numYears === 2 }"
-                          @click="nextConfig.numYears = 2">
-                    2
-                  </button>
-                  <button class="select-btn"
-                          :class="{ active: nextConfig.numYears === 3 }"
-                          @click="nextConfig.numYears = 3">
-                    3
-                  </button>
-                  <button class="select-btn"
-                          :class="{ active: nextConfig.numYears === 4 }"
-                          @click="nextConfig.numYears = 4">
-                    4
+                          v-for="n in 5"
+                          :key="`years-${n}`"
+                          :class="{ active: nextConfig.numYears === n }"
+                          @click="nextConfig.numYears = n">
+                    {{ n }}
                   </button>
                   <button class="select-btn"
                           :class="{ active: nextConfig.numYears === 'other' }"
@@ -198,24 +209,11 @@
                 <label>How many semesters in one academic year?</label>
                 <div class="select-group">
                   <button class="select-btn"
-                          :class="{ active: nextConfig.semesters === 1 }"
-                          @click="nextConfig.semesters = 1">
-                    1
-                  </button>
-                  <button class="select-btn"
-                          :class="{ active: nextConfig.semesters === 2 }"
-                          @click="nextConfig.semesters = 2">
-                    2
-                  </button>
-                  <button class="select-btn"
-                          :class="{ active: nextConfig.semesters === 3 }"
-                          @click="nextConfig.semesters = 3">
-                    3
-                  </button>
-                  <button class="select-btn"
-                          :class="{ active: nextConfig.semesters === 4 }"
-                          @click="nextConfig.semesters = 4">
-                    4
+                          v-for="n in 4"
+                          :key="`semesters-${n}`"
+                          :class="{ active: nextConfig.semesters === n }"
+                          @click="nextConfig.semesters = n">
+                    {{ n }}
                   </button>
                   <button class="select-btn"
                           :class="{ active: nextConfig.semesters === 'other' }"
@@ -240,9 +238,9 @@
                     30
                   </button>
                   <button class="select-btn"
-                          :class="{ active: nextConfig.credits === 50 }"
-                          @click="nextConfig.credits = 50">
-                    50
+                          :class="{ active: nextConfig.credits === 60 }"
+                          @click="nextConfig.credits = 60">
+                    60
                   </button>
                   <button class="select-btn"
                           :class="{ active: nextConfig.credits === 90 }"
@@ -275,7 +273,107 @@
                   </svg>
                   <span>Back</span>
                 </button>
-                <button class="save-button" @click="saveDegreeConfig">
+                <button class="save-button" @click="goToYearWeights">
+                  <span>Continue to Year Weights</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14"></path>
+                    <path d="M12 5l7 7-7 7"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Wizard Step 3: Year Weights Configuration -->
+        <div v-else-if="showYearWeights" class="center-content">
+          <div class="next-config">
+            <div class="wizard-card">
+              <div class="wizard-header">
+                <div class="step-indicator">Step 3 of 3</div>
+                <h2>Year Weightings</h2>
+                <p>Please specify how much each year contributes to your final grade.</p>
+              </div>
+
+              <div class="year-weights-container">
+                <div class="year-weights-header">
+                  <div class="year-column">Year</div>
+                  <div class="weight-column">Weight (%)</div>
+                  <div class="active-column">Active</div>
+                </div>
+
+                <div v-for="(year, index) in yearWeights" :key="index" class="year-weight-row">
+                  <div class="year-column">Year {{ index + 1 }}</div>
+                  <div class="weight-column">
+                    <input
+                        type="number"
+                        v-model.number="year.weight"
+                        min="0"
+                        max="100"
+                        @input="validateYearWeights"
+                        :disabled="!year.active"
+                    />
+                  </div>
+                  <div class="active-column">
+                    <label class="toggle-container">
+                      <input type="checkbox" v-model="year.active" @change="validateYearWeights">
+                      <span class="toggle-switch"></span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="total-weight" :class="{ 'weight-error': totalWeight !== 100 && hasActiveYears }">
+                  Total Weight: {{ totalWeight }}% {{ totalWeight !== 100 && hasActiveYears ? '(Should be 100%)' : '' }}
+                </div>
+              </div>
+
+              <!-- Target Grade -->
+              <div class="form-group">
+                <label>What is your target grade at the end of your degree?</label>
+                <div class="select-group">
+                  <button class="select-btn"
+                          :class="{ active: targetGrade === 70 }"
+                          @click="targetGrade = 70">
+                    <span class="btn-text">First Class (70%+)</span>
+                  </button>
+                  <button class="select-btn"
+                          :class="{ active: targetGrade === 60 }"
+                          @click="targetGrade = 60">
+                    <span class="btn-text">2:1 (60-69%)</span>
+                  </button>
+                  <button class="select-btn"
+                          :class="{ active: targetGrade === 50 }"
+                          @click="targetGrade = 50">
+                    <span class="btn-text">2:2 (50-59%)</span>
+                  </button>
+                  <button class="select-btn"
+                          :class="{ active: targetGrade === 40 }"
+                          @click="targetGrade = 40">
+                    <span class="btn-text">Third (40-49%)</span>
+                  </button>
+                  <button class="select-btn"
+                          :class="{ active: targetGrade === 'custom' }"
+                          @click="targetGrade = 'custom'">
+                    <span class="btn-text">Custom</span>
+                  </button>
+                </div>
+                <input v-if="targetGrade === 'custom'"
+                       type="number"
+                       min="0"
+                       max="100"
+                       placeholder="Enter your target percentage"
+                       v-model.number="customTargetGrade" />
+              </div>
+
+              <div class="button-group">
+                <button class="back-button" @click="goBackToDegreeConfig">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5"></path>
+                    <path d="M12 19l-7-7 7-7"></path>
+                  </svg>
+                  <span>Back</span>
+                </button>
+                <button class="save-button" @click="completeSetup" :disabled="totalWeight !== 100 && hasActiveYears">
                   <span>Complete Setup</span>
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M20 6L9 17l-5-5"></path>
@@ -524,7 +622,7 @@
               <!-- Modules Grid -->
               <div class="modules-grid">
                 <div v-for="(module, moduleIndex) in year.modules" :key="moduleIndex" class="module-card" @click="viewModuleDetails(module)">
-                  <div class="module-icon" :class="getModuleIconClass(module.score)">{{ module.code.charAt(0) }}</div>
+                  <div class="module-icon" :class="getModuleIconClass(module.score)">{{ module.code ? module.code.charAt(0) : module.name.charAt(0) }}</div>
                   <div class="module-details">
                     <div class="module-name">{{ module.name }}</div>
                     <div class="module-info">{{ module.credits }} credits</div>
@@ -687,7 +785,7 @@
               <div class="module-info-grid">
                 <div class="info-item">
                   <div class="info-label">Module Code</div>
-                  <div class="info-value">{{ selectedModule.code }}</div>
+                  <div class="info-value">{{ selectedModule.code || 'N/A' }}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Credits</div>
@@ -762,7 +860,7 @@
 
               <div class="form-grid">
                 <div class="form-group">
-                  <label for="moduleName">Module Name</label>
+                  <label for="moduleName">Module Name <span class="required">*</span></label>
                   <input type="text" id="moduleName" v-model="moduleForm.name" placeholder="e.g. Introduction to Programming">
                 </div>
 
@@ -772,12 +870,12 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="moduleCredits">Credits</label>
+                  <label for="moduleCredits">Credits <span class="required">*</span></label>
                   <input type="number" id="moduleCredits" v-model.number="moduleForm.credits" min="0">
                 </div>
 
                 <div class="form-group">
-                  <label for="moduleYear">Year</label>
+                  <label for="moduleYear">Year <span class="required">*</span></label>
                   <select id="moduleYear" v-model="moduleForm.year">
                     <option v-for="year in calculatorConfig.years" :key="year.year" :value="year.year">{{ year.year }}</option>
                   </select>
@@ -847,6 +945,7 @@
   </div>
 </template>
 
+
 <script>
 import axios from "axios";
 import { notify } from "@/services/toastService.js";
@@ -855,7 +954,7 @@ import CalendarSidebar from "@/components/CalendarSidebar.vue";
 import { getDarkModePreference } from "@/services/darkModeService.js";
 import { API_URL } from "@/config.js";
 
-// Import chart components - these will need to be created
+// Import chart components
 import GradeDistributionChart from "@/components/charts/GradeDistributionChart.vue";
 import YearComparisonChart from "@/components/charts/YearComparisonChart.vue";
 import PerformanceChart from "@/components/charts/PerformanceChart.vue";
@@ -895,6 +994,7 @@ export default {
       // Wizard states
       showSetupWizard: false,
       showNextConfig: false,
+      showYearWeights: false,
 
       // Basic user preferences
       userConfig: {
@@ -910,6 +1010,8 @@ export default {
 
       // Next wizard step (degree config)
       nextConfig: {
+        currentYear: 1,
+        customCurrentYear: 0,
         numYears: 0,
         semesters: 0,
         credits: 0,
@@ -918,8 +1020,39 @@ export default {
         customCredits: 0,
       },
 
+      // Year weights config
+      yearWeights: [],
+
+      // Target grade
+      targetGrade: 70,
+      customTargetGrade: 0,
+
       // Module data
       moduleData: [],
+      sampleModuleData: [
+        { name: "Security Of Cyber Physical Systems", code: "S", credits: 15, year: "Year 3", score: 90, assessments: [{ name: "Exam", weight: 100, score: 90 }] },
+        { name: "PLC", code: "P", credits: 15, year: "Year 2", score: 3, assessments: [{ name: "Exam", weight: 100, score: 3 }] },
+        { name: "Computational Biology", code: "C", credits: 15, year: "Year 3", score: 86.7, assessments: [{ name: "Exam", weight: 100, score: 86.7 }] },
+        { name: "Machine Learning Technologies", code: "M", credits: 15, year: "Year 3", score: 63.1, assessments: [{ name: "Exam", weight: 100, score: 63.1 }] },
+        { name: "Engineering Management And Law", code: "E", credits: 15, year: "Year 3", score: 60, assessments: [{ name: "Exam", weight: 100, score: 60 }] },
+        { name: "Cloud Application Development", code: "C", credits: 15, year: "Year 3", score: 76, assessments: [{ name: "Exam", weight: 100, score: 76 }] },
+        { name: "Dissertation", code: "D", credits: 45, year: "Year 3", score: 0, assessments: [{ name: "Dissertation", weight: 100, score: 0 }] },
+        { name: "Distributed Systems and Networks", code: "D", credits: 15, year: "Year 2", score: 43, assessments: [{ name: "Exam", weight: 100, score: 43 }] },
+        { name: "Software Engineering Group Project", code: "S", credits: 15, year: "Year 2", score: 72, assessments: [{ name: "Exam", weight: 100, score: 72 }] },
+        { name: "Principles Of Cyber Security", code: "P", credits: 15, year: "Year 2", score: 53.4, assessments: [{ name: "Exam", weight: 100, score: 53.4 }] },
+        { name: "Intelligent Systems", code: "I", credits: 15, year: "Year 2", score: 54, assessments: [{ name: "Exam", weight: 100, score: 54 }] },
+        { name: "Programming 3", code: "P", credits: 15, year: "Year 2", score: 72, assessments: [{ name: "Exam", weight: 100, score: 72 }] },
+        { name: "Theory Of Computing", code: "T", credits: 15, year: "Year 2", score: 41, assessments: [{ name: "Exam", weight: 100, score: 41 }] },
+        { name: "Interaction Design", code: "I", credits: 15, year: "Year 2", score: 62, assessments: [{ name: "Exam", weight: 100, score: 62 }] },
+        { name: "Professional Development", code: "P", credits: 15, year: "Year 1", score: 65, assessments: [{ name: "Exam", weight: 100, score: 65 }] },
+        { name: "Data Management", code: "D", credits: 15, year: "Year 1", score: 85, assessments: [{ name: "Exam", weight: 100, score: 85 }] },
+        { name: "Programming 2", code: "P", credits: 15, year: "Year 1", score: 72, assessments: [{ name: "Exam", weight: 100, score: 72 }] },
+        { name: "Algorithmics", code: "A", credits: 15, year: "Year 1", score: 40, assessments: [{ name: "Exam", weight: 100, score: 40 }] },
+        { name: "Computer Systems 1", code: "C", credits: 15, year: "Year 1", score: 65, assessments: [{ name: "Exam", weight: 100, score: 65 }] },
+        { name: "Software Modelling and Design", code: "S", credits: 15, year: "Year 1", score: 54, assessments: [{ name: "Exam", weight: 100, score: 54 }] },
+        { name: "Foundations Of Computer Science", code: "F", credits: 15, year: "Year 1", score: 41, assessments: [{ name: "Exam", weight: 100, score: 41 }] },
+        { name: "Programming 1", code: "P", credits: 15, year: "Year 1", score: 80, assessments: [{ name: "Exam", weight: 100, score: 80 }] }
+      ],
 
       // Module detail dialog
       showModuleDetail: false,
@@ -1004,7 +1137,7 @@ export default {
         },
         {
           title: 'Maintain Strong Performance',
-          description: 'Youre excelling in Security modules. Keep up the good work and consider peer tutoring to reinforce your knowledge.'
+          description: 'You\'re excelling in Security modules. Keep up the good work and consider peer tutoring to reinforce your knowledge.'
         },
         {
           title: 'Balance Your Workload',
@@ -1016,9 +1149,16 @@ export default {
   computed: {
     // Total weight of all years in calculator config
     totalWeight() {
-      return this.calculatorConfig.years.reduce((sum, year) => {
+      if (!this.yearWeights.length) return 0;
+
+      return this.yearWeights.reduce((sum, year) => {
         return sum + (year.active ? year.weight : 0);
       }, 0);
+    },
+
+    // Check if any years are active
+    hasActiveYears() {
+      return this.yearWeights.some(year => year.active);
     },
 
     // Total assessment weight in module form
@@ -1031,7 +1171,6 @@ export default {
     // Check if module form is valid
     isModuleFormValid() {
       return this.moduleForm.name &&
-          this.moduleForm.code &&
           this.moduleForm.credits > 0 &&
           this.moduleForm.year &&
           this.moduleForm.assessments.length > 0 &&
@@ -1180,8 +1319,8 @@ export default {
     // Insights tab calculations
     averageVsTarget() {
       // Comparing current average to personal target (using first goal)
-      const targetScore = this.goals[0]?.progress || 70;
-      return Math.round((this.overallAverage - targetScore) * 10) / 10;
+      const targetGradeValue = this.targetGrade === 'custom' ? this.customTargetGrade : this.targetGrade;
+      return Math.round((this.overallAverage - targetGradeValue) * 10) / 10;
     },
 
     predictionAccuracy() {
@@ -1325,11 +1464,26 @@ export default {
         // Prepare data for insight charts when switching to insights tab
         this.prepareInsightsData();
       }
+    },
+
+    // Watch for numYears changes to update year weights
+    'nextConfig.numYears': function(newValue) {
+      if (newValue !== 'other' && newValue > 0) {
+        this.initializeYearWeights(newValue);
+      }
+    },
+
+    'nextConfig.customYears': function(newValue) {
+      if (this.nextConfig.numYears === 'other' && newValue > 0) {
+        this.initializeYearWeights(newValue);
+      }
     }
   },
   async mounted() {
     await this.checkLoginAndFetchConfig();
-    await this.fetchModuleData();
+
+    // Using sample data directly for frontend
+    this.moduleData = [...this.sampleModuleData];
 
     // Handle dark mode
     this.darkMode = getDarkModePreference();
@@ -1355,6 +1509,40 @@ export default {
     window.removeEventListener('darkModeChange', this.onDarkModeChange);
   },
   methods: {
+    // Initialize year weights based on number of years
+    initializeYearWeights(numYears) {
+      // Create default distribution (equal weights for now)
+      const defaultWeight = Math.floor(100 / numYears);
+      const remainder = 100 - (defaultWeight * numYears);
+
+      this.yearWeights = [];
+
+      for (let i = 0; i < numYears; i++) {
+        // Add remainder to last year if needed
+        const weight = i === numYears - 1 ? defaultWeight + remainder : defaultWeight;
+        this.yearWeights.push({
+          year: i + 1,
+          weight: weight,
+          active: true
+        });
+      }
+    },
+
+    // Validate year weights to ensure they sum to 100%
+    validateYearWeights() {
+      // Cap individual weight values at 100
+      this.yearWeights.forEach(year => {
+        if (year.weight > 100) year.weight = 100;
+        if (year.weight < 0) year.weight = 0;
+      });
+
+      // If only one active year, force it to 100%
+      const activeYears = this.yearWeights.filter(y => y.active);
+      if (activeYears.length === 1) {
+        activeYears[0].weight = 100;
+      }
+    },
+
     // Toggle sidebar visibility
     toggleSidebar() {
       this.sidebarVisible = !this.sidebarVisible;
@@ -1375,62 +1563,18 @@ export default {
     // Check if user is logged in and fetch configuration
     async checkLoginAndFetchConfig() {
       try {
-        // Get user profile information
-        const userProfileResponse = await axios.get(`${API_URL}/user/profile`, {
-          withCredentials: true,
-        });
+        // For development, show setup wizard
+        this.showSetupWizard = true;
 
-        if (userProfileResponse.data) {
-          this.userProfile = userProfileResponse.data;
-        }
-
-        // Get user configuration
-        const userConfigResponse = await axios.get(`${API_URL}/user/config`, {
-          withCredentials: true,
-        });
-
-        if (userConfigResponse.data) {
-          this.userConfig = userConfigResponse.data;
-        }
-
-        // Show wizard if no basic preferences yet
-        if (!this.userConfig.academicLevel || !this.userConfig.enrollmentType) {
-          this.showSetupWizard = true;
-          return;
-        }
-
-        // Fetch calculator config if it exists
-        const calcResponse = await axios.get(`${API_URL}/calculator`, {
-          withCredentials: true,
-        });
-
-        if (calcResponse.data?.years?.length) {
-          this.calculatorConfig = calcResponse.data;
-        } else {
-          this.showNextConfig = true;
-        }
+        // Mock data for frontend testing
+        this.calculatorConfig.years = [
+          { year: "Year 1", active: true, credits: 120, semesters: 2, weight: 0 },
+          { year: "Year 2", active: true, credits: 120, semesters: 2, weight: 40 },
+          { year: "Year 3", active: true, credits: 120, semesters: 2, weight: 60 }
+        ];
       } catch (error) {
         console.error("Error fetching config:", error);
-        if (error.response?.status === 401) {
-          this.notLoggedIn = true;
-          this.$router.push("/login");
-        }
-      }
-    },
-
-    // Fetch module data
-    async fetchModuleData() {
-      try {
-        const response = await axios.get(`${API_URL}/modules`, {
-          withCredentials: true,
-        });
-
-        if (response.data) {
-          this.moduleData = response.data;
-        }
-      } catch (error) {
-        console.error("Error fetching module data:", error);
-        notify({ type: "error", message: "Failed to load your modules." });
+        this.notLoggedIn = true;
       }
     },
 
@@ -1441,25 +1585,9 @@ export default {
         return;
       }
 
-      axios
-          .put(
-              `${API_URL}/user/config`,
-              {
-                academicLevel: this.userConfig.academicLevel,
-                enrollmentType: this.userConfig.enrollmentType,
-                studyPreference: this.userConfig.studyPreference,
-              },
-              { withCredentials: true }
-          )
-          .then(() => {
-            notify({ type: "success", message: "Preferences saved successfully!" });
-            this.showSetupWizard = false;
-            this.showNextConfig = true;
-          })
-          .catch((error) => {
-            console.error("Error saving user config:", error);
-            notify({ type: "error", message: "Failed to save your preferences." });
-          });
+      // For frontend: just move to next step
+      this.showSetupWizard = false;
+      this.showNextConfig = true;
     },
 
     // Go back to wizard step 1
@@ -1468,8 +1596,8 @@ export default {
       this.showSetupWizard = true;
     },
 
-    // Save degree config from wizard step 2
-    saveDegreeConfig() {
+    // Go to year weights config
+    goToYearWeights() {
       const yearsCount =
           this.nextConfig.numYears === "other" ? this.nextConfig.customYears : this.nextConfig.numYears;
       const semCount =
@@ -1487,28 +1615,67 @@ export default {
         return;
       }
 
+      // Move to year weights step
+      this.showNextConfig = false;
+      this.showYearWeights = true;
+
+      // Initialize year weights if not already done
+      if (this.yearWeights.length === 0) {
+        this.initializeYearWeights(yearsCount);
+      }
+    },
+
+    // Go back to degree config
+    goBackToDegreeConfig() {
+      this.showYearWeights = false;
+      this.showNextConfig = true;
+    },
+
+    // Complete setup and go to dashboard
+    completeSetup() {
+      // Validate weights before proceeding
+      if (this.totalWeight !== 100 && this.hasActiveYears) {
+        notify({
+          type: "warning",
+          message: "The total weight of active years should equal 100%.",
+        });
+        return;
+      }
+
+      const yearsCount =
+          this.nextConfig.numYears === "other" ? this.nextConfig.customYears : this.nextConfig.numYears;
+      const semCount =
+          this.nextConfig.semesters === "other"
+              ? this.nextConfig.customSemesters
+              : this.nextConfig.semesters;
+      const credCount =
+          this.nextConfig.credits === "other" ? this.nextConfig.customCredits : this.nextConfig.credits;
+
+      // Create years configuration
       const newYears = [];
       for (let i = 0; i < yearsCount; i++) {
+        const yearWeight = this.yearWeights.find(yw => yw.year === i + 1);
+
         newYears.push({
           year: `Year ${i + 1}`,
-          active: true,
+          active: yearWeight ? yearWeight.active : true,
           credits: credCount,
           semesters: semCount,
-          weight: Math.floor(100 / yearsCount), // Distribute weight evenly
+          weight: yearWeight ? yearWeight.weight : Math.floor(100 / yearsCount),
         });
       }
+
       this.calculatorConfig.years = newYears;
 
-      axios
-          .put(`${API_URL}/calculator/update`, this.calculatorConfig, { withCredentials: true })
-          .then(() => {
-            notify({ type: "success", message: "Degree configuration saved successfully!" });
-            this.showNextConfig = false;
-          })
-          .catch((error) => {
-            console.error("Error saving degree configuration:", error);
-            notify({ type: "error", message: "Failed to save degree configuration." });
-          });
+      // Save target grade
+      this.goals[0].progress = this.targetGrade === 'custom' ? this.customTargetGrade : this.targetGrade;
+
+      // Frontend only: just show dashboard
+      this.showYearWeights = false;
+
+      notify({ type: "success", message: "Setup completed successfully!" });
+
+      // In a real application, we would save the configuration to the backend here
     },
 
     // Handle credit input changes
@@ -1545,15 +1712,8 @@ export default {
         return;
       }
 
-      axios
-          .put(`${API_URL}/calculator/update`, this.calculatorConfig, { withCredentials: true })
-          .then(() => {
-            notify({ type: "success", message: "Calculator configuration saved successfully!" });
-          })
-          .catch((error) => {
-            console.error("Error saving calculator configuration:", error);
-            notify({ type: "error", message: "Failed to save calculator configuration." });
-          });
+      // For frontend, just show success notification
+      notify({ type: "success", message: "Calculator configuration saved successfully!" });
     },
 
     // Check if device is mobile
@@ -1608,8 +1768,7 @@ export default {
         year: year.year,
         score: 0,
         assessments: [
-          { name: 'Assignment 1', weight: 50, score: 0 },
-          { name: 'Exam', weight: 50, score: 0 }
+          { name: 'Exam', weight: 100, score: 0 }
         ]
       };
       this.showModuleForm = true;
@@ -1623,7 +1782,7 @@ export default {
       // Ensure assessments array exists
       if (!this.moduleForm.assessments || !this.moduleForm.assessments.length) {
         this.moduleForm.assessments = [
-          { name: 'Assignment', weight: 100, score: module.score }
+          { name: 'Exam', weight: 100, score: module.score }
         ];
       }
 
@@ -1634,17 +1793,13 @@ export default {
     // Delete module
     deleteModule(module) {
       if (confirm(`Are you sure you want to delete "${module.name}"?`)) {
-        axios
-            .delete(`${API_URL}/modules/${module.id}`, { withCredentials: true })
-            .then(() => {
-              notify({ type: "success", message: "Module deleted successfully!" });
-              this.fetchModuleData(); // Refresh module data
-              this.showModuleDetail = false;
-            })
-            .catch((error) => {
-              console.error("Error deleting module:", error);
-              notify({ type: "error", message: "Failed to delete module." });
-            });
+        // For frontend mock: just filter out the module
+        this.moduleData = this.moduleData.filter(m =>
+            !(m.name === module.name && m.year === module.year && m.code === module.code)
+        );
+
+        notify({ type: "success", message: "Module deleted successfully!" });
+        this.showModuleDetail = false;
       }
     },
 
@@ -1676,28 +1831,31 @@ export default {
 
       this.moduleForm.score = Math.round(totalScore * 10) / 10;
 
-      // Save to API
-      const endpoint = this.editingModule ?
-          `${API_URL}/modules/${this.moduleForm.id}` :
-          `${API_URL}/modules`;
+      // For frontend mock: update or add the module
+      if (this.editingModule) {
+        // Find and replace the module
+        const index = this.moduleData.findIndex(m =>
+            m.name === this.selectedModule.name &&
+            m.year === this.selectedModule.year &&
+            m.code === this.selectedModule.code
+        );
 
-      const method = this.editingModule ? 'put' : 'post';
+        if (index !== -1) {
+          this.moduleData.splice(index, 1, {...this.moduleForm});
+        }
+      } else {
+        // Add new module
+        this.moduleData.push({...this.moduleForm});
+      }
 
-      axios({
-        method: method,
-        url: endpoint,
-        data: this.moduleForm,
-        withCredentials: true
-      })
-          .then(() => {
-            notify({ type: "success", message: `Module ${this.editingModule ? 'updated' : 'added'} successfully!` });
-            this.fetchModuleData(); // Refresh module data
-            this.showModuleForm = false;
-          })
-          .catch((error) => {
-            console.error(`Error ${this.editingModule ? 'updating' : 'adding'} module:`, error);
-            notify({ type: "error", message: `Failed to ${this.editingModule ? 'update' : 'add'} module.` });
-          });
+      notify({ type: "success", message: `Module ${this.editingModule ? 'updated' : 'added'} successfully!` });
+      this.showModuleForm = false;
+
+      // Refresh chart data
+      this.prepareChartData();
+      if (this.activeView === 'insights') {
+        this.prepareInsightsData();
+      }
     },
 
     // Export grades to CSV
@@ -1706,7 +1864,7 @@ export default {
       let csv = 'Year,Module,Code,Credits,Score\n';
 
       this.moduleData.forEach(module => {
-        csv += `${module.year},${module.name},${module.code},${module.credits},${module.score}\n`;
+        csv += `${module.year},${module.name},${module.code || ''},${module.credits},${module.score}\n`;
       });
 
       // Create download link
@@ -1812,7 +1970,7 @@ export default {
 </script>
 
 <style scoped>
-/* Base Dashboard Styles */
+/* ========== Base Dashboard Styles ========== */
 .dashboard {
   min-height: 100vh;
   background-color: var(--bg-light);
@@ -1829,7 +1987,7 @@ export default {
   min-height: calc(100vh - 70px);
 }
 
-/* Main content styles */
+/* ========== Main Content Styles ========== */
 .dashboard-main-content {
   flex: 1;
   padding: 2rem;
@@ -1858,7 +2016,7 @@ body.dark-mode .dashboard-header h1 {
   color: var(--primary-light);
 }
 
-/* View controls */
+/* ========== View Controls ========== */
 .view-controls {
   display: flex;
   gap: 0.5rem;
@@ -1889,7 +2047,7 @@ body.dark-mode .dashboard-header h1 {
   color: var(--primary-color);
 }
 
-/* Sidebar toggle buttons */
+/* ========== Sidebar Toggle Buttons ========== */
 .sidebar-toggle {
   display: flex;
   align-items: center;
@@ -1931,7 +2089,7 @@ body.dark-mode .dashboard-header h1 {
   z-index: 20;
 }
 
-/* Sidebar styles */
+/* ========== Sidebar Styles ========== */
 .dashboard-sidebar {
   width: 320px;
   background-color: var(--bg-card);
@@ -1955,7 +2113,7 @@ body.dark-mode .dashboard-header h1 {
   opacity: 0;
 }
 
-/* Center content container */
+/* ========== Center Content Container ========== */
 .center-content {
   display: flex;
   flex-direction: column;
@@ -1964,7 +2122,7 @@ body.dark-mode .dashboard-header h1 {
   width: 100%;
 }
 
-/* Authentication prompt */
+/* ========== Authentication Prompt ========== */
 .auth-prompt {
   padding: 2rem;
   height: 100%;
@@ -2020,7 +2178,7 @@ body.dark-mode .dashboard-header h1 {
   transform: translateY(-2px);
 }
 
-/* Wizard styles */
+/* ========== Wizard Styles ========== */
 .wizard-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
@@ -2060,7 +2218,7 @@ body.dark-mode .dashboard-header h1 {
   color: var(--text-secondary);
 }
 
-/* Form styling */
+/* ========== Form Styling ========== */
 .form-group {
   margin-bottom: 1.5rem;
 }
@@ -2070,6 +2228,10 @@ body.dark-mode .dashboard-header h1 {
   margin-bottom: 0.5rem;
   font-weight: 500;
   color: var(--text-primary);
+}
+
+.required {
+  color: #e74c3c;
 }
 
 .form-group input[type="number"],
@@ -2146,7 +2308,117 @@ body.dark-mode .dashboard-header h1 {
   font-size: 1.1rem;
 }
 
-/* Button styling */
+/* ========== Year Weights Styles ========== */
+.year-weights-container {
+  margin-bottom: 2rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+}
+
+.year-weights-header {
+  display: flex;
+  background-color: var(--bg-accent);
+  padding: 0.75rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.year-weight-row {
+  display: flex;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.year-weight-row:last-child {
+  border-bottom: none;
+}
+
+.year-column {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.weight-column {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.weight-column input {
+  width: 80px;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--bg-input);
+}
+
+.active-column {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-container {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.toggle-container input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-switch {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  border-radius: 24px;
+  transition: .4s;
+}
+
+.toggle-switch:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  border-radius: 50%;
+  transition: .4s;
+}
+
+input:checked + .toggle-switch {
+  background-color: var(--primary-color);
+}
+
+input:checked + .toggle-switch:before {
+  transform: translateX(26px);
+}
+
+.total-weight {
+  padding: 0.75rem;
+  text-align: right;
+  font-weight: 600;
+  background-color: var(--bg-accent);
+  border-top: 1px solid var(--border-color);
+}
+
+.weight-error {
+  color: var(--warning-color);
+}
+
+/* ========== Button Styling ========== */
 .save-button {
   display: flex;
   align-items: center;
@@ -2203,7 +2475,7 @@ body.dark-mode .dashboard-header h1 {
   background-color: rgba(123, 73, 255, 0.1);
 }
 
-/* Dashboard Overview Tab */
+/* ========== Dashboard Overview Tab ========== */
 .dashboard-overview {
   display: flex;
   flex-direction: column;
@@ -2345,7 +2617,7 @@ body.dark-mode .dashboard-header h1 {
   color: var(--primary-dark);
 }
 
-/* Progress Section */
+/* ========== Progress Section ========== */
 .progress-section {
   margin-top: 2rem;
 }
@@ -2440,7 +2712,7 @@ body.dark-mode .dashboard-header h1 {
   color: var(--text-secondary);
 }
 
-/* Visualization Row */
+/* ========== Visualization Row ========== */
 .visualization-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -2470,14 +2742,14 @@ body.dark-mode .dashboard-header h1 {
   height: 350px;
 }
 
-/* Bottom Row */
+/* ========== Bottom Row ========== */
 .bottom-row {
   display: grid;
   grid-template-columns: 1.5fr 1fr;
   gap: 2rem;
 }
 
-/* Activity Card */
+/* ========== Activity Card ========== */
 .activity-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
@@ -2554,7 +2826,7 @@ body.dark-mode .dashboard-header h1 {
   white-space: nowrap;
 }
 
-/* Goals Card */
+/* ========== Goals Card ========== */
 .goals-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
@@ -2632,14 +2904,14 @@ body.dark-mode .dashboard-header h1 {
   color: var(--text-secondary);
 }
 
-/* Yearly View Tab */
+/* ========== Yearly View Tab ========== */
 .yearly-view {
   display: flex;
   flex-direction: column;
   gap: 2rem;
 }
 
-/* Filters Row */
+/* ========== Filters Row ========== */
 .filters-row {
   display: flex;
   justify-content: space-between;
@@ -2681,7 +2953,7 @@ body.dark-mode .dashboard-header h1 {
   transform: translateY(-2px);
 }
 
-/* Year Card */
+/* ========== Year Card ========== */
 .year-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
@@ -2724,7 +2996,7 @@ body.dark-mode .dashboard-header h1 {
   color: var(--text-secondary);
 }
 
-/* Year Progress */
+/* ========== Year Progress ========== */
 .year-progress {
   margin-bottom: 1.5rem;
 }
@@ -2747,7 +3019,7 @@ body.dark-mode .dashboard-header h1 {
   transition: width 0.5s ease;
 }
 
-/* Modules Grid */
+/* ========== Modules Grid ========== */
 .modules-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -2843,7 +3115,7 @@ body.dark-mode .dashboard-header h1 {
   color: #e74c3c;
 }
 
-/* Add Module Button */
+/* ========== Add Module Button ========== */
 .add-module-button {
   display: flex;
   align-items: center;
@@ -2865,14 +3137,14 @@ body.dark-mode .dashboard-header h1 {
   transform: scale(1.05);
 }
 
-/* Insights Tab */
+/* ========== Insights Tab ========== */
 .insights-view {
   display: flex;
   flex-direction: column;
   gap: 2rem;
 }
 
-/* Insights Card */
+/* ========== Insights Card ========== */
 .insights-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
@@ -2949,7 +3221,7 @@ body.dark-mode .dashboard-header h1 {
   color: var(--text-secondary);
 }
 
-/* Insights Charts */
+/* ========== Insights Charts ========== */
 .insights-charts {
   display: flex;
   flex-direction: column;
@@ -2962,7 +3234,7 @@ body.dark-mode .dashboard-header h1 {
   gap: 2rem;
 }
 
-/* Insights Tips */
+/* ========== Insights Tips ========== */
 .insights-tips {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
@@ -3018,7 +3290,7 @@ body.dark-mode .dashboard-header h1 {
   line-height: 1.5;
 }
 
-/* Prediction Scenarios */
+/* ========== Prediction Scenarios ========== */
 .insights-prediction {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
@@ -3092,7 +3364,7 @@ body.dark-mode .dashboard-header h1 {
   color: var(--text-secondary);
 }
 
-/* Module Detail Dialog */
+/* ========== Module Detail Dialog ========== */
 .module-detail-dialog,
 .module-form-dialog {
   position: fixed;
@@ -3288,7 +3560,7 @@ body.dark-mode .dashboard-header h1 {
   background: var(--bg-accent);
 }
 
-/* Module Form */
+/* ========== Module Form ========== */
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -3384,7 +3656,7 @@ body.dark-mode .dashboard-header h1 {
   color: var(--warning-color);
 }
 
-/* Responsive adjustments */
+/* ========== Responsive adjustments ========== */
 @media (max-width: 1200px) {
   .insight-metrics {
     grid-template-columns: repeat(2, 1fr);
@@ -3484,6 +3756,24 @@ body.dark-mode .dashboard-header h1 {
   .slide-leave-to {
     transform: translateY(100%);
   }
+
+  .button-group {
+    flex-direction: column;
+  }
+
+  .year-weights-container {
+    font-size: 0.9rem;
+  }
+
+  .year-weights-header,
+  .year-weight-row {
+    padding: 0.5rem;
+  }
+
+  .weight-column input {
+    width: 60px;
+    padding: 0.4rem;
+  }
 }
 
 /* Small screen adjustments */
@@ -3499,6 +3789,16 @@ body.dark-mode .dashboard-header h1 {
     gap: 1rem;
   }
 
+  .select-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .select-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
   .module-detail-dialog,
   .module-form-dialog {
     padding: 1rem;
@@ -3510,6 +3810,10 @@ body.dark-mode .dashboard-header h1 {
 
   .progress-targets {
     flex-direction: column;
+  }
+
+  .insight-metrics {
+    grid-template-columns: 1fr;
   }
 }
 </style>

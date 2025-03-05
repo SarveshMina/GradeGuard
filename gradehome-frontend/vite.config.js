@@ -5,7 +5,7 @@ import path from 'path'
 
 export default defineConfig({
     plugins: [vue()],
-    base: '/GradeGuard/',
+    base: process.env.NODE_ENV === 'production' ? '/GradeGuard/' : '/',
     resolve: {
         alias: {
             '@': path.resolve(__dirname, './src')
