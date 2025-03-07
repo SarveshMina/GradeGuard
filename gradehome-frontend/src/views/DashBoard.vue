@@ -11,7 +11,7 @@
 
     <!-- Layout container: main content and sidebar -->
     <div class="dashboard-layout">
-      <!-- Floating collapse button that appears when sidebar is hidden -->
+      <!-- Move the toggle button outside of the main content area -->
       <button
           v-if="!sidebarVisible"
           @click="toggleSidebar"
@@ -2150,7 +2150,7 @@ body.dark-mode .dashboard-header h1 {
   font-weight: 500;
   box-shadow: var(--shadow-sm);
   transition: all 0.2s ease;
-  z-index: 10;
+  z-index: 50; /* Increased z-index to ensure button is above other elements */
 }
 
 .toggle-text {
@@ -2168,6 +2168,7 @@ body.dark-mode .dashboard-header h1 {
   right: 2rem;
   top: 6rem;
   box-shadow: 0 2px 10px rgba(123, 73, 255, 0.3);
+  z-index: 100; /* Higher z-index to ensure it's visible */
 }
 
 .sidebar-hide-button {

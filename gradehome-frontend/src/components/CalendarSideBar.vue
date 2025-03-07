@@ -262,6 +262,7 @@
 
 <script>
 import axios from 'axios';
+import { nextTick } from 'vue';
 import { notify } from '@/services/toastService.js';
 import { API_URL } from '@/config.js';
 
@@ -416,6 +417,18 @@ export default {
     if (this.events.length === 0) {
       await this.fetchEvents();
     }
+
+    // Force a redraw of the calendar
+    await nextTick();
+
+    // Apply custom styling for calendar components based on dark mode
+    this.applyCalendarTheme();
+
+    // Listen for dark mode changes
+    window.addEventListener('darkModeChange', this.onDarkModeChange);
+  },
+  beforeUnmount() {
+    window.removeEventListener('darkModeChange', this.onDarkModeChange);
   },
   methods: {
     async fetchEvents(startDate = null, endDate = null) {
@@ -442,6 +455,22 @@ export default {
         notify({ type: 'error', message: 'Failed to load events. Please try again.' });
       } finally {
         this.loadingEvents = false;
+      }
+    },
+
+    applyCalendarTheme() {
+      // Get the dark mode state from parent or localStorage
+      const isDarkMode = document.body.classList.contains('dark-mode');
+
+      // Apply proper theme to calendar component if using V-Calendar
+      if (this.$refs.calendar) {
+        const calendarElement = this.$refs.calendar.$el;
+
+        if (isDarkMode) {
+          calendarElement.classList.add('vc-dark');
+        } else {
+          calendarElement.classList.remove('vc-dark');
+        }
       }
     },
 
@@ -524,6 +553,7 @@ export default {
 
       this.showEventModal = true;
     },
+
 
     closeEventModal() {
       this.showEventModal = false;
@@ -787,6 +817,7 @@ export default {
 
 <style scoped>
 /* Enhanced Calendar Sidebar Styles */
+/* Enhanced Calendar Sidebar Styles */
 :root {
   --primary-color: #673ab7;
   --primary-dark: #512da8;
@@ -814,6 +845,7 @@ export default {
   --font-family: 'Montserrat', sans-serif;
 }
 
+/* Dark mode variables */
 .dark-mode {
   --text-primary: #f5f7fa;
   --text-secondary: #d0d0d0;
@@ -889,6 +921,10 @@ export default {
   width: fit-content;
 }
 
+.dark-mode .sidebar-header h2 {
+  color: var(--primary-light);
+}
+
 .sidebar-header h2::after {
   content: '';
   position: absolute;
@@ -925,6 +961,10 @@ export default {
   padding: 0.25rem 0.75rem;
   background-color: var(--bg-input);
   border-radius: 20px;
+}
+
+.dark-mode .current-month {
+  color: var(--primary-light);
 }
 
 .nav-btn {
@@ -989,6 +1029,8 @@ export default {
   box-shadow: var(--shadow-sm);
   transition: all 0.3s ease;
   overflow: hidden;
+  display: flex;
+  justify-content: center; /* Center calendar horizontally */
 }
 
 .calendar-wrapper:hover {
@@ -1001,6 +1043,44 @@ export default {
   border: none;
   border-radius: var(--border-radius);
   overflow: hidden;
+  margin: 0 auto; /* Center the calendar */
+}
+
+/* Dark mode calendar adjustments */
+.dark-mode .vc-container {
+  --gray-900: var(--text-primary);
+  --gray-800: var(--text-primary);
+  --gray-700: var(--text-secondary);
+  --gray-600: var(--text-secondary);
+  --gray-500: var(--text-muted);
+  --gray-400: var(--border-color);
+  --gray-300: var(--bg-muted);
+  --gray-200: var(--bg-input);
+  --gray-100: var(--bg-card);
+  --blue-500: var(--primary-color);
+  --blue-600: var(--primary-dark);
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+}
+
+.dark-mode .vc-day-content:hover {
+  background-color: var(--bg-hover);
+}
+
+.dark-mode .vc-day {
+  color: var(--text-primary);
+}
+
+.dark-mode .vc-highlight {
+  background-color: var(--primary-color-transparent);
+}
+
+.dark-mode .vc-header {
+  color: var(--text-primary);
+}
+
+.dark-mode .vc-weekday {
+  color: var(--text-secondary);
 }
 
 /* Today's summary styling */
@@ -1013,6 +1093,12 @@ export default {
   position: relative;
   overflow: hidden;
   transition: all 0.3s ease;
+}
+
+/* Ensure text is visible in both dark and light modes */
+.calendar-sidebar .today-summary,
+.dark-mode .calendar-sidebar .today-summary {
+  color: white;
 }
 
 .today-summary::before {
@@ -1038,7 +1124,7 @@ export default {
 }
 
 .date-pill {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.25);
   border-radius: 20px;
   padding: 0.4rem 1rem;
   font-size: 0.85rem;
@@ -1048,6 +1134,8 @@ export default {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   transition: all 0.3s ease;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .today-summary:hover .date-pill {
@@ -1063,16 +1151,21 @@ export default {
 
 .stat-item {
   text-align: center;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.15);
   padding: 0.75rem 1rem;
   border-radius: var(--border-radius);
   flex: 1;
   transition: all 0.3s ease;
   backdrop-filter: blur(5px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 80px; /* Fixed height for consistency */
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .stat-item:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.25);
   transform: translateY(-2px);
 }
 
@@ -1082,6 +1175,7 @@ export default {
   line-height: 1.2;
   margin-bottom: 0.25rem;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: white;
 }
 
 .stat-label {
@@ -1090,6 +1184,7 @@ export default {
   letter-spacing: 0.5px;
   font-weight: 500;
   opacity: 0.9;
+  color: white;
 }
 
 /* Events section styling */
@@ -1138,6 +1233,10 @@ export default {
   transition: all 0.3s ease;
   position: relative;
   display: inline-block;
+}
+
+.dark-mode .events-header h3 {
+  color: var(--primary-light);
 }
 
 .events-header h3::after {
@@ -1282,6 +1381,11 @@ export default {
   transition: all 0.3s ease;
   box-shadow: var(--shadow-sm);
   margin-top: 0.5rem;
+}
+
+.dark-mode .schedule-btn {
+  background-color: rgba(149, 117, 205, 0.2);
+  color: var(--primary-light);
 }
 
 .schedule-btn:hover {
@@ -1602,6 +1706,10 @@ export default {
   display: inline-block;
 }
 
+.dark-mode .modal-header h2 {
+  color: var(--primary-light);
+}
+
 .modal-header h2::after {
   content: '';
   position: absolute;
@@ -1904,16 +2012,25 @@ export default {
     gap: 0.75rem;
   }
 
+  /* Improved Quick Stats for mobile */
   .quick-stats {
     gap: 0.75rem;
+    flex-direction: row; /* Keep as row, but with better spacing */
+    align-items: stretch;
   }
 
   .stat-item {
-    padding: 0.6rem 0.75rem;
+    padding: 0.75rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 80px;
   }
 
   .stat-value {
     font-size: 1.5rem;
+    line-height: 1.2;
+    margin-bottom: 0.25rem;
   }
 
   .event-actions {

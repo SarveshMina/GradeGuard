@@ -37,8 +37,30 @@
 
         <!-- Settings Content -->
         <div v-else class="settings-content">
-          <!-- Settings Navigation -->
-          <div class="settings-navigation">
+          <!-- Mobile Settings Dropdown (shown only on mobile) -->
+          <div class="mobile-settings-dropdown" v-if="isMobile">
+            <div class="dropdown-selector" @click="toggleMobileNav">
+              <span>{{ getCurrentSectionName() }}</span>
+              <svg class="dropdown-icon" :class="{ 'open': mobileNavOpen }" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
+            <div class="mobile-nav-menu" v-if="mobileNavOpen">
+              <button
+                  v-for="(section, index) in sections"
+                  :key="index"
+                  @click="selectMobileSection(section.id)"
+                  class="mobile-nav-item"
+                  :class="{ active: activeSection === section.id }"
+              >
+                <span class="icon" v-html="section.icon"></span>
+                <span class="text">{{ section.name }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Desktop Settings Navigation (hidden on mobile) -->
+          <div class="settings-navigation" v-if="!isMobile">
             <button
                 v-for="(section, index) in sections"
                 :key="index"
@@ -166,6 +188,7 @@
                     <div class="grade-letter">Grade</div>
                     <div class="grade-min">Minimum %</div>
                     <div class="grade-gpa">GPA Value</div>
+                    <div class="grade-action"></div>
                   </div>
                   <div
                       v-for="(grade, index) in settings.academic.gradingScale"
@@ -197,25 +220,27 @@
                           step="0.1"
                       />
                     </div>
-                    <button
-                        v-if="index > 0"
-                        @click="removeGrade(index)"
-                        class="remove-grade"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                      </svg>
-                    </button>
+                    <div class="grade-action">
+                      <button
+                          v-if="index > 0"
+                          @click="removeGrade(index)"
+                          class="remove-grade"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
-                  <button @click="addGrade" class="add-grade-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <line x1="12" y1="5" x2="12" y2="19"></line>
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
-                    Add Grade
-                  </button>
                 </div>
+                <button @click="addGrade" class="add-grade-btn">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  Add Grade
+                </button>
               </div>
 
               <!-- Term Dates -->
@@ -252,26 +277,13 @@
                       :key="index"
                       class="holiday-item"
                   >
-                    <div class="form-row">
-                      <div class="form-group">
-                        <input
-                            type="text"
-                            v-model="holiday.name"
-                            placeholder="Holiday Name"
-                        />
-                      </div>
-                      <div class="form-group">
-                        <input
-                            type="date"
-                            v-model="holiday.startDate"
-                        />
-                      </div>
-                      <div class="form-group">
-                        <input
-                            type="date"
-                            v-model="holiday.endDate"
-                        />
-                      </div>
+                    <div class="holiday-header">
+                      <input
+                          type="text"
+                          v-model="holiday.name"
+                          placeholder="Holiday Name"
+                          class="holiday-name"
+                      />
                       <button
                           @click="removeHoliday(index)"
                           class="remove-holiday"
@@ -281,6 +293,22 @@
                           <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
                       </button>
+                    </div>
+                    <div class="holiday-dates">
+                      <div class="form-group">
+                        <label>Start Date</label>
+                        <input
+                            type="date"
+                            v-model="holiday.startDate"
+                        />
+                      </div>
+                      <div class="form-group">
+                        <label>End Date</label>
+                        <input
+                            type="date"
+                            v-model="holiday.endDate"
+                        />
+                      </div>
                     </div>
                   </div>
                   <button @click="addHoliday" class="add-holiday-btn">
@@ -304,31 +332,79 @@
                 <form @submit.prevent="changePassword" class="password-form">
                   <div class="form-group">
                     <label for="current-password">Current Password</label>
-                    <input
-                        type="password"
-                        id="current-password"
-                        v-model="passwordForm.currentPassword"
-                        required
-                    />
+                    <div class="password-input-wrapper">
+                      <input
+                          :type="showPassword.current ? 'text' : 'password'"
+                          id="current-password"
+                          v-model="passwordForm.currentPassword"
+                          required
+                      />
+                      <button
+                          type="button"
+                          class="toggle-password"
+                          @click="showPassword.current = !showPassword.current"
+                      >
+                        <svg v-if="!showPassword.current" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                          <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   <div class="form-group">
                     <label for="new-password">New Password</label>
-                    <input
-                        type="password"
-                        id="new-password"
-                        v-model="passwordForm.newPassword"
-                        required
-                    />
+                    <div class="password-input-wrapper">
+                      <input
+                          :type="showPassword.new ? 'text' : 'password'"
+                          id="new-password"
+                          v-model="passwordForm.newPassword"
+                          required
+                      />
+                      <button
+                          type="button"
+                          class="toggle-password"
+                          @click="showPassword.new = !showPassword.new"
+                      >
+                        <svg v-if="!showPassword.new" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                          <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                      </button>
+                    </div>
                     <small>Password must be at least 8 characters with a mix of letters, numbers, and symbols</small>
                   </div>
                   <div class="form-group">
                     <label for="confirm-password">Confirm New Password</label>
-                    <input
-                        type="password"
-                        id="confirm-password"
-                        v-model="passwordForm.confirmPassword"
-                        required
-                    />
+                    <div class="password-input-wrapper">
+                      <input
+                          :type="showPassword.confirm ? 'text' : 'password'"
+                          id="confirm-password"
+                          v-model="passwordForm.confirmPassword"
+                          required
+                      />
+                      <button
+                          type="button"
+                          class="toggle-password"
+                          @click="showPassword.confirm = !showPassword.confirm"
+                      >
+                        <svg v-if="!showPassword.confirm" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                          <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                      </button>
+                    </div>
                   </div>
                   <button
                       type="submit"
@@ -577,6 +653,12 @@ export default {
       isMobile: false,
       isSaving: false,
       activeSection: 'appearance',
+      mobileNavOpen: false,
+      showPassword: {
+        current: false,
+        new: false,
+        confirm: false
+      },
 
       // User profile
       userProfile: {
@@ -702,6 +784,21 @@ export default {
     },
     checkMobile() {
       this.isMobile = window.innerWidth <= 768;
+      // Close mobile nav when switching to desktop view
+      if (!this.isMobile) {
+        this.mobileNavOpen = false;
+      }
+    },
+    toggleMobileNav() {
+      this.mobileNavOpen = !this.mobileNavOpen;
+    },
+    selectMobileSection(sectionId) {
+      this.activeSection = sectionId;
+      this.mobileNavOpen = false; // Close the dropdown after selection
+    },
+    getCurrentSectionName() {
+      const section = this.sections.find(s => s.id === this.activeSection);
+      return section ? section.name : 'Settings';
     },
     async fetchUserProfile() {
       try {
@@ -952,12 +1049,54 @@ export default {
 </script>
 
 <style scoped>
+/* Basic variables */
+:root {
+  --primary-color: #7b49ff;
+  --primary-light: #9b7aff;
+  --primary-dark: #5b34cc;
+  --error-color: #f44336;
+  --success-color: #4caf50;
+  --warning-color: #ff9800;
+  --text-primary: #333;
+  --text-secondary: #666;
+  --text-tertiary: #999;
+  --bg-light: #f5f7fa;
+  --bg-card: #ffffff;
+  --bg-input: #f5f7fa;
+  --bg-hover: #f0f0f0;
+  --border-color: #e1e4e8;
+  --border-radius: 8px;
+  --border-radius-lg: 12px;
+  --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.1);
+  --font-size-base: 16px;
+  --transition-speed: 0.3s;
+}
+
+/* Dark mode variables */
+.dark-mode {
+  --text-primary: #e4e6eb;
+  --text-secondary: #b0b3b8;
+  --text-tertiary: #777;
+  --bg-light: #18191a;
+  --bg-card: #242526;
+  --bg-input: #3a3b3c;
+  --bg-hover: #3a3b3c;
+  --border-color: #3e4042;
+  --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Base styles */
 .settings-page {
   min-height: 100vh;
   background-color: var(--bg-light);
   color: var(--text-primary);
   transition: background-color var(--transition-speed) ease,
   color var(--transition-speed) ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
 .dashboard-layout {
@@ -1072,7 +1211,97 @@ export default {
   gap: 2rem;
 }
 
-/* Settings navigation */
+/* Mobile dropdown */
+.mobile-settings-dropdown {
+  width: 100%;
+  margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 10;
+}
+
+.dropdown-selector {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid var(--border-color);
+}
+
+.dropdown-selector:hover {
+  background-color: var(--bg-hover);
+}
+
+.dropdown-icon {
+  transition: transform 0.3s ease;
+}
+
+.dropdown-icon.open {
+  transform: rotate(180deg);
+}
+
+.mobile-nav-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mobile-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.mobile-nav-item:last-child {
+  border-bottom: none;
+}
+
+.mobile-nav-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.mobile-nav-item.active {
+  background-color: rgba(123, 73, 255, 0.1);
+  color: var(--primary-color);
+}
+
+.mobile-nav-item .icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Desktop settings navigation */
 .settings-navigation {
   width: 220px;
   flex-shrink: 0;
@@ -1086,6 +1315,7 @@ export default {
   align-self: flex-start;
   position: sticky;
   top: 85px; /* Stick below navbar */
+  height: fit-content;
 }
 
 .nav-button {
@@ -1154,6 +1384,14 @@ export default {
 
 .setting-group {
   margin-bottom: 2rem;
+  background-color: var(--bg-light);
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  transition: all 0.3s ease;
+}
+
+.setting-group:hover {
+  box-shadow: var(--shadow-sm);
 }
 
 .setting-group:last-child {
@@ -1179,15 +1417,19 @@ export default {
   gap: 0.5rem;
   padding: 0.75rem 1rem;
   border-radius: var(--border-radius);
-  background-color: var(--bg-input);
+  background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s ease;
+  flex: 1;
+  justify-content: center;
 }
 
 .theme-option:hover {
   background-color: var(--bg-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
 }
 
 .theme-option.active {
@@ -1204,6 +1446,7 @@ export default {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
+  justify-content: center;
 }
 
 .color-option {
@@ -1214,14 +1457,17 @@ export default {
   border: 2px solid transparent;
   transition: all 0.2s ease;
   position: relative;
+  box-shadow: var(--shadow-sm);
 }
 
 .color-option:hover {
-  transform: scale(1.1);
+  transform: scale(1.15);
+  box-shadow: var(--shadow-md);
 }
 
 .color-option.active {
   border-color: var(--text-primary);
+  transform: scale(1.15);
 }
 
 .color-option.active::after {
@@ -1247,8 +1493,8 @@ export default {
 .toggle {
   position: relative;
   display: inline-block;
-  width: 48px;
-  height: 24px;
+  width: 52px;
+  height: 26px;
 }
 
 .toggle input {
@@ -1266,14 +1512,14 @@ export default {
   bottom: 0;
   background-color: #ccc;
   transition: .4s;
-  border-radius: 24px;
+  border-radius: 26px;
 }
 
 .toggle-slider:before {
   position: absolute;
   content: "";
-  height: 18px;
-  width: 18px;
+  height: 20px;
+  width: 20px;
   left: 3px;
   bottom: 3px;
   background-color: white;
@@ -1290,21 +1536,54 @@ input:focus + .toggle-slider {
 }
 
 input:checked + .toggle-slider:before {
-  transform: translateX(24px);
+  transform: translateX(26px);
 }
 
 /* Radio options */
 .radio-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 .radio-option {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
   cursor: pointer;
+  padding: 0.5rem 0;
+}
+
+.radio-option input[type="radio"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  margin: 0;
+  cursor: pointer;
+  position: relative;
+}
+
+.radio-option input[type="radio"]:checked {
+  border-color: var(--primary-color);
+}
+
+.radio-option input[type="radio"]:checked::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.radio-option span {
+  font-size: 0.95rem;
 }
 
 /* Form elements */
@@ -1323,16 +1602,17 @@ input:checked + .toggle-slider:before {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
+  color: var(--text-primary);
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.75rem 1rem;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  background-color: var(--bg-input);
+  background-color: var(--bg-card);
   color: var(--text-primary);
   font-size: 1rem;
   transition: all 0.2s ease;
@@ -1343,6 +1623,7 @@ input:checked + .toggle-slider:before {
 .form-group textarea:focus {
   border-color: var(--primary-color);
   outline: none;
+  box-shadow: 0 0 0 2px rgba(123, 73, 255, 0.2);
 }
 
 .form-group small {
@@ -1350,6 +1631,30 @@ input:checked + .toggle-slider:before {
   margin-top: 0.25rem;
   font-size: 0.75rem;
   color: var(--text-secondary);
+}
+
+/* Password input */
+.password-input-wrapper {
+  position: relative;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-password:hover {
+  color: var(--primary-color);
 }
 
 .select-wrapper {
@@ -1373,6 +1678,7 @@ input:checked + .toggle-slider:before {
 .select-wrapper select {
   appearance: none;
   padding-right: 30px;
+  cursor: pointer;
 }
 
 /* Grading scale */
@@ -1380,6 +1686,7 @@ input:checked + .toggle-slider:before {
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   overflow: hidden;
+  background-color: var(--bg-card);
 }
 
 .grade-row {
@@ -1396,6 +1703,7 @@ input:checked + .toggle-slider:before {
   background-color: var(--bg-hover);
   font-weight: 500;
   color: var(--text-primary);
+  padding: 0.75rem 0;
 }
 
 .grade-letter,
@@ -1404,6 +1712,13 @@ input:checked + .toggle-slider:before {
   padding: 0.75rem;
   flex: 1;
   text-align: center;
+}
+
+.grade-action {
+  width: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .grade-row input {
@@ -1429,6 +1744,9 @@ input:checked + .toggle-slider:before {
   padding: 0.5rem;
   opacity: 0.7;
   transition: opacity 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .remove-grade:hover {
@@ -1443,39 +1761,70 @@ input:checked + .toggle-slider:before {
   gap: 0.5rem;
   width: 100%;
   padding: 0.75rem;
-  background-color: transparent;
+  background-color: var(--bg-card);
   border: 1px dashed var(--border-color);
   border-radius: var(--border-radius);
   color: var(--primary-color);
   cursor: pointer;
   margin-top: 1rem;
   transition: all 0.2s ease;
+  font-weight: 500;
 }
 
 .add-grade-btn:hover,
 .add-holiday-btn:hover {
   background-color: rgba(123, 73, 255, 0.05);
   border-color: var(--primary-color);
+  transform: translateY(-2px);
 }
 
 /* Holiday items */
 .holiday-item {
-  margin-bottom: 1rem;
-  padding: 1rem;
-  background-color: var(--bg-light);
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background-color: var(--bg-card);
   border-radius: var(--border-radius);
   position: relative;
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.holiday-item:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.holiday-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.holiday-name {
+  font-weight: 500;
+  flex: 1;
+}
+
+.holiday-dates {
+  display: flex;
+  gap: 1rem;
 }
 
 .remove-holiday {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
   background: transparent;
   border: none;
   color: var(--error-color);
   cursor: pointer;
   padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.remove-holiday:hover {
+  background-color: rgba(244, 67, 54, 0.1);
 }
 
 /* Password form */
@@ -1489,6 +1838,7 @@ input:checked + .toggle-slider:before {
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   overflow: hidden;
+  background-color: var(--bg-card);
 }
 
 .shortcut-item {
@@ -1516,6 +1866,7 @@ input:checked + .toggle-slider:before {
   border-radius: 4px;
   font-size: 0.8rem;
   font-family: monospace;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* Fixed bottom actions */
@@ -1551,17 +1902,20 @@ input:checked + .toggle-slider:before {
 
 .reset-button:hover {
   background-color: var(--bg-hover);
+  border-color: var(--text-secondary);
 }
 
 .save-button {
   background-color: var(--primary-color);
   border: none;
   color: white;
+  min-width: 120px;
 }
 
 .save-button:hover {
   background-color: var(--primary-dark);
   transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
 }
 
 .save-button:disabled {
@@ -1580,41 +1934,114 @@ input:checked + .toggle-slider:before {
     flex-direction: column;
   }
 
-  .settings-navigation {
-    width: 100%;
-    flex-direction: row;
-    overflow-x: auto;
-    padding: 0.5rem;
-    position: relative;
-    top: 0;
-  }
-
-  .nav-button {
-    white-space: nowrap;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.8rem;
-  }
-
   .settings-panel {
-    padding: 1rem;
+    padding: 1.25rem;
+  }
+
+  .setting-group {
+    padding: 1.25rem;
   }
 
   .theme-selector,
   .color-options,
   .radio-options {
     flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .theme-option {
+    flex: none;
+    width: 100%;
   }
 
   .form-row {
     flex-direction: column;
   }
 
+  /* Adjust grading scale for mobile */
   .grade-row {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
+  }
+
+  .grade-letter,
+  .grade-min,
+  .grade-gpa {
+    padding: 0.5rem;
+  }
+
+  .holiday-dates {
+    flex-direction: column;
   }
 
   .settings-actions {
     padding: 1rem;
+    flex-direction: column-reverse;
+    gap: 0.5rem;
   }
+
+  .reset-button,
+  .save-button {
+    width: 100%;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  /* Make radio options stack on mobile */
+  .radio-options {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* Adjust keyboard shortcuts for mobile */
+  .shortcut-item {
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+}
+
+/* Medium size devices */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .settings-content {
+    gap: 1.5rem;
+  }
+
+  .settings-navigation {
+    width: 180px;
+  }
+
+  .nav-button {
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
+  }
+}
+
+/* Animation for buttons */
+button {
+  position: relative;
+  overflow: hidden;
+}
+
+button::after {
+  content: '';
+  display: block;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
+  background-repeat: no-repeat;
+  background-position: 50%;
+  transform: scale(10, 10);
+  opacity: 0;
+  transition: transform .5s, opacity 1s;
+}
+
+button:active::after {
+  transform: scale(0, 0);
+  opacity: .3;
+  transition: 0s;
 }
 </style>
