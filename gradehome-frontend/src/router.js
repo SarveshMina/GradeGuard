@@ -3,7 +3,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Landing from './views/Landing.vue'
 import Login from './views/Login.vue'
 import ForgotPassword from './views/ForgotPassword.vue'
-import MobileLanding from './views/MobileLanding.vue'
 import Dashboard from './views/Dashboard.vue'
 import { Capacitor } from '@capacitor/core'
 import UserProfile from "@/views/UserProfile.vue";
@@ -11,6 +10,7 @@ import Calendar from "@/views/Calendar.vue";
 import SettingsPage from "@/views/SettingsPage.vue";
 
 // Detect mobile via Capacitor or screen width
+// We'll keep this for other potential uses in the app
 const isMobileApp = Capacitor.isNativePlatform() || window.innerWidth <= 768
 
 // Get the base URL from the import.meta.env, use the repository name as base
@@ -20,7 +20,7 @@ const routes = [
     {
         path: '/',
         name: 'Home',
-        component: isMobileApp ? MobileLanding : Landing,
+        component: Landing, // Always use Landing component regardless of device
     },
     {
         path: '/login',

@@ -3,6 +3,7 @@
 import os
 import uuid
 from azure.cosmos import CosmosClient
+from typing import List, Dict, Any
 
 COSMOS_ENDPOINT = os.environ.get("COSMOS_ENDPOINT")
 COSMOS_KEY = os.environ.get("COSMOS_KEY")
@@ -10,7 +11,6 @@ COSMOS_DBNAME = os.environ.get("COSMOS_DBNAME")
 COSMOS_CONTAINER = os.environ.get("COSMOS_CONTAINER")  # e.g., "users"
 COSMOS_UNI_CONTAINER = os.environ.get("COSMOS_UNI_CONTAINER")  # e.g. "universities"
 COSMOS_EVENTS_CONTAINER = os.environ.get("COSMOS_EVENTS_CONTAINER", "events")
-
 
 
 _client = CosmosClient(COSMOS_ENDPOINT, credential=COSMOS_KEY)
@@ -30,33 +30,63 @@ def get_user_by_email(email: str):
     except Exception:
         return None
 
+def get_user_modules(email: str) -> List[Dict[str, Any]]:
+    """Retrieve modules for a user"""
+    query = f"SELECT * FROM c WHERE c.type = 'module' AND c.user_email = '{email}'"
+    modules = list(_container.query_items(query=query, enable_cross_partition_query=True))
+    return modules
+
 def increment_university_and_major_counter(university_name: str, major_name: str):
+    """
+    Increments counters for university and major, handling the case when the university
+    already exists in a different document.
+    """
     try:
-        uni_doc = _uni_container.read_item(item=university_name, partition_key=university_name)
-    except Exception:
-        uni_doc = {
-            "id": university_name,
-            "name": university_name,
-            "counter": 0,
-            "majors": []
-        }
-    uni_doc["counter"] = uni_doc.get("counter", 0) + 1
-
-    major_found = None
-    for m in uni_doc["majors"]:
-        if m["major_name"].lower() == major_name.lower():
-            major_found = m
-            break
-
-    if major_found:
-        major_found["counter"] += 1
-    else:
-        uni_doc["majors"].append({
-            "major_name": major_name,
-            "counter": 1
-        })
-
-    _uni_container.upsert_item(uni_doc)
+        # First, query for the university by name (instead of trying to read directly)
+        query = f"SELECT * FROM c WHERE c.name = '{university_name}'"
+        items = list(_uni_container.query_items(query=query, enable_cross_partition_query=True))
+        
+        # If we found items, use the first one
+        if items:
+            uni_doc = items[0]
+        else:
+            # Create a new university document
+            uni_doc = {
+                "id": university_name,  # Use name as ID
+                "name": university_name,
+                "counter": 0,
+                "majors": []
+            }
+        
+        # Increment the counter
+        uni_doc["counter"] = uni_doc.get("counter", 0) + 1
+        
+        # Check if the major exists
+        major_found = None
+        for m in uni_doc.get("majors", []):
+            if m["major_name"].lower() == major_name.lower():
+                major_found = m
+                break
+        
+        # If major found, increment counter, otherwise add it
+        if major_found:
+            major_found["counter"] += 1
+        else:
+            if "majors" not in uni_doc:
+                uni_doc["majors"] = []
+            
+            uni_doc["majors"].append({
+                "major_name": major_name,
+                "counter": 1
+            })
+        
+        # Upsert (update or insert) the document
+        _uni_container.upsert_item(uni_doc)
+        
+    except Exception as e:
+        print(f"Error updating university counter: {str(e)}")
+        # Don't raise the exception - we don't want user registration to fail
+        # if the counter update fails
 
 def get_all_universities_docs():
     query = "SELECT * FROM c"
@@ -200,3 +230,30 @@ def delete_calendar_event(user_email: str, event_id: str):
         except Exception as query_error:
             print(f"Error in query approach: {str(query_error)}")
             return False
+
+
+# Add this helper function to get modules with statistics
+def get_modules_with_stats(university: str, degree: str):
+    """Get modules with statistics for a specific university and degree"""
+    try:
+        # Query for modules of this university and degree
+        query = f"""
+        SELECT c.name, c.code, c.credits, c.year, c.semester,
+               AVG(c.score) as average_score,
+               COUNT(c.id) as student_count
+        FROM c
+        WHERE c.type = 'module'
+          AND c.university = '{university}'
+          AND c.degree = '{degree}'
+        GROUP BY c.name, c.code, c.credits, c.year, c.semester
+        """
+        
+        modules = list(_container.query_items(
+            query=query,
+            enable_cross_partition_query=True
+        ))
+        
+        return modules
+    except Exception as e:
+        print(f"Error getting modules with stats: {str(e)}")
+        return []

@@ -86,7 +86,7 @@ def google_auth_callback(req: HttpRequest) -> HttpResponse:
             "userid": generated_userid,
             "firstName": first_name,
             "email": email,
-            "password": "", 
+            "password": "",
             "university": "",
             "degree": "",
             "calcType": "",
@@ -99,15 +99,24 @@ def google_auth_callback(req: HttpRequest) -> HttpResponse:
     expire_time = (datetime.datetime.utcnow() + datetime.timedelta(seconds=SESSION_TIMEOUT_SECONDS)) \
         .strftime("%a, %d-%b-%Y %H:%M:%S GMT")
 
+    # Extract the origin to set proper CORS header
+    origin = req.headers.get("Origin", os.environ.get("ALLOWED_ORIGINS", "").split(",")[0])
+    
     response = HttpResponse(
         json.dumps({"message": "Authentication successful."}),
         status_code=302,
         mimetype="application/json"
     )
-    # IMPORTANT: Add SameSite=None; Secure
+    
+    # IMPORTANT: Add SameSite=None; Secure for cross-origin support
     response.headers["Set-Cookie"] = (
         f"{SESSION_COOKIE_NAME}={session_id}; Expires={expire_time}; HttpOnly; Path=/; SameSite=None; Secure"
     )
-    frontend_redirect_url = os.environ.get("FRONTEND_REDIRECT_URL", "http://localhost:8080/dashboard")
+    
+    # Set proper CORS headers
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    
+    frontend_redirect_url = os.environ.get("FRONTEND_REDIRECT_URL", "https://sarveshmina.co.uk/GradeGuard/dashboard")
     response.headers["Location"] = frontend_redirect_url
     return response

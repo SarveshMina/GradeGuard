@@ -572,6 +572,7 @@
                 <label for="sortBy">Sort By:</label>
                 <select id="sortBy" v-model="sortMethod">
                   <option value="name">Module Name</option>
+                  <option value="semester">Semester</option>
                   <option value="score-asc">Score (Low to High)</option>
                   <option value="score-desc">Score (High to Low)</option>
                   <option value="credits">Credits</option>
@@ -625,7 +626,7 @@
                   <div class="module-icon" :class="getModuleIconClass(module.score)">{{ module.code ? module.code.charAt(0) : module.name.charAt(0) }}</div>
                   <div class="module-details">
                     <div class="module-name">{{ module.name }}</div>
-                    <div class="module-info">{{ module.credits }} credits</div>
+                    <div class="module-info">{{ module.credits }} credits | Semester {{ module.semester || 1 }}</div>
                   </div>
                   <div class="module-score" :class="getScoreClass(module.score)">
                     {{ module.score }}%
@@ -796,6 +797,10 @@
                   <div class="info-value">{{ selectedModule.year }}</div>
                 </div>
                 <div class="info-item">
+                  <div class="info-label">Semester</div>
+                  <div class="info-value">{{ selectedModule.semester || 1 }}</div>
+                </div>
+                <div class="info-item">
                   <div class="info-label">Overall Score</div>
                   <div class="info-value score" :class="getScoreClass(selectedModule.score)">{{ selectedModule.score }}%</div>
                 </div>
@@ -880,6 +885,16 @@
                     <option v-for="year in calculatorConfig.years" :key="year.year" :value="year.year">{{ year.year }}</option>
                   </select>
                 </div>
+
+                <!-- Add the new semester field here -->
+                <div class="form-group">
+                  <label for="moduleSemester">Semester <span class="required">*</span></label>
+                  <select id="moduleSemester" v-model="moduleForm.semester">
+                    <option v-for="option in semesterOptions" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                </div>
               </div>
 
               <h3>Assessments</h3>
@@ -945,7 +960,6 @@
   </div>
 </template>
 
-
 <script>
 import axios from "axios";
 import { notify } from "@/services/toastService.js";
@@ -983,6 +997,7 @@ export default {
       selectedTimeframe: 'all',
       selectedYear: 'all',
       sortMethod: 'name',
+      loading: false,
 
       // User data
       userProfile: {
@@ -1029,30 +1044,6 @@ export default {
 
       // Module data
       moduleData: [],
-      sampleModuleData: [
-        { name: "Security Of Cyber Physical Systems", code: "S", credits: 15, year: "Year 3", score: 90, assessments: [{ name: "Exam", weight: 100, score: 90 }] },
-        { name: "PLC", code: "P", credits: 15, year: "Year 2", score: 3, assessments: [{ name: "Exam", weight: 100, score: 3 }] },
-        { name: "Computational Biology", code: "C", credits: 15, year: "Year 3", score: 86.7, assessments: [{ name: "Exam", weight: 100, score: 86.7 }] },
-        { name: "Machine Learning Technologies", code: "M", credits: 15, year: "Year 3", score: 63.1, assessments: [{ name: "Exam", weight: 100, score: 63.1 }] },
-        { name: "Engineering Management And Law", code: "E", credits: 15, year: "Year 3", score: 60, assessments: [{ name: "Exam", weight: 100, score: 60 }] },
-        { name: "Cloud Application Development", code: "C", credits: 15, year: "Year 3", score: 76, assessments: [{ name: "Exam", weight: 100, score: 76 }] },
-        { name: "Dissertation", code: "D", credits: 45, year: "Year 3", score: 0, assessments: [{ name: "Dissertation", weight: 100, score: 0 }] },
-        { name: "Distributed Systems and Networks", code: "D", credits: 15, year: "Year 2", score: 43, assessments: [{ name: "Exam", weight: 100, score: 43 }] },
-        { name: "Software Engineering Group Project", code: "S", credits: 15, year: "Year 2", score: 72, assessments: [{ name: "Exam", weight: 100, score: 72 }] },
-        { name: "Principles Of Cyber Security", code: "P", credits: 15, year: "Year 2", score: 53.4, assessments: [{ name: "Exam", weight: 100, score: 53.4 }] },
-        { name: "Intelligent Systems", code: "I", credits: 15, year: "Year 2", score: 54, assessments: [{ name: "Exam", weight: 100, score: 54 }] },
-        { name: "Programming 3", code: "P", credits: 15, year: "Year 2", score: 72, assessments: [{ name: "Exam", weight: 100, score: 72 }] },
-        { name: "Theory Of Computing", code: "T", credits: 15, year: "Year 2", score: 41, assessments: [{ name: "Exam", weight: 100, score: 41 }] },
-        { name: "Interaction Design", code: "I", credits: 15, year: "Year 2", score: 62, assessments: [{ name: "Exam", weight: 100, score: 62 }] },
-        { name: "Professional Development", code: "P", credits: 15, year: "Year 1", score: 65, assessments: [{ name: "Exam", weight: 100, score: 65 }] },
-        { name: "Data Management", code: "D", credits: 15, year: "Year 1", score: 85, assessments: [{ name: "Exam", weight: 100, score: 85 }] },
-        { name: "Programming 2", code: "P", credits: 15, year: "Year 1", score: 72, assessments: [{ name: "Exam", weight: 100, score: 72 }] },
-        { name: "Algorithmics", code: "A", credits: 15, year: "Year 1", score: 40, assessments: [{ name: "Exam", weight: 100, score: 40 }] },
-        { name: "Computer Systems 1", code: "C", credits: 15, year: "Year 1", score: 65, assessments: [{ name: "Exam", weight: 100, score: 65 }] },
-        { name: "Software Modelling and Design", code: "S", credits: 15, year: "Year 1", score: 54, assessments: [{ name: "Exam", weight: 100, score: 54 }] },
-        { name: "Foundations Of Computer Science", code: "F", credits: 15, year: "Year 1", score: 41, assessments: [{ name: "Exam", weight: 100, score: 41 }] },
-        { name: "Programming 1", code: "P", credits: 15, year: "Year 1", score: 80, assessments: [{ name: "Exam", weight: 100, score: 80 }] }
-      ],
 
       // Module detail dialog
       showModuleDetail: false,
@@ -1066,56 +1057,20 @@ export default {
         code: '',
         credits: 15,
         year: '',
+        semester: 1, // Default to semester 1
         score: 0,
         assessments: []
       },
 
+      // Dashboard data
+      dashboardStats: {},
+      dashboardConfig: {},
+
       // Recent activities data
-      recentActivities: [
-        {
-          type: 'grade',
-          title: 'New Grade Added',
-          description: 'Security Of Cyber Physical Systems: 90%',
-          time: '2 days ago'
-        },
-        {
-          type: 'submission',
-          title: 'Assignment Submitted',
-          description: 'Machine Learning Technologies - Final Project',
-          time: '5 days ago'
-        },
-        {
-          type: 'grade',
-          title: 'New Grade Added',
-          description: 'Computational Biology: 86.7%',
-          time: '1 week ago'
-        },
-        {
-          type: 'submission',
-          title: 'Assignment Submitted',
-          description: 'Cloud Application Development - Practical Lab',
-          time: '2 weeks ago'
-        }
-      ],
+      recentActivities: [],
 
       // Goals data
-      goals: [
-        {
-          title: 'First Class Degree',
-          description: 'Achieve overall average of 70% or higher',
-          progress: 85
-        },
-        {
-          title: 'Improve Distributed Systems',
-          description: 'Get 65% or higher in final assessment',
-          progress: 40
-        },
-        {
-          title: 'Complete All Labs',
-          description: 'Submit all practical lab assignments',
-          progress: 75
-        }
-      ],
+      goals: [],
 
       // Year data for comparisons
       yearData: [],
@@ -1130,20 +1085,7 @@ export default {
       scoreDistribution: [],
 
       // Personalized tips
-      personalizedTips: [
-        {
-          title: 'Focus on Distributed Systems',
-          description: 'This is your lowest scoring module. Consider allocating more study time to improve your understanding of key concepts.'
-        },
-        {
-          title: 'Maintain Strong Performance',
-          description: 'You\'re excelling in Security modules. Keep up the good work and consider peer tutoring to reinforce your knowledge.'
-        },
-        {
-          title: 'Balance Your Workload',
-          description: 'Your submission pattern shows clustering before deadlines. Try spacing out your work to reduce stress and improve quality.'
-        }
-      ]
+      personalizedTips: []
     };
   },
   computed: {
@@ -1179,82 +1121,28 @@ export default {
 
     // Get overall average across all years
     overallAverage() {
-      if (!this.moduleData.length) return 0;
-
-      // If a specific timeframe is selected
-      if (this.selectedTimeframe !== 'all') {
-        const filteredModules = this.moduleData.filter(m => m.year === `Year ${this.selectedTimeframe}`);
-        if (!filteredModules.length) return 0;
-
-        const totalCredits = filteredModules.reduce((sum, module) => sum + module.credits, 0);
-        const weightedSum = filteredModules.reduce((sum, module) => sum + (module.score * module.credits), 0);
-
-        return totalCredits > 0 ? Math.round((weightedSum / totalCredits) * 10) / 10 : 0;
-      }
-
-      // Calculate weighted average based on year weights and module credits
-      const yearAverages = {};
-      const yearCredits = {};
-
-      // Calculate average per year
-      this.moduleData.forEach(module => {
-        if (!yearAverages[module.year]) {
-          yearAverages[module.year] = 0;
-          yearCredits[module.year] = 0;
-        }
-
-        yearAverages[module.year] += module.score * module.credits;
-        yearCredits[module.year] += module.credits;
-      });
-
-      // Apply year weights
-      let weightedSum = 0;
-      let totalWeight = 0;
-
-      Object.keys(yearAverages).forEach(year => {
-        const yearConfig = this.calculatorConfig.years.find(y => y.year === year);
-        if (yearConfig && yearConfig.active && yearCredits[year] > 0) {
-          const yearAvg = yearAverages[year] / yearCredits[year];
-          weightedSum += yearAvg * yearConfig.weight;
-          totalWeight += yearConfig.weight;
-        }
-      });
-
-      return totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 10) / 10 : 0;
+      return this.dashboardStats?.overallAverage || 0;
     },
 
     // Get current yearly average
     yearlyAverage() {
-      // Filter to most recent year with modules
-      const years = [...new Set(this.moduleData.map(m => m.year))].sort();
-      if (!years.length) return 0;
-
-      const latestYear = years[years.length - 1];
-      const latestYearModules = this.moduleData.filter(m => m.year === latestYear);
-
-      const totalCredits = latestYearModules.reduce((sum, module) => sum + module.credits, 0);
-      const weightedSum = latestYearModules.reduce((sum, module) => sum + (module.score * module.credits), 0);
-
-      return totalCredits > 0 ? Math.round((weightedSum / totalCredits) * 10) / 10 : 0;
+      const yearlyAvgs = this.dashboardStats?.yearlyAverages || {};
+      const latest = Object.keys(yearlyAvgs).sort().pop();
+      return latest ? yearlyAvgs[latest] : 0;
     },
 
     // Get completed and total credits
     completedCredits() {
-      return this.moduleData.reduce((sum, module) => sum + module.credits, 0);
+      return this.dashboardStats?.completedCredits || 0;
     },
 
     totalCredits() {
-      return this.calculatorConfig.years.reduce((sum, year) => {
-        return sum + (year.active ? year.credits : 0);
-      }, 0);
+      return this.dashboardStats?.totalCredits || 0;
     },
 
     // Get top module
     topModule() {
-      if (!this.moduleData.length) return { name: 'N/A', score: 0 };
-
-      const sortedModules = [...this.moduleData].sort((a, b) => b.score - a.score);
-      return { name: sortedModules[0].name, score: sortedModules[0].score };
+      return this.dashboardStats?.topModule || { name: 'N/A', score: 0 };
     },
 
     // Get progress percentages
@@ -1275,57 +1163,26 @@ export default {
 
     // Get target grades needed for different classifications
     targetHighGrade() {
-      // Logic to calculate what grade is needed in remaining modules to achieve first class (70%+)
-      const currentTotal = this.moduleData.reduce((sum, module) => sum + (module.score * module.credits), 0);
-      const targetTotal = 70 * this.totalCredits;
-      const remainingCredits = this.totalCredits - this.completedCredits;
-
-      if (remainingCredits <= 0) return 0;
-
-      const neededPoints = targetTotal - currentTotal;
-      const neededAverage = neededPoints / remainingCredits;
-
-      return Math.max(0, Math.min(100, Math.ceil(neededAverage)));
+      return this.dashboardStats?.targetHighGrade || 0;
     },
 
     targetMediumGrade() {
-      // Similar calculation for 2:1 (60%+)
-      const currentTotal = this.moduleData.reduce((sum, module) => sum + (module.score * module.credits), 0);
-      const targetTotal = 60 * this.totalCredits;
-      const remainingCredits = this.totalCredits - this.completedCredits;
-
-      if (remainingCredits <= 0) return 0;
-
-      const neededPoints = targetTotal - currentTotal;
-      const neededAverage = neededPoints / remainingCredits;
-
-      return Math.max(0, Math.min(100, Math.ceil(neededAverage)));
+      return this.dashboardStats?.targetMediumGrade || 0;
     },
 
     targetLowGrade() {
-      // Similar calculation for 2:2 (50%+)
-      const currentTotal = this.moduleData.reduce((sum, module) => sum + (module.score * module.credits), 0);
-      const targetTotal = 50 * this.totalCredits;
-      const remainingCredits = this.totalCredits - this.completedCredits;
-
-      if (remainingCredits <= 0) return 0;
-
-      const neededPoints = targetTotal - currentTotal;
-      const neededAverage = neededPoints / remainingCredits;
-
-      return Math.max(0, Math.min(100, Math.ceil(neededAverage)));
+      return this.dashboardStats?.targetLowGrade || 0;
     },
 
     // Insights tab calculations
     averageVsTarget() {
-      // Comparing current average to personal target (using first goal)
+      // Comparing current average to personal target
       const targetGradeValue = this.targetGrade === 'custom' ? this.customTargetGrade : this.targetGrade;
       return Math.round((this.overallAverage - targetGradeValue) * 10) / 10;
     },
 
     predictionAccuracy() {
-      // Mock value - in a real app would be calculated based on past predictions
-      return 87;
+      return 87; // Could be calculated from actual data in the future
     },
 
     consistencyScore() {
@@ -1422,6 +1279,9 @@ export default {
           case 'name':
             sortedModules.sort((a, b) => a.name.localeCompare(b.name));
             break;
+          case 'semester':
+            sortedModules.sort((a, b) => (a.semester || 1) - (b.semester || 1));
+            break;
           case 'score-asc':
             sortedModules.sort((a, b) => a.score - b.score);
             break;
@@ -1454,7 +1314,35 @@ export default {
 
     // Get completed years count
     yearsCompleted() {
-      return [...new Set(this.moduleData.map(m => m.year.replace('Year ', '')))].length;
+      return this.dashboardStats?.yearData?.length || 0;
+    },
+
+    // Generate semester options based on calculator config
+    semesterOptions() {
+      // Get the maximum number of semesters from calculator config
+      let maxSemesters = 2; // Default to 2 semesters if not specified
+
+      if (this.calculatorConfig && this.calculatorConfig.years && this.calculatorConfig.years.length > 0) {
+        // Find maximum semesters in configuration
+        const semestersArray = this.calculatorConfig.years
+            .map(year => year.semesters || 0)
+            .filter(s => s > 0);
+
+        if (semestersArray.length > 0) {
+          maxSemesters = Math.max(...semestersArray);
+        }
+      }
+
+      // Generate options with label and value
+      const options = [];
+      for (let i = 1; i <= maxSemesters; i++) {
+        options.push({
+          label: `Semester ${i}`,
+          value: i
+        });
+      }
+
+      return options;
     }
   },
   watch: {
@@ -1482,8 +1370,9 @@ export default {
   async mounted() {
     await this.checkLoginAndFetchConfig();
 
-    // Using sample data directly for frontend
-    this.moduleData = [...this.sampleModuleData];
+    // Load modules and dashboard data
+    await this.fetchModules();
+    await this.fetchDashboardData();
 
     // Handle dark mode
     this.darkMode = getDarkModePreference();
@@ -1500,15 +1389,308 @@ export default {
 
     // Listen for dark mode changes from other components
     window.addEventListener('darkModeChange', this.onDarkModeChange);
-
-    // Prepare data for charts
-    this.prepareChartData();
   },
   beforeUnmount() {
     window.removeEventListener("resize", this.checkMobile);
     window.removeEventListener('darkModeChange', this.onDarkModeChange);
   },
   methods: {
+    // API methods
+    async fetchUserProfile() {
+      try {
+        const response = await axios.get(`${API_URL}/user/profile`, { withCredentials: true });
+        this.userProfile = response.data;
+        return response.data;
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        if (error.response && error.response.status === 401) {
+          this.notLoggedIn = true;
+        }
+        return null;
+      }
+    },
+
+    async fetchCalculatorConfig() {
+      try {
+        const response = await axios.get(`${API_URL}/calculator`, { withCredentials: true });
+        this.calculatorConfig = response.data;
+        return response.data;
+      } catch (error) {
+        console.error("Error fetching calculator config:", error);
+        return null;
+      }
+    },
+
+    async fetchModules() {
+      try {
+        this.loading = true;
+        const response = await axios.get(`${API_URL}/modules`, { withCredentials: true });
+        this.moduleData = response.data;
+        this.prepareChartData();
+        return response.data;
+      } catch (error) {
+        console.error("Error fetching modules:", error);
+        return [];
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async fetchDashboardData() {
+      try {
+        this.loading = true;
+        const response = await axios.get(`${API_URL}/dashboard`, { withCredentials: true });
+        const { stats, config } = response.data;
+
+        this.dashboardStats = stats;
+        this.dashboardConfig = config;
+
+        // Load recent activities and goals from dashboard config
+        this.recentActivities = config.recentActivities || [];
+        this.goals = config.goals || [];
+
+        // Prepare chart data
+        this.yearData = stats.yearData || [];
+        this.scoreDistribution = stats.gradeDistribution || [];
+
+        return response.data;
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+        return null;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async saveModule() {
+      if (!this.isModuleFormValid) {
+        notify({ type: "warning", message: "Please complete all required fields and ensure assessment weights total 100%." });
+        return;
+      }
+
+      try {
+        this.loading = true;
+
+        // Calculate overall score based on assessments
+        const totalScore = this.moduleForm.assessments.reduce((sum, assessment) => {
+          return sum + (assessment.score * assessment.weight / 100);
+        }, 0);
+
+        this.moduleForm.score = Math.round(totalScore * 10) / 10;
+
+        let response;
+        if (this.editingModule) {
+          // Update existing module
+          response = await axios.put(
+              `${API_URL}/modules/${this.moduleForm.id}`,
+              this.moduleForm,
+              { withCredentials: true }
+          );
+        } else {
+          // Create new module
+          response = await axios.post(
+              `${API_URL}/modules`,
+              this.moduleForm,
+              { withCredentials: true }
+          );
+        }
+
+        await this.fetchModules(); // Refresh module data
+        await this.fetchDashboardData(); // Refresh dashboard stats
+
+        notify({
+          type: "success",
+          message: `Module ${this.editingModule ? 'updated' : 'added'} successfully!`
+        });
+
+        this.showModuleForm = false;
+
+        // Add activity to recent activities
+        this.addActivity({
+          type: 'grade',
+          title: this.editingModule ? 'Module Updated' : 'Module Added',
+          description: `${this.moduleForm.name}: ${this.moduleForm.score}%`,
+          time: 'Just now'
+        });
+      } catch (error) {
+        console.error("Error saving module:", error);
+        notify({
+          type: "error",
+          message: `Failed to ${this.editingModule ? 'update' : 'add'} module: ${error.response?.data?.error || error.message}`
+        });
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async deleteModule(module) {
+      if (confirm(`Are you sure you want to delete "${module.name}"?`)) {
+        try {
+          this.loading = true;
+          await axios.delete(`${API_URL}/modules/${module.id}`, { withCredentials: true });
+
+          await this.fetchModules(); // Refresh module data
+          await this.fetchDashboardData(); // Refresh dashboard stats
+
+          notify({ type: "success", message: "Module deleted successfully!" });
+          this.showModuleDetail = false;
+
+          // Add activity to recent activities
+          this.addActivity({
+            type: 'grade',
+            title: 'Module Deleted',
+            description: `${module.name}`,
+            time: 'Just now'
+          });
+        } catch (error) {
+          console.error("Error deleting module:", error);
+          notify({
+            type: "error",
+            message: `Failed to delete module: ${error.response?.data?.error || error.message}`
+          });
+        } finally {
+          this.loading = false;
+        }
+      }
+    },
+
+    async addActivity(activityData) {
+      try {
+        await axios.post(
+            `${API_URL}/dashboard/activity`,
+            activityData,
+            { withCredentials: true }
+        );
+
+        // Update local activities
+        if (!Array.isArray(this.recentActivities)) {
+          this.recentActivities = [];
+        }
+
+        this.recentActivities.unshift(activityData);
+
+        // Limit to 10 activities
+        if (this.recentActivities.length > 10) {
+          this.recentActivities = this.recentActivities.slice(0, 10);
+        }
+      } catch (error) {
+        console.error("Error adding activity:", error);
+      }
+    },
+
+    async updateGoals() {
+      try {
+        await axios.put(
+            `${API_URL}/dashboard/goals`,
+            this.goals,
+            { withCredentials: true }
+        );
+      } catch (error) {
+        console.error("Error updating goals:", error);
+      }
+    },
+
+    async updateDashboardConfig(config) {
+      try {
+        await axios.put(
+            `${API_URL}/dashboard`,
+            config,
+            { withCredentials: true }
+        );
+      } catch (error) {
+        console.error("Error updating dashboard config:", error);
+      }
+    },
+
+    async completeSetup() {
+      // Validate weights before proceeding
+      if (this.totalWeight !== 100 && this.hasActiveYears) {
+        notify({
+          type: "warning",
+          message: "The total weight of active years should equal 100%.",
+        });
+        return;
+      }
+
+      try {
+        this.loading = true;
+
+        const yearsCount =
+            this.nextConfig.numYears === "other" ? this.nextConfig.customYears : this.nextConfig.numYears;
+        const semCount =
+            this.nextConfig.semesters === "other"
+                ? this.nextConfig.customSemesters
+                : this.nextConfig.semesters;
+        const credCount =
+            this.nextConfig.credits === "other" ? this.nextConfig.customCredits : this.nextConfig.credits;
+
+        // Create request payload for calculator config
+        const configData = {
+          numYears: yearsCount,
+          semesters: semCount,
+          credits: credCount,
+          years: this.yearWeights.map((year, index) => ({
+            year: `Year ${index + 1}`,
+            active: year.active,
+            credits: credCount,
+            weight: year.weight,
+            semesters: semCount
+          }))
+        };
+
+        // Save calculator config
+        await axios.put(
+            `${API_URL}/calculator/update`,
+            configData,
+            { withCredentials: true }
+        );
+
+        // Save target grade in goals
+        const targetValue = this.targetGrade === 'custom' ? this.customTargetGrade : this.targetGrade;
+        const goals = [{
+          title: 'First Class Degree',
+          description: `Achieve overall average of ${targetValue}% or higher`,
+          progress: 0,
+          target_score: targetValue
+        }];
+
+        // Update goals
+        await axios.put(
+            `${API_URL}/dashboard/goals`,
+            goals,
+            { withCredentials: true }
+        );
+
+        // Save user configuration
+        if (this.userConfig.academicLevel || this.userConfig.enrollmentType || this.userConfig.studyPreference) {
+          await axios.put(
+              `${API_URL}/user/config`,
+              { studyPreferences: this.userConfig },
+              { withCredentials: true }
+          );
+        }
+
+        this.showYearWeights = false;
+        this.showSetupWizard = false;
+        this.showNextConfig = false;
+
+        // Refresh data
+        await this.fetchCalculatorConfig();
+        await this.fetchModules();
+        await this.fetchDashboardData();
+
+        notify({ type: "success", message: "Setup completed successfully!" });
+      } catch (error) {
+        console.error("Error completing setup:", error);
+        notify({
+          type: "error",
+          message: `Setup failed: ${error.response?.data?.error || error.message}`
+        });
+      } finally {
+        this.loading = false;
+      }
+    },
+
     // Initialize year weights based on number of years
     initializeYearWeights(numYears) {
       // Create default distribution (equal weights for now)
@@ -1543,37 +1725,26 @@ export default {
       }
     },
 
-    // Toggle sidebar visibility
-    toggleSidebar() {
-      this.sidebarVisible = !this.sidebarVisible;
-      // Save preference to localStorage
-      localStorage.setItem('sidebarVisible', this.sidebarVisible);
-    },
-
-    // Handle dark mode change
-    onDarkModeChange(event) {
-      this.darkMode = event.detail.isDark;
-    },
-
-    // Handle logout event from navbar
-    handleLogout() {
-      this.notLoggedIn = true;
-    },
-
     // Check if user is logged in and fetch configuration
     async checkLoginAndFetchConfig() {
       try {
-        // For development, show setup wizard
-        this.showSetupWizard = true;
+        // First try to get user profile to check if logged in
+        const profile = await this.fetchUserProfile();
 
-        // Mock data for frontend testing
-        this.calculatorConfig.years = [
-          { year: "Year 1", active: true, credits: 120, semesters: 2, weight: 0 },
-          { year: "Year 2", active: true, credits: 120, semesters: 2, weight: 40 },
-          { year: "Year 3", active: true, credits: 120, semesters: 2, weight: 60 }
-        ];
+        if (!profile) {
+          this.notLoggedIn = true;
+          return;
+        }
+
+        // Fetch calculator config
+        const calcConfig = await this.fetchCalculatorConfig();
+
+        // Check if needs setup
+        if (!calcConfig || !calcConfig.years || calcConfig.years.length === 0) {
+          this.showSetupWizard = true;
+        }
       } catch (error) {
-        console.error("Error fetching config:", error);
+        console.error("Error checking login and config:", error);
         this.notLoggedIn = true;
       }
     },
@@ -1585,7 +1756,7 @@ export default {
         return;
       }
 
-      // For frontend: just move to next step
+      // Move to next step
       this.showSetupWizard = false;
       this.showNextConfig = true;
     },
@@ -1631,89 +1802,28 @@ export default {
       this.showNextConfig = true;
     },
 
-    // Complete setup and go to dashboard
-    completeSetup() {
-      // Validate weights before proceeding
-      if (this.totalWeight !== 100 && this.hasActiveYears) {
-        notify({
-          type: "warning",
-          message: "The total weight of active years should equal 100%.",
-        });
-        return;
-      }
-
-      const yearsCount =
-          this.nextConfig.numYears === "other" ? this.nextConfig.customYears : this.nextConfig.numYears;
-      const semCount =
-          this.nextConfig.semesters === "other"
-              ? this.nextConfig.customSemesters
-              : this.nextConfig.semesters;
-      const credCount =
-          this.nextConfig.credits === "other" ? this.nextConfig.customCredits : this.nextConfig.credits;
-
-      // Create years configuration
-      const newYears = [];
-      for (let i = 0; i < yearsCount; i++) {
-        const yearWeight = this.yearWeights.find(yw => yw.year === i + 1);
-
-        newYears.push({
-          year: `Year ${i + 1}`,
-          active: yearWeight ? yearWeight.active : true,
-          credits: credCount,
-          semesters: semCount,
-          weight: yearWeight ? yearWeight.weight : Math.floor(100 / yearsCount),
-        });
-      }
-
-      this.calculatorConfig.years = newYears;
-
-      // Save target grade
-      this.goals[0].progress = this.targetGrade === 'custom' ? this.customTargetGrade : this.targetGrade;
-
-      // Frontend only: just show dashboard
-      this.showYearWeights = false;
-
-      notify({ type: "success", message: "Setup completed successfully!" });
-
-      // In a real application, we would save the configuration to the backend here
+    // Toggle sidebar visibility
+    toggleSidebar() {
+      this.sidebarVisible = !this.sidebarVisible;
+      // Save preference to localStorage
+      localStorage.setItem('sidebarVisible', this.sidebarVisible);
     },
 
-    // Handle credit input changes
-    onCreditsChange(index) {
-      if (this.calculatorConfig.years[index].credits < 0) {
-        this.calculatorConfig.years[index].credits = 0;
-      }
+    // Handle dark mode change
+    onDarkModeChange(event) {
+      this.darkMode = event.detail.isDark;
     },
 
-    // Handle semester input changes
-    onSemestersChange(index) {
-      if (this.calculatorConfig.years[index].semesters < 1) {
-        this.calculatorConfig.years[index].semesters = 1;
+    // Handle logout event from navbar
+    async handleLogout() {
+      try {
+        // Your logout API call here
+        // await axios.post(`${API_URL}/logout`, {}, { withCredentials: true });
+        this.notLoggedIn = true;
+        this.$router.push('/login');
+      } catch (error) {
+        console.error("Error during logout:", error);
       }
-    },
-
-    // Handle weight input changes
-    onWeightChange(index) {
-      if (this.calculatorConfig.years[index].weight < 0) {
-        this.calculatorConfig.years[index].weight = 0;
-      }
-      if (this.calculatorConfig.years[index].weight > 100) {
-        this.calculatorConfig.years[index].weight = 100;
-      }
-    },
-
-    // Save calculator configuration
-    saveCalculator() {
-      if (this.totalWeight !== 100 && this.calculatorConfig.years.some(y => y.active)) {
-        notify({
-          type: "warning",
-          message: "The total weight of active years should equal 100%.",
-        });
-        return;
-      }
-
-      // For frontend, just show success notification
-      notify({ type: "success", message: "Calculator configuration saved successfully!" });
     },
 
     // Check if device is mobile
@@ -1766,6 +1876,7 @@ export default {
         code: '',
         credits: 15,
         year: year.year,
+        semester: 1, // Default to semester 1
         score: 0,
         assessments: [
           { name: 'Exam', weight: 100, score: 0 }
@@ -1777,7 +1888,12 @@ export default {
     // Edit module
     editModule(module) {
       this.editingModule = true;
-      this.moduleForm = JSON.parse(JSON.stringify(module)); // Deep copy
+      this.moduleForm = JSON.parse(JSON.stringify(module));
+
+      // If the module doesn't have a semester field yet, default to 1
+      if (this.moduleForm.semester === undefined) {
+        this.moduleForm.semester = 1;
+      }
 
       // Ensure assessments array exists
       if (!this.moduleForm.assessments || !this.moduleForm.assessments.length) {
@@ -1788,19 +1904,6 @@ export default {
 
       this.showModuleDetail = false;
       this.showModuleForm = true;
-    },
-
-    // Delete module
-    deleteModule(module) {
-      if (confirm(`Are you sure you want to delete "${module.name}"?`)) {
-        // For frontend mock: just filter out the module
-        this.moduleData = this.moduleData.filter(m =>
-            !(m.name === module.name && m.year === module.year && m.code === module.code)
-        );
-
-        notify({ type: "success", message: "Module deleted successfully!" });
-        this.showModuleDetail = false;
-      }
     },
 
     // Add assessment to module form
@@ -1817,54 +1920,13 @@ export default {
       this.moduleForm.assessments.splice(index, 1);
     },
 
-    // Save module
-    saveModule() {
-      if (!this.isModuleFormValid) {
-        notify({ type: "warning", message: "Please complete all required fields and ensure assessment weights total 100%." });
-        return;
-      }
-
-      // Calculate overall score based on assessments
-      const totalScore = this.moduleForm.assessments.reduce((sum, assessment) => {
-        return sum + (assessment.score * assessment.weight / 100);
-      }, 0);
-
-      this.moduleForm.score = Math.round(totalScore * 10) / 10;
-
-      // For frontend mock: update or add the module
-      if (this.editingModule) {
-        // Find and replace the module
-        const index = this.moduleData.findIndex(m =>
-            m.name === this.selectedModule.name &&
-            m.year === this.selectedModule.year &&
-            m.code === this.selectedModule.code
-        );
-
-        if (index !== -1) {
-          this.moduleData.splice(index, 1, {...this.moduleForm});
-        }
-      } else {
-        // Add new module
-        this.moduleData.push({...this.moduleForm});
-      }
-
-      notify({ type: "success", message: `Module ${this.editingModule ? 'updated' : 'added'} successfully!` });
-      this.showModuleForm = false;
-
-      // Refresh chart data
-      this.prepareChartData();
-      if (this.activeView === 'insights') {
-        this.prepareInsightsData();
-      }
-    },
-
     // Export grades to CSV
     exportGrades() {
       // Create CSV content
-      let csv = 'Year,Module,Code,Credits,Score\n';
+      let csv = 'Year,Module,Code,Credits,Semester,Score\n';
 
       this.moduleData.forEach(module => {
-        csv += `${module.year},${module.name},${module.code || ''},${module.credits},${module.score}\n`;
+        csv += `${module.year},${module.name},${module.code || ''},${module.credits},${module.semester || 1},${module.score}\n`;
       });
 
       // Create download link
@@ -1883,21 +1945,7 @@ export default {
 
     // Prepare data for charts
     prepareChartData() {
-      // Year data for year comparison chart
-      this.yearData = this.calculatorConfig.years
-          .filter(year => year.active)
-          .map(year => {
-            const yearModules = this.moduleData.filter(m => m.year === year.year);
-            const average = yearModules.length ?
-                yearModules.reduce((sum, m) => sum + (m.score * m.credits), 0) /
-                yearModules.reduce((sum, m) => sum + m.credits, 0) : 0;
-
-            return {
-              name: year.year,
-              average: Math.round(average * 10) / 10,
-              credits: yearModules.reduce((sum, m) => sum + m.credits, 0)
-            };
-          });
+      // Year data for year comparison chart will be from API
 
       // Score distribution for charts
       const scores = this.moduleData.map(m => m.score);
@@ -1964,6 +2012,46 @@ export default {
               50 // Default value if no matching modules
         };
       });
+
+      // Generate personalized tips
+      this.generatePersonalizedTips();
+    },
+
+    // Generate personalized tips based on module data
+    generatePersonalizedTips() {
+      const tips = [];
+
+      // Find lowest scoring module
+      if (this.moduleData.length > 0) {
+        const sortedByScore = [...this.moduleData].sort((a, b) => a.score - b.score);
+        const lowestModule = sortedByScore[0];
+
+        if (lowestModule.score < 50) {
+          tips.push({
+            title: `Focus on ${lowestModule.name}`,
+            description: `This is your lowest scoring module (${lowestModule.score}%). Consider allocating more study time to improve your understanding of key concepts.`
+          });
+        }
+      }
+
+      // Find strongest subject area
+      if (this.strengthsData.length > 0) {
+        const sortedStrengths = [...this.strengthsData].sort((a, b) => b.score - a.score);
+        const topStrength = sortedStrengths[0];
+
+        tips.push({
+          title: `Maintain Strong Performance`,
+          description: `You're excelling in ${topStrength.subject} modules. Keep up the good work and consider peer tutoring to reinforce your knowledge.`
+        });
+      }
+
+      // Add general tip
+      tips.push({
+        title: 'Balance Your Workload',
+        description: 'Try spacing out your work to reduce stress and improve quality. Setting regular study periods can help maintain consistent progress.'
+      });
+
+      this.personalizedTips = tips;
     }
   }
 };

@@ -15,21 +15,36 @@ from database import (
     increment_university_and_major_counter,
     get_university_doc,
     search_universities,
-    update_user_calculator
+    update_user_calculator,
+    _container
 )
 
-# In-memory session store (NOT for production)
-SESSIONS = {}  # session_id -> {"email": ..., "created": datetime}
+# Session configuration
 SESSION_COOKIE_NAME = "session_id"
 SESSION_TIMEOUT_SECONDS = 2592000  # 30 days
 
+def get_session(session_id: str) -> dict:
+    """Get session from database instead of memory."""
+    try:
+        session_key = f"session:{session_id}"
+        session_doc = _container.read_item(item=session_key, partition_key=session_key)
+        return session_doc
+    except Exception:
+        return None
+
 def create_session(email: str) -> str:
-    """Create a session for the given email, store in SESSIONS dict, return session_id."""
+    """Create a session for the given email, store in database, return session_id."""
     session_id = uuid.uuid4().hex
-    SESSIONS[session_id] = {
+    session_doc = {
+        "id": f"session:{session_id}",
+        "type": "session",
         "email": email,
-        "created": datetime.datetime.utcnow()
+        "created": datetime.datetime.utcnow().isoformat()
     }
+    try:
+        _container.create_item(body=session_doc)
+    except Exception as e:
+        print(f"Error creating session: {e}")
     return session_id
 
 def parse_cookies(req: HttpRequest) -> dict:
@@ -49,17 +64,25 @@ def verify_session(req: HttpRequest) -> (bool, str):
     session_id = cookies.get(SESSION_COOKIE_NAME)
     if not session_id:
         return False, "Missing session_id cookie"
-    session = SESSIONS.get(session_id)
+    
+    session = get_session(session_id)
     if not session:
         return False, "Invalid session"
 
     # Optional: enforce actual expiration
-    created = session["created"]
-    age_seconds = (datetime.datetime.utcnow() - created).total_seconds()
-    if age_seconds > SESSION_TIMEOUT_SECONDS:
-        # Session expired
-        del SESSIONS[session_id]
-        return False, "Session expired"
+    try:
+        created = datetime.datetime.fromisoformat(session["created"])
+        age_seconds = (datetime.datetime.utcnow() - created).total_seconds()
+        if age_seconds > SESSION_TIMEOUT_SECONDS:
+            # Session expired
+            try:
+                _container.delete_item(item=f"session:{session_id}", partition_key=f"session:{session_id}")
+            except Exception as e:
+                print(f"Error deleting expired session: {e}")
+            return False, "Session expired"
+    except Exception as e:
+        print(f"Error checking session expiration: {e}")
+        # Continue if there's an error parsing the date
 
     return True, session["email"]
 

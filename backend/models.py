@@ -1,8 +1,8 @@
 # models.py
 
 import re
-from typing import Optional, List
 from pydantic import BaseModel, EmailStr, field_validator, constr, conint, confloat
+from typing import Dict, List, Optional
 
 class YearSetting(BaseModel):
     year: str
@@ -70,7 +70,7 @@ class UserProfileUpdate(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str
-    
+
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, value):
@@ -117,3 +117,76 @@ class UserSettings(BaseModel):
     academic: Optional[AcademicSettings] = None
     accessibility: Optional[AccessibilitySettings] = None
     calendar: Optional[CalendarSettings] = None
+
+class Assessment(BaseModel):
+    name: str
+    weight: confloat(ge=0, le=100)
+    score: confloat(ge=0, le=100)
+
+class Examination(BaseModel):
+    name: str = "Final Examination"
+    weight: confloat(ge=0, le=100)
+    score: confloat(ge=0, le=100)
+
+class Module(BaseModel):
+    id: Optional[str] = None
+    user_email: str
+    name: str
+    code: Optional[str] = None
+    credits: confloat(ge=0)
+    year: str  # e.g., "Year 1"
+    semester: int = 1  # Added semester field, default to 1
+    score: confloat(ge=0, le=100)
+    assessments: List[Assessment] = []
+    examination: Optional[Examination] = None
+    university: Optional[str] = None  # University name
+    degree: Optional[str] = None      # Degree/major name
+    description: Optional[str] = None  # Module description
+    completed: bool = False           # Whether the module is completed
+    status: str = "active"            # Status of the module: active, completed, dropped
+
+    class Config:
+        extra = "allow"  # Allow extra fields
+
+class GradeTarget(BaseModel):
+    title: str
+    description: str
+    target_score: confloat(ge=0, le=100)
+    progress: confloat(ge=0, le=100)
+
+class Activity(BaseModel):
+    type: str  # Type of activity: grade, submission, etc.
+    title: str
+    description: str
+    time: str
+
+class UserDashboardConfig(BaseModel):
+    view_preferences: Optional[dict] = None
+    recent_activities: Optional[List[Activity]] = None
+    goals: Optional[List[GradeTarget]] = None
+    grade_visualization: Optional[dict] = None
+
+class EducationDetails(BaseModel):
+    level: str  # Undergraduate, Postgraduate, etc.
+    mode: str  # Full-time, Part-time
+    studyTimes: List[str] = []  # Morning, Afternoon, Evening
+
+class YearWeight(BaseModel):
+    year: str
+    weight: float
+
+
+class DegreeStructure(BaseModel):
+    totalYears: int
+    semestersPerYear: int
+    creditsPerYear: int
+    currentYear: str
+    yearWeights: Dict[str, float]
+    degreeType: str = "UK Percentage"
+    targetGrade: Optional[float] = 70
+
+
+
+class OnboardingQuestionnaire(BaseModel):
+    educationDetails: Optional[EducationDetails] = None
+    degreeStructure: Optional[DegreeStructure] = None
