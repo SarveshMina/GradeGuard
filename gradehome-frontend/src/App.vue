@@ -9,6 +9,9 @@
 <script>
 import ToastManager from '@/components/ToastManager.vue'
 import { getDarkModePreference } from '@/services/darkModeService.js';
+import { userSettingsService } from '@/services/userSettingsService.js';
+import axios from 'axios';
+import { API_URL } from '@/config.js';
 
 export default {
   name: 'App',
@@ -23,12 +26,29 @@ export default {
       keyboardShortcutsEnabled: true
     };
   },
+  async created() {
+    // Check if user is logged in
+    if (await this.checkUserSession()) {
+      // Load and apply user settings
+      await this.loadUserSettings();
+    } else {
+      // Apply settings from localStorage if available
+      const savedSettings = localStorage.getItem('userSettings');
+      if (savedSettings) {
+        try {
+          userSettingsService.applySettings(JSON.parse(savedSettings));
+        } catch (e) {
+          console.error('Error applying saved settings:', e);
+        }
+      }
+    }
+  },
   mounted() {
     // Initialize dark mode state
     this.darkMode = getDarkModePreference();
 
     // Initialize other settings from localStorage
-    this.loadSettings();
+    this.loadAppSettings();
 
     // Listen for dark mode changes from any component
     window.addEventListener('darkModeChange', this.onDarkModeChange);
@@ -49,10 +69,47 @@ export default {
     window.removeEventListener('keydown', this.handleKeyboardShortcuts);
   },
   methods: {
+    async checkUserSession() {
+      try {
+        // Use the /protected endpoint instead of /user/session
+        const response = await axios.get(`${API_URL}/protected`, {
+          withCredentials: true
+        });
+
+        // If we get a successful response, the user is authenticated
+        return response.status === 200;
+      } catch (error) {
+        console.log('Session check failed:', error.message);
+        return false;
+      }
+    },
+
+    async loadUserSettings() {
+      try {
+        const userSettings = await userSettingsService.fetchSettings();
+        if (userSettings) {
+          userSettingsService.applySettings(userSettings);
+
+          // Update local component state with these settings
+          this.darkMode = userSettings.appearance?.darkMode || getDarkModePreference();
+          this.highContrast = userSettings.appearance?.highContrast || false;
+          this.fontSize = userSettings.appearance?.fontSize || 'medium';
+          this.keyboardShortcutsEnabled = userSettings.accessibility?.keyboardShortcuts !== false;
+
+          this.updateVuetifyTheme();
+        }
+      } catch (error) {
+        console.error("Error loading user settings:", error);
+        // Fallback to local settings
+        this.loadAppSettings();
+      }
+    },
+
     onDarkModeChange(event) {
       this.darkMode = event.detail.isDark;
       this.updateVuetifyTheme();
     },
+
     onSettingsChange(event) {
       // Handle settings change events from components
       const { setting, value } = event.detail;
@@ -69,8 +126,23 @@ export default {
           break;
       }
     },
-    loadSettings() {
-      // Load settings from localStorage or defaults
+
+    loadAppSettings() {
+      // First try to load from userSettings (new format)
+      try {
+        const savedSettings = localStorage.getItem('userSettings');
+        if (savedSettings) {
+          const settings = JSON.parse(savedSettings);
+          this.highContrast = settings.appearance?.highContrast || false;
+          this.fontSize = settings.appearance?.fontSize || 'medium';
+          this.keyboardShortcutsEnabled = settings.accessibility?.keyboardShortcuts !== false;
+          return;
+        }
+      } catch (error) {
+        console.error('Error loading user settings:', error);
+      }
+
+      // Fall back to old appSettings format
       try {
         const savedSettings = localStorage.getItem('appSettings');
         if (savedSettings) {
@@ -80,13 +152,15 @@ export default {
           this.keyboardShortcutsEnabled = settings.accessibility?.keyboardShortcuts !== false;
         }
       } catch (error) {
-        console.error('Error loading settings:', error);
+        console.error('Error loading app settings:', error);
       }
     },
+
     updateVuetifyTheme() {
       // If you need to do any additional Vuetify theme configuration
       // You can add it here
     },
+
     handleKeyboardShortcuts(event) {
       // Only handle shortcuts if enabled in settings
       if (!this.keyboardShortcutsEnabled) return;

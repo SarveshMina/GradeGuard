@@ -1,6 +1,6 @@
 import json
 import azure.functions as func
-from database import get_user_by_email, _container, get_university_doc
+from database import get_user_by_email, _container, get_university_doc, get_user_modules
 from user_routes import verify_session
 from models import Module, Assessment, Examination
 import uuid

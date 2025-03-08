@@ -11,7 +11,7 @@
 
     <!-- Layout container: main content and sidebar -->
     <div class="dashboard-layout">
-      <!-- Move the toggle button outside of the main content area -->
+      <!-- Floating collapse button that appears when sidebar is hidden -->
       <button
           v-if="!sidebarVisible"
           @click="toggleSidebar"
@@ -1368,27 +1368,30 @@ export default {
     }
   },
   async mounted() {
-    await this.checkLoginAndFetchConfig();
-
-    // Load modules and dashboard data
-    await this.fetchModules();
-    await this.fetchDashboardData();
-
-    // Handle dark mode
+    // Load dark mode preference
     this.darkMode = getDarkModePreference();
 
-    // Check for mobile
+    // Check mobile first
     this.checkMobile();
     window.addEventListener("resize", this.checkMobile);
 
     // Try to load sidebar preference from localStorage
     const storedSidebarState = localStorage.getItem('sidebarVisible');
+    console.log(`Loading sidebar state from localStorage: ${storedSidebarState}`);
+
     if (storedSidebarState !== null) {
+      // Parse string 'true'/'false' to boolean with explicit comparison
       this.sidebarVisible = storedSidebarState === 'true';
+      console.log(`Set sidebar visibility to: ${this.sidebarVisible}`);
     }
 
-    // Listen for dark mode changes from other components
+    // Listen for dark mode changes
     window.addEventListener('darkModeChange', this.onDarkModeChange);
+
+    // Fetch data after UI is initialized
+    await this.checkLoginAndFetchConfig();
+    await this.fetchModules();
+    await this.fetchDashboardData();
   },
   beforeUnmount() {
     window.removeEventListener("resize", this.checkMobile);
@@ -1802,11 +1805,20 @@ export default {
       this.showNextConfig = true;
     },
 
-    // Toggle sidebar visibility
+    logSidebarStatus() {
+      console.log(
+          `[Sidebar Debug] sidebarVisible: ${this.sidebarVisible},
+     localStorage value: ${localStorage.getItem('sidebarVisible')},
+     isMobile: ${this.isMobile}`
+      );
+    },
+
     toggleSidebar() {
       this.sidebarVisible = !this.sidebarVisible;
-      // Save preference to localStorage
-      localStorage.setItem('sidebarVisible', this.sidebarVisible);
+      localStorage.setItem('sidebarVisible', this.sidebarVisible.toString());
+
+      // Add debug logs
+      console.log(`Sidebar toggled to: ${this.sidebarVisible}`);
     },
 
     // Handle dark mode change
@@ -1817,19 +1829,25 @@ export default {
     // Handle logout event from navbar
     async handleLogout() {
       try {
-        // Your logout API call here
-        // await axios.post(`${API_URL}/logout`, {}, { withCredentials: true });
+        await axios.post(`${API_URL}/logout`, {}, { withCredentials: true });
         this.notLoggedIn = true;
-        this.$router.push('/login');
+        // Add the logout=true query parameter here
+        this.$router.push('/login?logout=true');
       } catch (error) {
         console.error("Error during logout:", error);
+        // Also add it here in case of errors
+        this.$router.push('/login?logout=true');
       }
     },
 
     // Check if device is mobile
     checkMobile() {
+      const wasMobile = this.isMobile;
       this.isMobile = window.innerWidth <= 768;
-      if (this.isMobile && this.sidebarVisible) {
+
+      // Only force hiding of sidebar when switching to mobile
+      if (!wasMobile && this.isMobile && this.sidebarVisible) {
+        console.log("Switching to mobile - hiding sidebar");
         this.sidebarVisible = false;
         localStorage.setItem('sidebarVisible', 'false');
       }
@@ -2150,7 +2168,7 @@ body.dark-mode .dashboard-header h1 {
   font-weight: 500;
   box-shadow: var(--shadow-sm);
   transition: all 0.2s ease;
-  z-index: 50; /* Increased z-index to ensure button is above other elements */
+  z-index: 10;
 }
 
 .toggle-text {
@@ -2168,8 +2186,14 @@ body.dark-mode .dashboard-header h1 {
   right: 2rem;
   top: 6rem;
   box-shadow: 0 2px 10px rgba(123, 73, 255, 0.3);
-  z-index: 100; /* Higher z-index to ensure it's visible */
 }
+
+/* Ensure button is visible and clickable */
+button.sidebar-show-button:not([disabled]) {
+  cursor: pointer;
+  pointer-events: auto !important;
+}
+
 
 .sidebar-hide-button {
   position: absolute;
@@ -2177,6 +2201,7 @@ body.dark-mode .dashboard-header h1 {
   right: 1rem;
   z-index: 20;
 }
+
 
 /* ========== Sidebar Styles ========== */
 .dashboard-sidebar {
@@ -2189,7 +2214,7 @@ body.dark-mode .dashboard-header h1 {
   overflow: hidden;
 }
 
-/* Slide transition for sidebar */
+
 .slide-enter-active,
 .slide-leave-active {
   transition: transform var(--transition-speed) ease,
@@ -2201,6 +2226,7 @@ body.dark-mode .dashboard-header h1 {
   transform: translateX(100%);
   opacity: 0;
 }
+
 
 /* ========== Center Content Container ========== */
 .center-content {
@@ -3839,11 +3865,6 @@ input:checked + .toggle-switch:before {
   .table-cell:nth-child(3),
   .table-cell:nth-child(4) {
     display: none;
-  }
-
-  .slide-enter-from,
-  .slide-leave-to {
-    transform: translateY(100%);
   }
 
   .button-group {

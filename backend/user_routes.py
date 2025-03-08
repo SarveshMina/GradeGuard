@@ -363,3 +363,35 @@ def search_universities_endpoint(req: HttpRequest) -> HttpResponse:
         return HttpResponse(json.dumps({"error": str(e)}),
                             status_code=500,
                             mimetype="application/json")
+    
+
+def logout_user(req: HttpRequest) -> HttpResponse:
+    """Invalidate user session and clear cookie."""
+    cookies = parse_cookies(req)
+    session_id = cookies.get(SESSION_COOKIE_NAME)
+    
+    if session_id:
+        try:
+            # Delete session from database
+            _container.delete_item(
+                item=f"session:{session_id}", 
+                partition_key=f"session:{session_id}"
+            )
+        except Exception as e:
+            print(f"Error deleting session: {e}")
+    
+    # Create response that will clear the cookie
+    response = HttpResponse(
+        json.dumps({"message": "Logged out successfully."}),
+        status_code=200,
+        mimetype="application/json"
+    )
+    
+    # Set the cookie with an expired date to clear it
+    expired_date = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime("%a, %d-%b-%Y %H:%M:%S GMT")
+    response.headers["Set-Cookie"] = (
+        f"{SESSION_COOKIE_NAME}=; Expires={expired_date}; "
+        "HttpOnly; Path=/; SameSite=None; Secure"
+    )
+    
+    return response

@@ -1085,14 +1085,29 @@ export default {
 
 /* Today's summary styling */
 .today-summary {
-  background: var(--primary-gradient);
+  /* Make the gradient darker and more saturated in light mode */
+  background: linear-gradient(135deg, #5a2ca0 0%, #3f1f7a 100%);
   border-radius: var(--border-radius);
   padding: 1.25rem;
-  color: white;
-  box-shadow: 0 8px 20px rgba(103, 58, 183, 0.2);
+  box-shadow: 0 8px 20px rgba(103, 58, 183, 0.3);
   position: relative;
   overflow: hidden;
   transition: all 0.3s ease;
+}
+
+/* Stronger contrast for the stats */
+.today-summary .stat-value {
+  color: white !important;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); /* Stronger shadow */
+  font-size: 2rem; /* Slightly larger font for better visibility */
+}
+
+.today-summary .stat-label {
+  color: white !important;
+  font-weight: 600; /* Bolder text */
+  opacity: 1;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.4); /* Stronger shadow */
 }
 
 /* Ensure text is visible in both dark and light modes */
@@ -1114,6 +1129,26 @@ export default {
   transition: opacity 0.5s ease;
 }
 
+.today-summary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.15); /* Subtle dark overlay */
+  pointer-events: none;
+}
+
+
+.dark-mode .today-summary {
+  background: linear-gradient(135deg, #673ab7 0%, #512da8 100%);
+}
+
+.dark-mode .today-summary::after {
+  background: transparent; /* No overlay needed in dark mode */
+}
+
 .today-summary:hover {
   transform: translateY(-5px);
   box-shadow: 0 12px 28px rgba(103, 58, 183, 0.25);
@@ -1124,18 +1159,19 @@ export default {
 }
 
 .date-pill {
-  background-color: rgba(255, 255, 255, 0.25);
+  background-color: rgba(255, 255, 255, 0.3);
   border-radius: 20px;
   padding: 0.4rem 1rem;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 700;
   display: inline-block;
   margin-bottom: 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   transition: all 0.3s ease;
-  color: white;
+  color: white !important;
   border: 1px solid rgba(255, 255, 255, 0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
 .today-summary:hover .date-pill {

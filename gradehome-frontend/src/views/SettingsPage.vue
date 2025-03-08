@@ -639,6 +639,7 @@
 import axios from "axios";
 import { notify } from "@/services/toastService.js";
 import DashboardNavBar from "@/components/DashboardNavBar.vue";
+import { userSettingsService } from '@/services/userSettingsService.js';
 import { getDarkModePreference, setDarkModePreference } from "@/services/darkModeService.js";
 import { API_URL } from "@/config.js";
 
@@ -819,19 +820,18 @@ export default {
     },
     async fetchSettings() {
       try {
-        const response = await axios.get(`${API_URL}/user/settings`, {
-          withCredentials: true,
-        });
+        const userSettings = await userSettingsService.fetchSettings();
 
-        if (response.data) {
+        if (userSettings) {
           // Merge received settings with defaults to ensure all properties exist
-          this.settings = this.mergeDeep(this.settings, response.data);
+          this.settings = this.mergeDeep(this.settings, userSettings);
 
           // Apply settings after they're loaded
           this.applySettings();
         }
       } catch (error) {
         console.error("Error fetching settings:", error);
+
         // Use defaults if settings can't be fetched
         if (error.response?.status === 401) {
           this.notLoggedIn = true;
@@ -849,14 +849,14 @@ export default {
     async saveSettings() {
       this.isSaving = true;
       try {
-        await axios.put(
+        const response = await axios.put(
             `${API_URL}/user/settings`,
             this.settings,
             { withCredentials: true }
         );
 
-        // Apply all settings
-        this.applySettings();
+        // Apply settings using the service
+        userSettingsService.applySettings(this.settings);
 
         notify({ type: "success", message: "Settings saved successfully!" });
       } catch (error) {

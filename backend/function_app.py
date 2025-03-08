@@ -42,7 +42,7 @@ from university_routes import (
     get_degree_requirements,
     import_template_modules
 )
-from user_routes import verify_session
+from user_routes import verify_session, logout_user
 from database import get_user_by_email, _container
 from onboarding_routes import get_onboarding_status, save_onboarding_questionnaire
 from module_routes import get_module_analytics
@@ -271,7 +271,7 @@ def password_change(req: func.HttpRequest) -> func.HttpResponse:
     response = change_password(req)
     return add_cors_headers(response, req)
 
-@app.route(route="settings", methods=["GET", "PUT", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+@app.route(route="user/settings", methods=["GET", "PUT", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def settings_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
@@ -446,4 +446,11 @@ def module_analytics_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
     response = get_module_analytics(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="logout", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def logout_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = logout_user(req)
     return add_cors_headers(response, req)

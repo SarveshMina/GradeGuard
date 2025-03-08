@@ -626,6 +626,7 @@
 import axios from 'axios'
 import { notify } from '@/services/toastService.js'
 import { getDarkModePreference, setDarkModePreference } from '@/services/darkModeService.js'
+import { userSettingsService } from '@/services/userSettingsService.js';
 import { API_URL } from '/src/config.js'
 
 export default {
@@ -761,22 +762,29 @@ export default {
   },
   methods: {
     async checkExistingSession() {
+      // Add this at the very beginning of the method
+      // Skip the check if we just logged out
+      if (this.$route.query.logout === 'true') {
+        this.isCheckingSession = false;
+        return;
+      }
+
       try {
         this.isCheckingSession = true;
 
         // Wait to show the loading screen for at least 300ms to avoid flashing
         const minLoadingTime = new Promise(resolve => setTimeout(resolve, 300));
 
-        // Try to get the current user session
-        const sessionPromise = axios.get(`${API_URL}/user/session`, {
+        // Use the /protected endpoint instead of /user/session
+        const sessionPromise = axios.get(`${API_URL}/protected`, {
           withCredentials: true
         });
 
         // Wait for both promises to resolve
         const [sessionResponse] = await Promise.all([sessionPromise, minLoadingTime]);
 
-        // If we got a valid user session, redirect to dashboard
-        if (sessionResponse.data && sessionResponse.data.user) {
+        // If we got a valid user session (200 status), redirect to dashboard
+        if (sessionResponse.status === 200) {
           this.$router.push('/dashboard');
           return;
         }
@@ -1054,6 +1062,7 @@ export default {
       try {
         this.isLoggingIn = true;
 
+        // Login request
         await axios.post(`${API_URL}/login`, {
           email: this.loginEmail,
           password: this.loginPassword,
@@ -1062,12 +1071,23 @@ export default {
           withCredentials: true
         });
 
-        // Show success message before redirect
+        // Show success message
         this.successMessage = {
           title: 'Login Successful',
-          message: 'Welcome back to GradeGuard! Redirecting to your dashboard...'
+          message: 'Welcome back to GradeGuard! Loading your preferences...'
         };
         this.showSuccessModal = true;
+
+        // Fetch and apply user settings
+        try {
+          const userSettings = await userSettingsService.fetchSettings();
+          if (userSettings) {
+            userSettingsService.applySettings(userSettings);
+          }
+        } catch (settingsError) {
+          console.error("Error loading user settings:", settingsError);
+          // Continue with default settings
+        }
 
         // Redirect after a short delay
         setTimeout(() => {
