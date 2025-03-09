@@ -1,3 +1,4 @@
+<!-- Update your Dashboard.vue file to include the mobile calendar sidebar -->
 <template>
   <div class="dashboard" :class="{ 'dark-mode': darkMode }">
     <!-- Dashboard NavBar at the top -->
@@ -10,12 +11,17 @@
     />
 
     <!-- Layout container: main content and sidebar -->
-    <div class="dashboard-layout">
+    <div
+        class="dashboard-layout"
+        @touchstart="handleTouchStart"
+        @touchmove="handleTouchMove"
+        @touchend="handleTouchEnd"
+    >
       <!-- Floating collapse button that appears when sidebar is hidden -->
       <button
           v-if="!sidebarVisible"
           @click="toggleSidebar"
-          class="sidebar-toggle sidebar-show-button"
+          class="sidebar-toggle sidebar-show-button pulse-animation"
           aria-label="Show sidebar"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -26,8 +32,8 @@
 
       <!-- Main Content Area -->
       <div class="dashboard-main-content" :class="{ 'expanded': !sidebarVisible }">
-        <div class="dashboard-header">
-          <h1>My Dashboard</h1>
+        <!-- Your dashboard content here -->
+        <h1>Dashboard</h1>
           <div class="view-controls">
             <button :class="{ active: activeView === 'overview' }" @click="activeView = 'overview'">Overview</button>
             <button :class="{ active: activeView === 'yearly' }" @click="activeView = 'yearly'">Yearly View</button>
@@ -284,6 +290,8 @@
             </div>
           </div>
         </div>
+
+
 
         <!-- Wizard Step 3: Year Weights Configuration -->
         <div v-else-if="showYearWeights" class="center-content">
@@ -974,10 +982,12 @@ import YearComparisonChart from "@/components/charts/YearComparisonChart.vue";
 import PerformanceChart from "@/components/charts/PerformanceChart.vue";
 import StrengthsRadarChart from "@/components/charts/StrengthsRadarChart.vue";
 import ModuleComparisonChart from "@/components/charts/ModuleComparisonChart.vue";
+import MobileCalendarSidebar from "@/components/MobileCalendarSidebar.vue";
 
 export default {
   name: "Dashboard",
   components: {
+    MobileCalendarSidebar,
     DashboardNavBar,
     CalendarSidebar,
     GradeDistributionChart,
