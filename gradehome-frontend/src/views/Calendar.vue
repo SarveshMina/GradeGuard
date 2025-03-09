@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard" :class="{ 'dark-mode': darkMode }">
+  <div class="dashboard" :class="{ 'dark-mode': darkMode, 'animate-in': animateIn }">
     <!-- Dashboard NavBar at the top -->
     <DashboardNavBar
         :userName="userProfile.firstName || 'User'"
@@ -10,12 +10,17 @@
     />
 
     <!-- Layout container: main content and sidebar -->
-    <div class="dashboard-layout">
+    <div
+        class="dashboard-layout"
+        @touchstart="handleTouchStart"
+        @touchmove="handleTouchMove"
+        @touchend="handleTouchEnd"
+    >
       <!-- Floating collapse button that appears when sidebar is hidden -->
       <button
           v-if="!sidebarVisible"
           @click="toggleSidebar"
-          class="sidebar-toggle sidebar-show-button"
+          class="sidebar-toggle sidebar-show-button pulse-animation"
           aria-label="Show sidebar"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -27,7 +32,7 @@
       <!-- Main Content Area -->
       <div class="dashboard-main-content" :class="{ 'expanded': !sidebarVisible }">
         <div class="dashboard-header">
-          <h1>Calendar</h1>
+          <h1 class="animate-fade-in">Calendar</h1>
           <div class="calendar-actions">
             <div class="view-selector">
               <button
@@ -52,7 +57,7 @@
                 Day
               </button>
             </div>
-            <button class="add-event-button" @click="openCreateEventModal">
+            <button class="add-event-button bounce-on-hover" @click="openCreateEventModal">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -63,28 +68,28 @@
         </div>
 
         <!-- If not logged in -->
-        <div v-if="notLoggedIn" class="center-content auth-prompt">
+        <div v-if="notLoggedIn" class="center-content auth-prompt animate-fade-in">
           <div class="auth-card">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pulse-animation">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
             <h2>Welcome to GradeGuard</h2>
             <p>Please sign in to access your calendar.</p>
-            <a href="/login" class="login-button">Go to Login</a>
+            <a href="/login" class="login-button bounce-on-hover">Go to Login</a>
           </div>
         </div>
 
         <!-- Loading state -->
         <div v-else-if="loading" class="loading-container">
           <div class="loading-spinner"></div>
-          <p>Loading your calendar...</p>
+          <p class="animate-fade-in">Loading your calendar...</p>
         </div>
 
         <!-- Calendar content -->
         <div v-else class="calendar-content">
           <!-- Search and Filter Bar -->
-          <div class="search-filter-container">
+          <div class="search-filter-container animate-slide-down">
             <div class="search-box">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
@@ -115,7 +120,7 @@
           </div>
 
           <!-- Filter Panel -->
-          <div v-if="showFilterPanel" class="filter-panel">
+          <div v-if="showFilterPanel" class="filter-panel animate-fade-in">
             <div class="filter-section">
               <h3>Event Type</h3>
               <div class="filter-options">
@@ -188,25 +193,25 @@
           </div>
 
           <!-- No Results Message -->
-          <div v-if="filteredEvents.length === 0 && !loading && (searchQuery || activeFilterCount > 0)" class="no-results">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <div v-if="filteredEvents.length === 0 && !loading && (searchQuery || activeFilterCount > 0)" class="no-results animate-fade-in">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="pulse-animation">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="8" x2="12" y2="12"></line>
               <line x1="12" y1="16" x2="12.01" y2="16"></line>
             </svg>
             <h3>No events match your search</h3>
             <p>Try adjusting your search or filters to find what you're looking for.</p>
-            <button @click="resetFilters" class="reset-search-button">Reset All Filters</button>
+            <button @click="resetFilters" class="reset-search-button bounce-on-hover">Reset All Filters</button>
           </div>
 
-          <div class="calendar-header">
+          <div class="calendar-header animate-slide-down">
             <div class="month-navigator">
               <button @click="navigatePrevious" class="nav-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M15 18l-6-6 6-6" />
                 </svg>
               </button>
-              <button @click="navigateToday" class="today-btn">Today</button>
+              <button @click="navigateToday" class="today-btn pulse-animation">Today</button>
               <button @click="navigateNext" class="nav-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M9 18l6-6-6-6" />
@@ -216,121 +221,127 @@
             </div>
           </div>
 
-          <!-- Month View -->
-          <div v-if="currentView === 'month'" class="month-view">
-            <div class="month-grid-header">
-              <div class="day-header" v-for="day in weekdays" :key="day">{{ day }}</div>
-            </div>
-            <div class="month-grid">
-              <div
-                  v-for="(day, index) in monthDays"
-                  :key="index"
-                  class="day-cell"
-                  :class="{
-                  'today': isToday(day.date),
-                  'different-month': !day.isCurrentMonth,
-                  'selected': isSelectedDate(day.date)
-                }"
-                  @click="selectDate(day.date)"
-              >
-                <div class="day-number">{{ formatDayNumber(day.date) }}</div>
-                <div class="day-events">
-                  <div
-                      v-for="event in getFilteredEventsForDay(day.date)"
-                      :key="event.id"
-                      class="day-event-pill"
-                      :class="getEventClass(event)"
-                      @click.stop="openEventDetails(event)"
-                  >
-                    {{ event.title }}
-                  </div>
-                  <div v-if="getFilteredEventsForDay(day.date).length > 2" class="more-events">
-                    +{{ getFilteredEventsForDay(day.date).length - 2 }} more
-                  </div>
-                </div>
+          <!-- Views Container with Transitions -->
+          <transition
+              :name="viewTransitionName"
+              mode="out-in"
+          >
+            <!-- Month View -->
+            <div v-if="currentView === 'month'" key="month" class="month-view">
+              <div class="month-grid-header">
+                <div class="day-header" v-for="day in weekdays" :key="day">{{ isMobile ? day.slice(0,3) : day }}</div>
               </div>
-            </div>
-          </div>
-
-          <!-- Week View -->
-          <div v-else-if="currentView === 'week'" class="week-view">
-            <div class="week-grid-header">
-              <div class="time-column-header"></div>
-              <div class="day-column-header" v-for="(day, index) in weekDays" :key="index" :class="{ 'today': isToday(day.date) }">
-                <div class="day-name">{{ formatDayName(day.date) }}</div>
-                <div class="day-number">{{ formatDayNumber(day.date) }}</div>
-              </div>
-            </div>
-            <div class="week-grid">
-              <div class="time-column">
-                <div class="time-cell" v-for="hour in hours" :key="hour">
-                  {{ formatHour(hour) }}
-                </div>
-              </div>
-              <div class="day-columns">
+              <div class="month-grid">
                 <div
-                    class="day-column"
-                    v-for="(day, dayIndex) in weekDays"
-                    :key="dayIndex"
-                    :class="{ 'today': isToday(day.date) }"
+                    v-for="(day, index) in monthDays"
+                    :key="index"
+                    class="day-cell"
+                    :class="{
+                    'today': isToday(day.date),
+                    'different-month': !day.isCurrentMonth,
+                    'selected': isSelectedDate(day.date)
+                  }"
+                    @click="selectDate(day.date)"
                 >
+                  <div class="day-number">{{ formatDayNumber(day.date) }}</div>
+                  <div class="day-events">
+                    <div
+                        v-for="event in getFilteredEventsForDay(day.date).slice(0, isMobile ? 1 : 2)"
+                        :key="event.id"
+                        class="day-event-pill"
+                        :class="getEventClass(event)"
+                        @click.stop="openEventDetails(event)"
+                    >
+                      {{ event.title }}
+                    </div>
+                    <div v-if="getFilteredEventsForDay(day.date).length > (isMobile ? 1 : 2)" class="more-events">
+                      +{{ getFilteredEventsForDay(day.date).length - (isMobile ? 1 : 2) }} more
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Week View -->
+            <div v-else-if="currentView === 'week'" key="week" class="week-view">
+              <div class="week-grid-header">
+                <div class="time-column-header"></div>
+                <div class="day-column-header" v-for="(day, index) in weekDays" :key="index" :class="{ 'today': isToday(day.date) }">
+                  <div class="day-name">{{ isMobile ? formatDayName(day.date).slice(0,1) : formatDayName(day.date) }}</div>
+                  <div class="day-number">{{ formatDayNumber(day.date) }}</div>
+                </div>
+              </div>
+              <div class="week-grid">
+                <div class="time-column">
+                  <div class="time-cell" v-for="hour in displayHours" :key="hour">
+                    {{ formatHour(hour) }}
+                  </div>
+                </div>
+                <div class="day-columns">
+                  <div
+                      class="day-column"
+                      v-for="(day, dayIndex) in weekDays"
+                      :key="dayIndex"
+                      :class="{ 'today': isToday(day.date) }"
+                  >
+                    <div
+                        class="time-cell"
+                        v-for="hour in displayHours"
+                        :key="`${dayIndex}-${hour}`"
+                        @click="createEventAtTime(day.date, hour)"
+                    ></div>
+                    <div
+                        v-for="event in getFilteredEventsForDay(day.date)"
+                        :key="event.id"
+                        class="week-event animate-pop-in"
+                        :class="getEventClass(event)"
+                        :style="calculateEventPosition(event)"
+                        @click="openEventDetails(event)"
+                    >
+                      <div class="event-time">{{ formatEventTime(event) }}</div>
+                      <div class="event-title">{{ event.title }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Day View -->
+            <div v-else-if="currentView === 'day'" key="day" class="day-view">
+              <div class="day-view-header">
+                <div class="current-day">
+                  {{ formatFullDate(selectedDate) }}
+                </div>
+              </div>
+              <div class="day-view-grid">
+                <div class="time-column">
+                  <div class="time-cell" v-for="hour in displayHours" :key="hour">
+                    {{ formatHour(hour) }}
+                  </div>
+                </div>
+                <div class="events-column">
                   <div
                       class="time-cell"
-                      v-for="hour in hours"
-                      :key="`${dayIndex}-${hour}`"
-                      @click="createEventAtTime(day.date, hour)"
+                      v-for="hour in displayHours"
+                      :key="hour"
+                      @click="createEventAtTime(selectedDate, hour)"
                   ></div>
                   <div
-                      v-for="event in getFilteredEventsForDay(day.date)"
+                      v-for="event in getFilteredEventsForDay(selectedDate)"
                       :key="event.id"
-                      class="week-event"
+                      class="day-event animate-pop-in"
                       :class="getEventClass(event)"
                       :style="calculateEventPosition(event)"
                       @click="openEventDetails(event)"
                   >
                     <div class="event-time">{{ formatEventTime(event) }}</div>
                     <div class="event-title">{{ event.title }}</div>
+                    <div class="event-description">{{ event.description }}</div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-
-          <!-- Day View -->
-          <div v-else-if="currentView === 'day'" class="day-view">
-            <div class="day-view-header">
-              <div class="current-day">
-                {{ formatFullDate(selectedDate) }}
-              </div>
-            </div>
-            <div class="day-view-grid">
-              <div class="time-column">
-                <div class="time-cell" v-for="hour in hours" :key="hour">
-                  {{ formatHour(hour) }}
-                </div>
-              </div>
-              <div class="events-column">
-                <div
-                    class="time-cell"
-                    v-for="hour in hours"
-                    :key="hour"
-                    @click="createEventAtTime(selectedDate, hour)"
-                ></div>
-                <div
-                    v-for="event in getFilteredEventsForDay(selectedDate)"
-                    :key="event.id"
-                    class="day-event"
-                    :class="getEventClass(event)"
-                    :style="calculateEventPosition(event)"
-                    @click="openEventDetails(event)"
-                >
-                  <div class="event-time">{{ formatEventTime(event) }}</div>
-                  <div class="event-title">{{ event.title }}</div>
-                  <div class="event-description">{{ event.description }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          </transition>
         </div>
       </div>
 
@@ -362,228 +373,234 @@
     </div>
 
     <!-- Create/Edit Event Modal -->
-    <div v-if="showEventModal" class="modal-overlay" @click.self="closeEventModal">
-      <div class="modal-container">
-        <div class="modal-header">
-          <h2>{{ isEditMode ? 'Edit Event' : 'Create New Event' }}</h2>
-          <button @click="closeEventModal" class="close-modal-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label for="eventTitle">Event Title*</label>
-            <input
-                type="text"
-                id="eventTitle"
-                v-model="eventForm.title"
-                placeholder="Add a title for your event"
-                required
-            />
+    <transition name="modal-fade">
+      <div v-if="showEventModal" class="modal-overlay" @click.self="closeEventModal">
+        <div class="modal-container">
+          <div class="modal-header">
+            <h2>{{ isEditMode ? 'Edit Event' : 'Create New Event' }}</h2>
+            <button @click="closeEventModal" class="close-modal-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
           </div>
-
-          <div class="form-row">
+          <div class="modal-body">
             <div class="form-group">
-              <label for="eventDate">Date*</label>
+              <label for="eventTitle">Event Title*</label>
               <input
-                  type="date"
-                  id="eventDate"
-                  v-model="eventForm.date"
+                  type="text"
+                  id="eventTitle"
+                  v-model="eventForm.title"
+                  placeholder="Add a title for your event"
                   required
               />
             </div>
-            <div class="form-group">
-              <label for="eventType">Event Type</label>
-              <select id="eventType" v-model="eventForm.type">
-                <option value="general">General</option>
-                <option value="assignment">Assignment</option>
-                <option value="exam">Exam</option>
-                <option value="study">Study</option>
-                <option value="meeting">Meeting</option>
-                <option value="celebration">Celebration</option>
-              </select>
-            </div>
-          </div>
 
-          <div class="form-row">
-            <div class="form-group checkbox-group">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="eventDate">Date*</label>
+                <input
+                    type="date"
+                    id="eventDate"
+                    v-model="eventForm.date"
+                    required
+                />
+              </div>
+              <div class="form-group">
+                <label for="eventType">Event Type</label>
+                <select id="eventType" v-model="eventForm.type">
+                  <option value="general">General</option>
+                  <option value="assignment">Assignment</option>
+                  <option value="exam">Exam</option>
+                  <option value="study">Study</option>
+                  <option value="meeting">Meeting</option>
+                  <option value="celebration">Celebration</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group checkbox-group">
+                <label class="checkbox-container">
+                  <input type="checkbox" v-model="eventForm.all_day" />
+                  <span class="checkmark"></span>
+                  All Day Event
+                </label>
+              </div>
+            </div>
+
+            <div class="form-row" v-if="!eventForm.all_day">
+              <div class="form-group">
+                <label for="startTime">Start Time</label>
+                <input
+                    type="time"
+                    id="startTime"
+                    v-model="eventForm.start_time"
+                />
+              </div>
+              <div class="form-group">
+                <label for="endTime">End Time</label>
+                <input
+                    type="time"
+                    id="endTime"
+                    v-model="eventForm.end_time"
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="eventDescription">Description</label>
+              <textarea
+                  id="eventDescription"
+                  v-model="eventForm.description"
+                  rows="4"
+                  placeholder="Add details about your event"
+              ></textarea>
+            </div>
+
+            <div class="form-group checkbox-group" v-if="isEditMode">
               <label class="checkbox-container">
-                <input type="checkbox" v-model="eventForm.all_day" />
+                <input type="checkbox" v-model="eventForm.completed" />
                 <span class="checkmark"></span>
-                All Day Event
+                Mark as Completed
               </label>
             </div>
           </div>
-
-          <div class="form-row" v-if="!eventForm.all_day">
-            <div class="form-group">
-              <label for="startTime">Start Time</label>
-              <input
-                  type="time"
-                  id="startTime"
-                  v-model="eventForm.start_time"
-              />
-            </div>
-            <div class="form-group">
-              <label for="endTime">End Time</label>
-              <input
-                  type="time"
-                  id="endTime"
-                  v-model="eventForm.end_time"
-              />
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="eventDescription">Description</label>
-            <textarea
-                id="eventDescription"
-                v-model="eventForm.description"
-                rows="4"
-                placeholder="Add details about your event"
-            ></textarea>
-          </div>
-
-          <div class="form-group checkbox-group" v-if="isEditMode">
-            <label class="checkbox-container">
-              <input type="checkbox" v-model="eventForm.completed" />
-              <span class="checkmark"></span>
-              Mark as Completed
-            </label>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <div class="modal-actions">
-            <button v-if="isEditMode" @click="confirmDeleteEvent" class="delete-button">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-              </svg>
-              Delete
-            </button>
-            <div>
-              <button @click="closeEventModal" class="cancel-button">
-                Cancel
+          <div class="modal-footer">
+            <div class="modal-actions">
+              <button v-if="isEditMode" @click="confirmDeleteEvent" class="delete-button">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                Delete
               </button>
-              <button @click="saveEvent" class="save-button" :disabled="isSaving">
-                <span v-if="isSaving">Saving...</span>
-                <span v-else>{{ isEditMode ? 'Update Event' : 'Create Event' }}</span>
-              </button>
+              <div>
+                <button @click="closeEventModal" class="cancel-button">
+                  Cancel
+                </button>
+                <button @click="saveEvent" class="save-button bounce-on-hover" :disabled="isSaving">
+                  <span v-if="isSaving">Saving...</span>
+                  <span v-else>{{ isEditMode ? 'Update Event' : 'Create Event' }}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </transition>
 
     <!-- Event Details Modal -->
-    <div v-if="showEventDetailsModal" class="modal-overlay" @click.self="closeEventDetailsModal">
-      <div class="modal-container">
-        <div class="modal-header">
-          <h2>Event Details</h2>
-          <button @click="closeEventDetailsModal" class="close-modal-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="event-details">
-            <div class="event-details-header" :class="getEventClass(selectedEvent)">
-              <h3>{{ selectedEvent?.title }}</h3>
-              <span class="event-badge">{{ getEventTypeLabel(selectedEvent?.type) }}</span>
-            </div>
-
-            <div class="event-details-content">
-              <div class="event-details-item">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                  <line x1="16" y1="2" x2="16" y2="6"></line>
-                  <line x1="8" y1="2" x2="8" y2="6"></line>
-                  <line x1="3" y1="10" x2="21" y2="10"></line>
-                </svg>
-                <span>{{ formatEventDate(selectedEvent) }}</span>
+    <transition name="modal-fade">
+      <div v-if="showEventDetailsModal" class="modal-overlay" @click.self="closeEventDetailsModal">
+        <div class="modal-container">
+          <div class="modal-header">
+            <h2>Event Details</h2>
+            <button @click="closeEventDetailsModal" class="close-modal-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          <div class="modal-body">
+            <div class="event-details animate-fade-in">
+              <div class="event-details-header" :class="getEventClass(selectedEvent)">
+                <h3>{{ selectedEvent?.title }}</h3>
+                <span class="event-badge">{{ getEventTypeLabel(selectedEvent?.type) }}</span>
               </div>
 
-              <div class="event-details-item" v-if="!selectedEvent?.all_day">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <span>{{ formatEventTime(selectedEvent) }}</span>
-              </div>
+              <div class="event-details-content">
+                <div class="event-details-item">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <span>{{ formatEventDate(selectedEvent) }}</span>
+                </div>
 
-              <div class="event-details-item" v-else>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <line x1="12" y1="8" x2="12" y2="12"></line>
-                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
-                <span>All Day</span>
-              </div>
+                <div class="event-details-item" v-if="!selectedEvent?.all_day">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                  <span>{{ formatEventTime(selectedEvent) }}</span>
+                </div>
 
-              <div class="event-details-description" v-if="selectedEvent?.description">
-                <h4>Description</h4>
-                <p>{{ selectedEvent?.description }}</p>
-              </div>
+                <div class="event-details-item" v-else>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                  <span>All Day</span>
+                </div>
 
-              <div class="event-status" v-if="selectedEvent?.completed">
-                <span class="status-badge">Completed</span>
+                <div class="event-details-description" v-if="selectedEvent?.description">
+                  <h4>Description</h4>
+                  <p>{{ selectedEvent?.description }}</p>
+                </div>
+
+                <div class="event-status" v-if="selectedEvent?.completed">
+                  <span class="status-badge">Completed</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div class="modal-footer">
-          <div class="modal-actions">
-            <button @click="confirmDeleteEvent" class="delete-button">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-              </svg>
-              Delete
-            </button>
-            <div>
-              <button @click="closeEventDetailsModal" class="cancel-button">
-                Close
+          <div class="modal-footer">
+            <div class="modal-actions">
+              <button @click="confirmDeleteEvent" class="delete-button">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                Delete
               </button>
-              <button @click="editEvent(selectedEvent)" class="save-button">
-                Edit Event
-              </button>
+              <div>
+                <button @click="closeEventDetailsModal" class="cancel-button">
+                  Close
+                </button>
+                <button @click="editEvent(selectedEvent)" class="save-button">
+                  Edit Event
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </transition>
 
     <!-- Delete Confirmation Modal -->
-    <div v-if="showDeleteConfirmModal" class="modal-overlay">
-      <div class="modal-container delete-confirm-modal">
-        <div class="modal-header">
-          <h2>Confirm Delete</h2>
-        </div>
-        <div class="modal-body">
-          <p>Are you sure you want to delete this event?</p>
-          <p class="event-name">{{ selectedEvent?.title }}</p>
-          <p class="delete-warning">This action cannot be undone.</p>
-        </div>
-        <div class="modal-footer">
-          <button @click="showDeleteConfirmModal = false" class="cancel-button">
-            Cancel
-          </button>
-          <button @click="deleteEvent" class="delete-button" :disabled="isDeleting">
-            <span v-if="isDeleting">Deleting...</span>
-            <span v-else>Delete</span>
-          </button>
+    <transition name="modal-fade">
+      <div v-if="showDeleteConfirmModal" class="modal-overlay">
+        <div class="modal-container delete-confirm-modal animate-pop-in">
+          <div class="modal-header">
+            <h2>Confirm Delete</h2>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to delete this event?</p>
+            <p class="event-name">{{ selectedEvent?.title }}</p>
+            <p class="delete-warning">This action cannot be undone.</p>
+          </div>
+          <div class="modal-footer">
+            <button @click="showDeleteConfirmModal = false" class="cancel-button">
+              Cancel
+            </button>
+            <button @click="deleteEvent" class="delete-button" :disabled="isDeleting">
+              <span v-if="isDeleting">Deleting...</span>
+              <span v-else>Delete</span>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </transition>
   </div>
 </template>
 
@@ -605,6 +622,13 @@ export default {
       loading: true,
       sidebarVisible: true,
       isMobile: false,
+      animateIn: true,
+
+      // Animation state
+      viewTransitionName: 'fade',
+      touchStartX: 0,
+      touchEndX: 0,
+
       // User data
       userProfile: {
         firstName: "",
@@ -729,6 +753,14 @@ export default {
       return days;
     },
 
+    // For mobile optimization: Show limited hours in week/day view
+    displayHours() {
+      if (!this.isMobile) return this.hours;
+
+      // For mobile, show business hours (8am-8pm) to save space
+      return Array.from({ length: 13 }, (_, i) => i + 8);
+    },
+
     // Compute the number of active filters
     activeFilterCount() {
       let count = 0;
@@ -762,6 +794,12 @@ export default {
 
     window.addEventListener("resize", this.checkMobile);
     window.addEventListener('darkModeChange', this.onDarkModeChange);
+
+    // Add initial animation
+    this.animateIn = true;
+    setTimeout(() => {
+      this.animateIn = false;
+    }, 800);
 
     // Try to load sidebar preference from localStorage
     const storedSidebarState = localStorage.getItem('sidebarVisible');
@@ -804,6 +842,70 @@ export default {
         this.sidebarVisible = false;
         localStorage.setItem('sidebarVisible', 'false');
       }
+    },
+
+    // Touch gestures for mobile
+    handleTouchStart(e) {
+      this.touchStartX = e.changedTouches[0].screenX;
+    },
+
+    handleTouchMove(e) {
+      // Prevent default to avoid scrolling while swiping
+      if (Math.abs(e.changedTouches[0].screenX - this.touchStartX) > 30) {
+        e.preventDefault();
+      }
+    },
+
+    handleTouchEnd(e) {
+      this.touchEndX = e.changedTouches[0].screenX;
+
+      // Minimum swipe distance
+      const minSwipeDistance = 100;
+      const swipeDistance = this.touchEndX - this.touchStartX;
+
+      // Detect direction
+      if (Math.abs(swipeDistance) > minSwipeDistance) {
+        if (swipeDistance > 0) {
+          // Swipe right - previous period or show sidebar
+          if (!this.sidebarVisible && this.touchStartX < 50) {
+            this.toggleSidebar();
+          } else {
+            this.navigatePrevious();
+            this.viewTransitionName = 'slide-right';
+          }
+        } else {
+          // Swipe left - next period or hide sidebar
+          if (this.sidebarVisible) {
+            this.toggleSidebar();
+          } else {
+            this.navigateNext();
+            this.viewTransitionName = 'slide-left';
+          }
+        }
+      }
+    },
+
+    // View transitions
+    setView(view) {
+      if (view === this.currentView) return;
+
+      // Set transition based on view change
+      if (
+          (this.currentView === 'month' && view === 'week') ||
+          (this.currentView === 'week' && view === 'day')
+      ) {
+        this.viewTransitionName = 'zoom-in';
+      } else if (
+          (this.currentView === 'day' && view === 'week') ||
+          (this.currentView === 'week' && view === 'month')
+      ) {
+        this.viewTransitionName = 'zoom-out';
+      } else {
+        this.viewTransitionName = 'fade';
+      }
+
+      this.currentView = view;
+      localStorage.setItem('calendarView', view);
     },
 
     // Search and Filter Methods
@@ -1142,13 +1244,11 @@ export default {
     },
 
     // Calendar Navigation
-    setView(view) {
-      this.currentView = view;
-      localStorage.setItem('calendarView', view);
-    },
-
     navigatePrevious() {
       const date = new Date(this.currentDate);
+
+      // Set transition for navigation
+      this.viewTransitionName = 'slide-right';
 
       if (this.currentView === 'month') {
         date.setMonth(date.getMonth() - 1);
@@ -1164,6 +1264,9 @@ export default {
     navigateNext() {
       const date = new Date(this.currentDate);
 
+      // Set transition for navigation
+      this.viewTransitionName = 'slide-left';
+
       if (this.currentView === 'month') {
         date.setMonth(date.getMonth() + 1);
       } else if (this.currentView === 'week') {
@@ -1176,6 +1279,8 @@ export default {
     },
 
     navigateToday() {
+      // Set transition for navigation
+      this.viewTransitionName = 'fade';
       this.currentDate = new Date();
       this.selectedDate = new Date();
     },
@@ -1256,15 +1361,25 @@ export default {
       // Each hour is 60px height in our grid
       const hourHeight = 60;
 
-      // Calculate top position (hours * hourHeight + minutes / 60 * hourHeight)
-      const top = (startHour * hourHeight) + (startMinute / 60 * hourHeight);
+      // Adjust for mobile display hours if needed
+      let topOffset = 0;
+      if (this.isMobile && startHour < 8) {
+        // If event starts before our mobile view starts, adjust
+        topOffset = 0;
+      } else if (this.isMobile) {
+        // For mobile, adjust based on our display hours (starts at 8am)
+        topOffset = (startHour - 8) * hourHeight + (startMinute / 60 * hourHeight);
+      } else {
+        // Regular calculation for desktop
+        topOffset = startHour * hourHeight + (startMinute / 60 * hourHeight);
+      }
 
       // Calculate height (end time - start time in hours * hourHeight)
       const durationHours = (endHour - startHour) + (endMinute - startMinute) / 60;
       const height = durationHours * hourHeight;
 
       return {
-        top: `${top}px`,
+        top: `${topOffset}px`,
         height: `${height}px`
       };
     },
@@ -1414,6 +1529,7 @@ export default {
   color: var(--text-primary);
   transition: background-color var(--transition-speed) ease,
   color var(--transition-speed) ease;
+  overflow-x: hidden;
 }
 
 .dashboard-layout {
@@ -1422,6 +1538,207 @@ export default {
   position: relative;
   padding-top: 70px; /* Space for fixed navbar */
   min-height: calc(100vh - 70px);
+}
+
+/* Animation classes */
+.animate-in {
+  animation: fadeSlide 0.8s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.4s ease-out;
+}
+
+.animate-pop-in {
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.pulse-animation {
+  animation: pulse 2s infinite;
+}
+
+.bounce-on-hover:hover {
+  animation: bounce 0.5s ease;
+}
+
+/* Animation keyframes */
+@keyframes fadeSlide {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes slideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  70% {
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* View transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  position: absolute;
+  width: 100%;
+}
+
+.slide-left-enter-from {
+  opacity: 0;
+  transform: translateX(50px);
+}
+
+.slide-left-leave-to {
+  opacity: 0;
+  transform: translateX(-50px);
+}
+
+.slide-right-enter-from {
+  opacity: 0;
+  transform: translateX(-50px);
+}
+
+.slide-right-leave-to {
+  opacity: 0;
+  transform: translateX(50px);
+}
+
+.zoom-in-enter-active,
+.zoom-in-leave-active,
+.zoom-out-enter-active,
+.zoom-out-leave-active {
+  transition: all 0.3s ease;
+  position: absolute;
+  width: 100%;
+}
+
+.zoom-in-enter-from {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.zoom-in-leave-to {
+  opacity: 0;
+  transform: scale(1.05);
+}
+
+.zoom-out-enter-from {
+  opacity: 0;
+  transform: scale(1.05);
+}
+
+.zoom-out-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+/* Modal transitions */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+.modal-fade-enter-active .modal-container {
+  animation: modalEnter 0.3s ease forwards;
+}
+
+.modal-fade-leave-active .modal-container {
+  animation: modalLeave 0.3s ease forwards;
+}
+
+@keyframes modalEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(30px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modalLeave {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9) translateY(30px);
+  }
 }
 
 /* Main content styles */
@@ -1551,6 +1868,7 @@ body.dark-mode .dashboard-header h1 {
   transition: all var(--transition-speed) ease;
   position: relative;
   overflow: hidden;
+  z-index: 100;
 }
 
 /* Slide transition for sidebar */
@@ -1653,6 +1971,7 @@ body.dark-mode .dashboard-header h1 {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  position: relative; /* For view transitions */
 }
 
 .calendar-header {
@@ -1795,6 +2114,12 @@ body.dark-mode .dashboard-header h1 {
   text-overflow: ellipsis;
   background-color: #e0e0e0;
   cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.day-event-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 .more-events {
@@ -1900,6 +2225,13 @@ body.dark-mode .dashboard-header h1 {
   font-size: 0.75rem;
   z-index: 5;
   box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.week-event:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: var(--shadow-md);
+  z-index: 10;
 }
 
 .week-event .event-time {
@@ -1954,6 +2286,13 @@ body.dark-mode .dashboard-header h1 {
   font-size: 0.875rem;
   z-index: 5;
   box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.day-event:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: var(--shadow-md);
+  z-index: 10;
 }
 
 .day-event .event-time {
@@ -2030,7 +2369,6 @@ body.dark-mode .dashboard-header h1 {
   box-shadow: var(--shadow-lg);
   width: 90%;
   max-width: 600px;
-  animation: modalAppear 0.3s ease;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -2038,17 +2376,6 @@ body.dark-mode .dashboard-header h1 {
 
 .delete-confirm-modal {
   max-width: 400px;
-}
-
-@keyframes modalAppear {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 .modal-header {
@@ -2131,6 +2458,7 @@ body.dark-mode .dashboard-header h1 {
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
   border-color: var(--primary-color);
   outline: none;
+  box-shadow: 0 0 0 3px rgba(123, 73, 255, 0.1);
 }
 
 .checkbox-group {
@@ -2402,11 +2730,6 @@ body.dark-mode .dashboard-header h1 {
   animation: fadeIn 0.3s ease;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 .filter-section {
   margin-bottom: 1.5rem;
 }
@@ -2499,10 +2822,41 @@ body.dark-mode .dashboard-header h1 {
   transform: translateY(-2px);
 }
 
-
-
 /* Responsive styles */
 @media (max-width: 768px) {
+  .dashboard-main-content {
+    padding: 1rem;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .calendar-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .view-btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .add-event-button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .add-event-button span {
+    display: none;
+  }
+
+  .add-event-button svg {
+    margin-right: 0;
+  }
+
   .search-filter-container {
     flex-direction: column;
     align-items: stretch;
@@ -2521,23 +2875,13 @@ body.dark-mode .dashboard-header h1 {
     width: 100%;
   }
 
-  .dashboard-main-content {
-    padding: 1rem;
-  }
-
-  .dashboard-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .calendar-actions {
-    width: 100%;
-    justify-content: space-between;
-  }
-
   .month-grid {
     min-height: 400px;
+  }
+
+  .day-cell {
+    min-height: 80px;
+    padding: 0.25rem;
   }
 
   .form-row {
@@ -2560,23 +2904,63 @@ body.dark-mode .dashboard-header h1 {
     flex: 1;
   }
 
-  .day-cell {
-    min-height: 80px;
+  .sidebar-show-button {
+    right: 1rem;
+    top: 5rem;
+  }
+
+  .current-period {
+    font-size: 1rem;
+  }
+
+  .week-view,
+  .day-view {
+    height: 600px;
+  }
+
+  .week-grid-header,
+  .day-view-header {
+    font-size: 0.875rem;
+  }
+
+  .day-column-header {
+    padding: 0.5rem 0.25rem;
+  }
+
+  .day-name {
+    font-size: 0.75rem;
+  }
+
+  .day-number {
+    font-size: 1rem;
   }
 }
 
 @media (max-width: 480px) {
+  .dashboard-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .day-header {
+    padding: 0.5rem 0.25rem;
+    font-size: 0.75rem;
+  }
+
   .search-box input {
     font-size: 0.875rem;
     padding: 0.5rem 0;
+  }
+
+  .current-period {
+    font-size: 0.875rem;
   }
 
   .filter-panel {
     padding: 1rem;
   }
 
-  .month-grid-header, .month-grid {
-    font-size: 0.75rem;
+  .month-grid {
+    min-height: 300px;
   }
 
   .day-cell {
@@ -2589,12 +2973,87 @@ body.dark-mode .dashboard-header h1 {
     padding: 0.1rem 0.25rem;
   }
 
-  .day-header {
-    padding: 0.5rem;
+  .more-events {
+    font-size: 0.7rem;
   }
 
-  .week-view, .day-view {
-    height: 600px;
+  .week-event,
+  .day-event {
+    font-size: 0.7rem;
+    padding: 0.125rem;
+  }
+
+  .event-time {
+    margin-bottom: 0.125rem !important;
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 1rem;
+  }
+
+  .modal-header h2 {
+    font-size: 1.125rem;
+  }
+
+  .cancel-button,
+  .save-button,
+  .delete-button {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .week-view,
+  .day-view {
+    height: 500px;
+  }
+
+  .time-cell {
+    height: 50px;
+    font-size: 0.7rem;
+  }
+}
+
+/* Touch-friendly improvements for mobile */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  .view-btn,
+  .nav-btn,
+  .today-btn {
+    min-height: 44px;
+  }
+
+  .day-cell {
+    min-height: 60px;
+  }
+
+  .day-event-pill,
+  .week-event,
+  .day-event {
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+  }
+
+  /* Better form inputs for touch */
+  .form-group input,
+  .form-group select {
+    height: 44px;
+  }
+
+  /* Remove hover effects that don't work well on touch */
+  .day-event-pill:hover,
+  .week-event:hover,
+  .day-event:hover {
+    transform: none;
+  }
+
+  /* Add active state for touch feedback */
+  .day-event-pill:active,
+  .week-event:active,
+  .day-event:active {
+    transform: scale(0.98);
+    opacity: 0.9;
   }
 }
 </style>
