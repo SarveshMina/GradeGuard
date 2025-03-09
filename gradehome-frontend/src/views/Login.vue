@@ -33,7 +33,6 @@
       <div class="mobile-menu" :class="{ 'mobile-menu-open': mobileMenuOpen }" v-if="isMobile">
         <a href="/" class="mobile-nav-link"><i class="fas fa-home"></i> Home</a>
         <a href="/features" class="mobile-nav-link"><i class="fas fa-star"></i> Features</a>
-        <a href="/pricing" class="mobile-nav-link"><i class="fas fa-tag"></i> Pricing</a>
         <a href="/support" class="mobile-nav-link"><i class="fas fa-headset"></i> Support</a>
         <div class="mobile-auth-buttons">
           <button v-if="formMode !== 'login'" @click="switchToLogin" class="mobile-nav-btn login-btn">

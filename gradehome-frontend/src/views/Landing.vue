@@ -1,18 +1,28 @@
 <template>
   <div class="landing-container" ref="landingContainer">
     <!-- Fixed Header/Nav with backdrop blur -->
-    <header class="landing-header" ref="headerRef" :class="{ 'scrolled': isScrolled }">
+    <header class="landing-header" ref="headerRef" :class="{ 'scrolled': isScrolled, 'mobile-menu-open': mobileMenuOpen }">
       <div class="logo-container">
-        <div class="logo visible-logo">GradeGuard</div>
+        <div class="logo">GradeGuard</div>
       </div>
-      <nav>
+
+      <!-- Mobile menu toggle -->
+      <button class="mobile-menu-toggle" @click="toggleMobileMenu" aria-label="Toggle menu">
+        <div class="hamburger" :class="{ 'active': mobileMenuOpen }">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </button>
+
+      <nav :class="{ 'mobile-active': mobileMenuOpen }">
         <!-- Arrow buttons for Login & Sign Up -->
-        <router-link :to="{ path: '/login', query: { mode: 'login' } }" class="nav-btn">
+        <router-link :to="{ path: '/login', query: { mode: 'login' } }" class="nav-btn" @click="mobileMenuOpen = false">
           <span class="text">Login</span>
           <span class="hover-circle"></span>
         </router-link>
 
-        <router-link :to="{ path: '/login', query: { mode: 'signup' } }" class="nav-btn primary">
+        <router-link :to="{ path: '/login', query: { mode: 'signup' } }" class="nav-btn primary" @click="mobileMenuOpen = false">
           <span class="text">Sign Up</span>
           <svg class="arrow-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M5 12h14"></path>
@@ -442,6 +452,7 @@ export default {
       darkMode: false,
       showScrollDown: true,
       isScrolled: false,
+      mobileMenuOpen: false,
       university: '',
       degree: '',
       statsMode: 'percentage',
@@ -464,8 +475,17 @@ export default {
     toggleDarkMode() {
       this.darkMode = toggleDarkMode(); // Use the centralized toggle function
     },
+    toggleMobileMenu() {
+      this.mobileMenuOpen = !this.mobileMenuOpen;
+      document.body.classList.toggle('menu-open', this.mobileMenuOpen);
+    },
+    closeMobileMenu() {
+      this.mobileMenuOpen = false;
+      document.body.classList.remove('menu-open');
+    },
     scrollToCalcForm() {
-      this.$refs.statsSectionRef.scrollIntoView({ behavior: 'smooth' })
+      this.$refs.statsSectionRef.scrollIntoView({ behavior: 'smooth' });
+      this.closeMobileMenu();
     },
     updateGradient() {
       const container = this.$refs.landingContainer;
@@ -598,32 +618,6 @@ export default {
       ease: 'power3.out',
     });
 
-    // Force logo visibility on page load
-    this.$nextTick(() => {
-      const logoElement = document.querySelector('.landing-header .logo');
-      if (logoElement) {
-        // Force visibility with inline styles
-        logoElement.style.opacity = '1';
-        logoElement.style.visibility = 'visible';
-
-        // Set initial color based on page position
-        if (window.scrollY > 20) {
-          // Use gradient for scrolled state
-          logoElement.style.background = 'linear-gradient(135deg, var(--primary-color), var(--accent-pink))';
-          logoElement.style.webkitBackgroundClip = 'text';
-          logoElement.style.backgroundClip = 'text';
-          logoElement.style.webkitTextFillColor = 'transparent';
-        } else {
-          // Use solid color for top position
-          logoElement.style.color = 'white';
-          logoElement.style.background = 'none';
-          logoElement.style.webkitBackgroundClip = 'initial';
-          logoElement.style.backgroundClip = 'initial';
-          logoElement.style.webkitTextFillColor = 'initial';
-        }
-      }
-    });
-
     gsap.from('.hero-buttons', {
       y: 50,
       opacity: 0,
@@ -676,8 +670,15 @@ export default {
 /* Custom CSS Variables */
 :root {
   --primary-hue: 265;
+  --primary-color: #7b49ff;
+  --primary-light: #9061ff;
+  --primary-dark: #6234e0;
   --bg-gradient-from: #f9f9ff;
   --bg-gradient-to: #f0f0ff;
+
+  /* Text colors */
+  --text-primary: #333;
+  --text-secondary: #555;
 
   /* Accent colors */
   --accent-blue: #4f46e5;
@@ -701,6 +702,12 @@ export default {
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.08);
   --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode variables */
+body.dark-mode {
+  --text-primary: #f0f0f0;
+  --text-secondary: #bbbbbb;
 }
 
 /* Main container */
@@ -730,36 +737,34 @@ export default {
   transition: all var(--transition-medium) ease;
 }
 
-/* Logo Fix for Landing Page */
+/* Fixed Logo Styling */
 .landing-header .logo {
   font-size: 1.8rem;
   font-weight: 800;
-  color: white; /* Make the logo white for better visibility on dark background */
   letter-spacing: -0.5px;
   position: relative;
-  text-decoration: none;
-
-  /* Remove gradient text styling that might be causing issues */
-  background: none;
-  -webkit-background-clip: initial;
-  background-clip: initial;
-  -webkit-text-fill-color: initial;
-
-  /* Add a text shadow for better visibility */
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-
-  /* Make sure it's visible */
-  display: block;
   z-index: 100;
 }
 
-/* When page scrolls, logo will switch to the gradient style */
+/* Logo in regular state (top of page) */
+.landing-header:not(.scrolled) .logo {
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Logo when scrolled */
 .landing-header.scrolled .logo {
-  background: linear-gradient(135deg, var(--primary-color), var(--accent-pink));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: none;
+  color: var(--primary-color);
+}
+
+/* When in dark mode, adjust logo color */
+body.dark-mode .landing-header:not(.scrolled) .logo {
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .landing-header.scrolled .logo {
+  color: var(--primary-color);
 }
 
 .landing-header.scrolled {
@@ -779,18 +784,35 @@ body.dark-mode .landing-header.scrolled {
   align-items: center;
 }
 
-.logo {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: var(--primary-color);
-  background: linear-gradient(135deg, var(--primary-color), var(--accent-pink));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: -0.5px;
-  position: relative;
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+  display: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+  z-index: 60;
 }
 
+.hamburger {
+  width: 30px;
+  height: 24px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hamburger span {
+  display: block;
+  width: 100%;
+  height: 3px;
+  background-color: var(--text-primary);
+  border-radius: 3px;
+  transition: all 0.3s ease;
+}
+
+/* Logo hover animation */
 .logo::after {
   content: "";
   position: absolute;
@@ -819,11 +841,15 @@ nav {
   padding: 0.625rem 1.25rem;
   font-size: 0.95rem;
   font-weight: 500;
-  color: var(--text-primary);
+  color: white;
   text-decoration: none;
   border-radius: var(--radius-full);
   transition: all var(--transition-medium) ease;
   overflow: hidden;
+}
+
+.landing-header.scrolled .nav-btn {
+  color: var(--text-primary);
 }
 
 .nav-btn .hover-circle {
@@ -877,11 +903,15 @@ nav {
   width: 40px;
   height: 40px;
   background: transparent;
-  color: var(--text-primary);
+  color: white;
   border: none;
   border-radius: 50%;
   cursor: pointer;
   transition: all var(--transition-medium) ease;
+}
+
+.landing-header.scrolled .theme-toggle {
+  color: var(--text-primary);
 }
 
 .theme-toggle:hover {
@@ -1406,6 +1436,25 @@ body.dark-mode .grade-item {
   font-weight: 500;
 }
 
+/* Mobile menu styles */
+.hamburger.active span:nth-child(1) {
+  transform: translateY(10px) rotate(45deg);
+}
+
+.hamburger.active span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger.active span:nth-child(3) {
+  transform: translateY(-10px) rotate(-45deg);
+}
+
+body.menu-open {
+  overflow: hidden;
+}
+
+/* Rest of CSS remains the same... */
+
 /* -------------- Calculator Section -------------- */
 .calculator-section {
   padding: 6rem 2rem;
@@ -1881,6 +1930,33 @@ body.dark-mode .system-card {
   transform: translateX(3px);
 }
 
+/* -------------- Animations & Transitions -------------- */
+.fade-scale-enter-active,
+.fade-scale-leave-active {
+  transition: opacity var(--transition-medium) ease, transform var(--transition-medium) ease;
+}
+
+.fade-scale-enter-from,
+.fade-scale-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+@keyframes floating {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 /* -------------- Responsive Styles -------------- */
 @media (max-width: 1200px) {
   .hero-content-wrapper {
@@ -1892,7 +1968,16 @@ body.dark-mode .system-card {
   }
 }
 
+/* Tablet Styles */
 @media (max-width: 992px) {
+  .landing-header {
+    padding: 1rem 1.5rem;
+  }
+
+  .landing-header.scrolled {
+    padding: 0.5rem 1.5rem;
+  }
+
   .hero-content-wrapper {
     flex-direction: column;
     text-align: center;
@@ -1924,18 +2009,63 @@ body.dark-mode .system-card {
   }
 }
 
+/* Mobile Styles */
 @media (max-width: 768px) {
-  .landing-header {
+  .mobile-menu-toggle {
+    display: block;
+  }
+
+  nav {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 80%;
+    max-width: 300px;
+    height: 100vh;
+    background-color: white;
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 5rem 1.5rem 2rem;
+    transition: right 0.3s ease;
+    overflow-y: auto;
+    z-index: 40;
+  }
+
+  body.dark-mode nav {
+    background-color: #1a1a2e;
+  }
+
+  nav.mobile-active {
+    right: 0;
+  }
+
+  .nav-btn {
+    width: 100%;
+    text-align: center;
     padding: 1rem;
+    color: var(--text-primary);
+  }
+
+  .nav-btn.primary {
+    margin-top: 0.5rem;
+  }
+
+  .theme-toggle {
+    margin-top: 1rem;
+    color: var(--text-primary);
+  }
+
+  .landing-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .landing-header.scrolled {
+    padding: 0.5rem 1rem;
   }
 
   .logo {
     font-size: 1.5rem;
-  }
-
-  .nav-btn {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
   }
 
   .hero-section {
@@ -1975,6 +2105,7 @@ body.dark-mode .system-card {
   }
 }
 
+/* Small Mobile Styles */
 @media (max-width: 480px) {
   .hero-title {
     font-size: 2rem;
@@ -1993,32 +2124,13 @@ body.dark-mode .system-card {
   .section-header h2 {
     font-size: 1.75rem;
   }
-}
 
-/* -------------- Animations & Transitions -------------- */
-.fade-scale-enter-active,
-.fade-scale-leave-active {
-  transition: opacity var(--transition-medium) ease, transform var(--transition-medium) ease;
-}
+  .calc-form, .stats-card {
+    padding: 1.5rem;
+  }
 
-.fade-scale-enter-from,
-.fade-scale-leave-to {
-  opacity: 0;
-  transform: scale(0.95);
-}
-
-@keyframes floating {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-15px); }
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-}
-
-@keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  .feature-card, .system-card {
+    padding: 1.5rem;
+  }
 }
 </style>
