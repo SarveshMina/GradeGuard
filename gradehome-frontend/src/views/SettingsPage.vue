@@ -721,7 +721,8 @@ export default {
         appearance: {
           accentColor: 'purple',
           fontSize: 'medium',
-          highContrast: false
+          highContrast: false,
+          darkMode: false
         },
         academic: {
           gradingScale: [
@@ -753,8 +754,21 @@ export default {
       defaultSettings: null
     };
   },
-  async mounted() {
+  mounted() {
+    // Initialize dark mode from localStorage
     this.darkMode = getDarkModePreference();
+    // Set initial value in the settings object
+    this.settings.appearance.darkMode = this.darkMode;
+
+    // Check if there's a saved accent color
+    const savedAccentColor = localStorage.getItem('accentColor');
+    if (savedAccentColor) {
+      this.settings.appearance.accentColor = savedAccentColor;
+    }
+
+    // Apply the accent color
+    this.applyAccentColor(this.settings.appearance.accentColor);
+
     this.checkMobile();
 
     // Set a localStorage item so App.vue can read it
@@ -768,8 +782,8 @@ export default {
     this.defaultSettings = JSON.parse(JSON.stringify(this.settings));
 
     // Fetch user profile and settings
-    await this.fetchUserProfile();
-    await this.fetchSettings();
+    this.fetchUserProfile();
+    this.fetchSettings();
   },
   beforeUnmount() {
     window.removeEventListener("resize", this.checkMobile);
@@ -778,6 +792,10 @@ export default {
   methods: {
     onDarkModeChange(event) {
       this.darkMode = event.detail.isDark;
+      // When dark mode changes, we need to reapply the accent color
+      this.$nextTick(() => {
+        this.applyAccentColor(this.settings.appearance.accentColor);
+      });
     },
     handleLogout() {
       this.notLoggedIn = true;
@@ -858,6 +876,9 @@ export default {
         // Apply settings using the service
         userSettingsService.applySettings(this.settings);
 
+        // Store accent color in localStorage for persistence
+        localStorage.setItem('accentColor', this.settings.appearance.accentColor);
+
         notify({ type: "success", message: "Settings saved successfully!" });
       } catch (error) {
         console.error("Error saving settings:", error);
@@ -874,11 +895,20 @@ export default {
     },
 
     applySettings() {
-      // Apply theme (dark mode is handled separately through localStorage)
-      this.darkMode = getDarkModePreference();
+      // Apply theme from settings instead of always reading from localStorage
+      if (this.settings.appearance.darkMode !== undefined) {
+        this.darkMode = this.settings.appearance.darkMode;
+        setDarkModePreference(this.darkMode); // Update localStorage to match
+      } else {
+        // Fallback only if setting doesn't exist yet (backward compatibility)
+        this.darkMode = getDarkModePreference();
+        this.settings.appearance.darkMode = this.darkMode; // Update settings to match
+      }
 
-      // Apply accent color
-      this.applyAccentColor(this.settings.appearance.accentColor);
+      // Apply accent color with a slight delay to ensure dark mode is applied first
+      setTimeout(() => {
+        this.applyAccentColor(this.settings.appearance.accentColor);
+      }, 50);
 
       // Apply font size
       this.applyFontSize(this.settings.appearance.fontSize);
@@ -912,28 +942,39 @@ export default {
       // Apply reset settings
       this.applySettings();
 
-      // Reset theme may need special handling
-      this.darkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setDarkModePreference(this.darkMode);
+      // If default theme isn't saved in settings, use system preference
+      if (this.defaultSettings.appearance.darkMode === undefined) {
+        this.darkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        this.settings.appearance.darkMode = this.darkMode;
+        setDarkModePreference(this.darkMode);
+      }
 
       notify({ type: "info", message: "Settings reset to defaults" });
     },
     setTheme(theme) {
       this.darkMode = theme === 'dark';
-      setDarkModePreference(this.darkMode);
+      this.settings.appearance.darkMode = this.darkMode; // Store in settings object
+      setDarkModePreference(this.darkMode); // Still update localStorage for app-wide state
 
       // Dispatch dark mode change event
       window.dispatchEvent(new CustomEvent('darkModeChange', {
         detail: { isDark: this.darkMode }
       }));
+
+      // Reapply accent color after theme change to ensure proper rendering
+      this.$nextTick(() => {
+        this.applyAccentColor(this.settings.appearance.accentColor);
+      });
     },
     setAccentColor(colorId) {
       this.settings.appearance.accentColor = colorId;
+      localStorage.setItem('accentColor', colorId); // Store in localStorage for persistence
       this.applyAccentColor(colorId);
     },
     applyAccentColor(colorId) {
       const color = this.accentColors.find(c => c.id === colorId);
       if (color) {
+        // Set the primary color value
         document.documentElement.style.setProperty('--primary-color', color.value);
 
         // Calculate darker variant for hover states
@@ -943,6 +984,12 @@ export default {
         // Calculate lighter variant
         const lighterColor = this.adjustColor(color.value, 20);
         document.documentElement.style.setProperty('--primary-light', lighterColor);
+
+        // Apply to active elements that might need the color in dark mode
+        document.documentElement.style.setProperty('--active-color', color.value);
+
+        // Force update of elements that might be using the accent color
+        this.$forceUpdate();
       }
     },
     applyFontSize(size) {
@@ -960,13 +1007,26 @@ export default {
       let g = parseInt(hex.slice(3, 5), 16);
       let b = parseInt(hex.slice(5, 7), 16);
 
+      // In dark mode, we might want slightly different adjustment logic
+      if (this.darkMode && amount < 0) {
+        // For dark mode, make darker colors even more distinct
+        amount = amount * 1.5;
+      } else if (this.darkMode && amount > 0) {
+        // For dark mode, make lighter colors more pronounced
+        amount = amount * 1.2;
+      }
+
       // Adjust colors
       r = Math.max(0, Math.min(255, r + amount));
       g = Math.max(0, Math.min(255, g + amount));
       b = Math.max(0, Math.min(255, b + amount));
 
+      // Store RGB values as CSS variables for easier alpha adjustments
+      const rgbValue = `${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}`;
+      document.documentElement.style.setProperty('--primary-color-rgb', rgbValue);
+
       // Convert back to hex
-      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+      return `#${Math.round(r).toString(16).padStart(2, '0')}${Math.round(g).toString(16).padStart(2, '0')}${Math.round(b).toString(16).padStart(2, '0')}`;
     },
     async changePassword() {
       if (this.passwordForm.newPassword !== this.passwordForm.confirmPassword) {
@@ -1023,6 +1083,20 @@ export default {
     removeHoliday(index) {
       this.settings.academic.holidays.splice(index, 1);
     },
+    // Debug helper method if needed
+    debugColors() {
+      console.log('Current settings:', {
+        darkMode: this.darkMode,
+        accentColor: this.settings.appearance.accentColor,
+        accentColorValue: this.accentColors.find(c => c.id === this.settings.appearance.accentColor)?.value
+      });
+
+      console.log('CSS Variables:', {
+        primaryColor: getComputedStyle(document.documentElement).getPropertyValue('--primary-color'),
+        primaryDark: getComputedStyle(document.documentElement).getPropertyValue('--primary-dark'),
+        primaryLight: getComputedStyle(document.documentElement).getPropertyValue('--primary-light')
+      });
+    },
     // Deep merge utility for merging settings objects
     mergeDeep(target, source) {
       const output = Object.assign({}, target);
@@ -1049,9 +1123,10 @@ export default {
 </script>
 
 <style scoped>
-/* Basic variables */
+/* Basic variables - Update to include RGB versions for transparency */
 :root {
   --primary-color: #7b49ff;
+  --primary-color-rgb: 123, 73, 255;
   --primary-light: #9b7aff;
   --primary-dark: #5b34cc;
   --error-color: #f44336;
@@ -1074,7 +1149,7 @@ export default {
   --transition-speed: 0.3s;
 }
 
-/* Dark mode variables */
+/* Dark mode variables - ensure they don't override accent colors */
 .dark-mode {
   --text-primary: #e4e6eb;
   --text-secondary: #b0b3b8;
@@ -1087,6 +1162,7 @@ export default {
   --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.4);
+  /* Important: Do NOT override primary-color here */
 }
 
 /* Base styles */
@@ -1121,7 +1197,7 @@ export default {
 .dashboard-header h1 {
   font-size: 1.75rem;
   font-weight: 600;
-  color: var(--primary-dark);
+  color: var(--primary-color);
   margin: 0;
 }
 
@@ -1180,7 +1256,7 @@ export default {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--primary-dark);
+  color: var(--primary-color);
 }
 
 .auth-card p {
@@ -1291,7 +1367,7 @@ export default {
 }
 
 .mobile-nav-item.active {
-  background-color: rgba(123, 73, 255, 0.1);
+  background-color: rgba(var(--primary-color-rgb), 0.1);
   color: var(--primary-color);
 }
 
@@ -1354,6 +1430,16 @@ export default {
   color: white;
 }
 
+/* Fix navigation buttons in dark mode */
+.dark-mode .nav-button.active {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.dark-mode .nav-button.active .icon {
+  color: white;
+}
+
 /* Settings panel */
 .settings-panel {
   flex: 1;
@@ -1377,7 +1463,7 @@ export default {
   margin: 0 0 1.5rem;
   font-size: 1.35rem;
   font-weight: 600;
-  color: var(--primary-dark);
+  color: var(--primary-color);
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border-color);
 }
@@ -1434,11 +1520,11 @@ export default {
 
 .theme-option.active {
   border-color: var(--primary-color);
-  background-color: rgba(123, 73, 255, 0.1);
+  background-color: rgba(var(--primary-color-rgb), 0.1);
 }
 
 .dark-mode .theme-option.active {
-  background-color: rgba(123, 73, 255, 0.2);
+  background-color: rgba(var(--primary-color-rgb), 0.2);
 }
 
 /* Color options */
@@ -1447,6 +1533,12 @@ export default {
   flex-wrap: wrap;
   gap: 1rem;
   justify-content: center;
+}
+
+.dark-mode .color-options {
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 15px;
+  border-radius: var(--border-radius);
 }
 
 .color-option {
@@ -1481,6 +1573,14 @@ export default {
   background-color: white;
   border-radius: 50%;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .color-option.active {
+  border-color: white;
+}
+
+.dark-mode .color-option.active::after {
+  background-color: rgba(255, 255, 255, 0.7);
 }
 
 /* Toggle switch */
@@ -1528,6 +1628,10 @@ export default {
 }
 
 input:checked + .toggle-slider {
+  background-color: var(--primary-color);
+}
+
+.dark-mode input:checked + .toggle-slider {
   background-color: var(--primary-color);
 }
 
@@ -1582,6 +1686,14 @@ input:checked + .toggle-slider:before {
   transform: translate(-50%, -50%);
 }
 
+.dark-mode .radio-option input[type="radio"]:checked {
+  border-color: var(--primary-color);
+}
+
+.dark-mode .radio-option input[type="radio"]:checked::after {
+  background: var(--primary-color);
+}
+
 .radio-option span {
   font-size: 0.95rem;
 }
@@ -1623,7 +1735,14 @@ input:checked + .toggle-slider:before {
 .form-group textarea:focus {
   border-color: var(--primary-color);
   outline: none;
-  box-shadow: 0 0 0 2px rgba(123, 73, 255, 0.2);
+  box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.2);
+}
+
+.dark-mode .form-group input:focus,
+.dark-mode .form-group select:focus,
+.dark-mode .form-group textarea:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.3);
 }
 
 .form-group small {
@@ -1773,9 +1892,15 @@ input:checked + .toggle-slider:before {
 
 .add-grade-btn:hover,
 .add-holiday-btn:hover {
-  background-color: rgba(123, 73, 255, 0.05);
+  background-color: rgba(var(--primary-color-rgb), 0.05);
   border-color: var(--primary-color);
   transform: translateY(-2px);
+}
+
+.dark-mode .add-grade-btn:hover,
+.dark-mode .add-holiday-btn:hover {
+  background-color: rgba(var(--primary-color-rgb), 0.1);
+  border-color: var(--primary-color);
 }
 
 /* Holiday items */
@@ -1916,6 +2041,14 @@ input:checked + .toggle-slider:before {
   background-color: var(--primary-dark);
   transform: translateY(-2px);
   box-shadow: var(--shadow-sm);
+}
+
+.dark-mode .save-button {
+  background-color: var(--primary-color);
+}
+
+.dark-mode .save-button:hover {
+  background-color: var(--primary-dark);
 }
 
 .save-button:disabled {
