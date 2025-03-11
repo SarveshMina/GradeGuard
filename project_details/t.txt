@@ -1,0 +1,10 @@
+artifacts
+api's
+requirements
+peer reviews
+UML diagrams
+Interaction design
+goals
+software engineering project.
+Testing
+Evualation
