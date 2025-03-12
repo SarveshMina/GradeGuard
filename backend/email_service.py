@@ -195,8 +195,13 @@ def send_password_reset_email(user_email):
     if not token:
         return False
     
-    # Create reset link
-    reset_link = f"{SITE_URL}/reset-password?token={token}"
+    # Create reset link - use absolute URL with protocol
+    site_url = os.environ.get("SITE_URL", "https://sarveshmina.co.uk/GradeGuard")
+    # Remove trailing slash if present
+    if site_url.endswith('/'):
+        site_url = site_url[:-1]
+    
+    reset_link = f"{site_url}/reset-password?token={token}"
     
     subject = "Password Reset - GradeGuard Account"
     
@@ -207,11 +212,16 @@ def send_password_reset_email(user_email):
         <p>We received a request to reset your password for your GradeGuard account.</p>
         <p>To reset your password, please click the link below:</p>
         <p><a href="{reset_link}" style="display: inline-block; background-color: #4f46e5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
+        <p>Or copy and paste this URL into your browser: <br><a href="{reset_link}">{reset_link}</a></p>
         <p>This link will expire in 24 hours.</p>
         <p>If you did not request a password reset, please ignore this email.</p>
         <p>Best regards,<br>The GradeGuard Team</p>
     </div>
     """
+
+    print("\n\n==== PASSWORD RESET LINK ====")
+    print(reset_link)
+    print("=============================\n\n")
     
     return send_email(user_email, subject, html_content)
 

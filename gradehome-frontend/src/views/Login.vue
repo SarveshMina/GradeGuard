@@ -53,6 +53,14 @@
       </div>
     </div>
 
+    <!-- Loading overlay for token verification -->
+    <div v-if="isVerifyingToken" class="session-loading-overlay">
+      <div class="session-loader">
+        <div class="session-spinner"></div>
+        <p>Verifying your reset link...</p>
+      </div>
+    </div>
+
     <!-- Mobile header (if applicable) -->
     <div v-if="isMobile" class="mobile-header">
       <div class="mobile-logo">GradeGuard</div>
@@ -459,6 +467,121 @@
                 </form>
               </main>
             </div>
+
+            <!-- Reset Password Form -->
+            <div v-else-if="formMode === 'reset'" key="reset" class="auth-wrapper">
+              <main class="auth-main">
+                <h1 class="form-title">Reset Your Password</h1>
+                <p v-if="!isTokenValid" class="error-message-banner">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  This password reset link is invalid or has expired. Please request a new one.
+                </p>
+
+                <form v-if="isTokenValid" @submit.prevent="handleResetPassword" class="auth-form">
+                  <div class="form-group">
+                    <div class="floating-label-group">
+                      <div class="input-wrapper" :class="{ 'has-value': newPassword.length > 0, 'has-error': resetErrors.password }">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input
+                            :type="showPassword ? 'text' : 'password'"
+                            v-model="newPassword"
+                            id="new-password"
+                            placeholder=" "
+                            @input="checkPasswordStrength"
+                            @focus="clearResetError('password')"
+                            required
+                        />
+                        <label for="new-password">New Password</label>
+                        <button
+                            type="button"
+                            class="toggle-password"
+                            @click="showPassword = !showPassword"
+                            :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                        >
+                          <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+                        </button>
+                        <div class="input-indicator"></div>
+                      </div>
+                      <p v-if="resetErrors.password" class="error-message">{{ resetErrors.password }}</p>
+
+                      <!-- Password strength indicator -->
+                      <div class="password-strength" v-if="newPassword.length > 0">
+                        <div class="strength-bars">
+                          <div class="strength-bar" :class="getStrengthClass(1)"></div>
+                          <div class="strength-bar" :class="getStrengthClass(2)"></div>
+                          <div class="strength-bar" :class="getStrengthClass(3)"></div>
+                          <div class="strength-bar" :class="getStrengthClass(4)"></div>
+                        </div>
+                        <span class="strength-text">{{ passwordStrengthText }}</span>
+                      </div>
+
+                      <ul class="password-requirements" v-if="newPassword.length > 0">
+                        <li :class="{ 'requirement-met': passwordHasLength }">
+                          <i :class="passwordHasLength ? 'fas fa-check' : 'fas fa-times'"></i>
+                          At least 8 characters
+                        </li>
+                        <li :class="{ 'requirement-met': passwordHasUpper }">
+                          <i :class="passwordHasUpper ? 'fas fa-check' : 'fas fa-times'"></i>
+                          At least 1 uppercase letter
+                        </li>
+                        <li :class="{ 'requirement-met': passwordHasNumber }">
+                          <i :class="passwordHasNumber ? 'fas fa-check' : 'fas fa-times'"></i>
+                          At least 1 number
+                        </li>
+                        <li :class="{ 'requirement-met': passwordHasSpecial }">
+                          <i :class="passwordHasSpecial ? 'fas fa-check' : 'fas fa-times'"></i>
+                          At least 1 special character
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <div class="floating-label-group">
+                      <div class="input-wrapper" :class="{ 'has-value': confirmPassword.length > 0, 'has-error': resetErrors.confirmPassword }">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input
+                            :type="showPassword ? 'text' : 'password'"
+                            v-model="confirmPassword"
+                            id="confirm-password"
+                            placeholder=" "
+                            @focus="clearResetError('confirmPassword')"
+                            required
+                        />
+                        <label for="confirm-password">Confirm Password</label>
+                        <div class="input-indicator"></div>
+                      </div>
+                      <p v-if="resetErrors.confirmPassword" class="error-message">{{ resetErrors.confirmPassword }}</p>
+                    </div>
+                  </div>
+
+                  <button
+                      type="submit"
+                      class="auth-button"
+                      :class="{ 'loading': isResetting }"
+                      :disabled="isResetting || !isPasswordValid"
+                  >
+                    <span v-if="!isResetting">Reset Password</span>
+                    <span v-else class="btn-loading-text">
+                      <span class="dot-loader"></span>
+                    </span>
+                    <i v-if="!isResetting" class="fas fa-check"></i>
+                  </button>
+
+                  <p class="back-link-container">
+                    <a href="#" @click.prevent="switchToLogin" class="back-link">
+                      <i class="fas fa-chevron-left"></i> Back to login
+                    </a>
+                  </p>
+                </form>
+
+                <div v-if="!isTokenValid" class="back-link-container">
+                  <a href="#" @click.prevent="switchToForgot" class="back-link">
+                    <i class="fas fa-chevron-left"></i> Request a new reset link
+                  </a>
+                </div>
+              </main>
+            </div>
           </transition>
         </div>
       </div>
@@ -669,6 +792,11 @@ export default {
       isSigningUp: false,
       isResetting: false,
       isCheckingSession: true,
+      isVerifyingToken: false,
+      isTokenValid: false,
+      resetToken: '',
+      newPassword: '',
+      confirmPassword: '',
       showSuccessModal: false,
       successMessage: { title: '', message: '' },
       mobileMenuOpen: false,
@@ -685,6 +813,10 @@ export default {
       },
       forgotErrors: {
         email: ''
+      },
+      resetErrors: {
+        password: '',
+        confirmPassword: ''
       }
     }
   },
@@ -709,10 +841,32 @@ export default {
     },
     isStep2Valid() {
       return this.firstName.trim() !== '' && this.selectedUniversityDoc && this.degree
+    },
+    isPasswordValid() {
+      return this.passwordStrength >= 3 && this.newPassword === this.confirmPassword;
     }
   },
   mounted() {
-    // Check if user is already logged in via session
+    console.log('Route:', this.$route.path);
+    console.log('Query params:', this.$route.query);
+    console.log('Token:', this.$route.query.token);
+
+    // Check for reset token in URL
+    const token = this.$route.query.token;
+    if (token) {
+      this.resetToken = token;
+      this.formMode = 'reset';
+      this.verifyResetToken();
+      return; // Skip session check when resetting password
+    }
+
+    // Skip session check if we just logged out
+    if (this.$route.query.logout === 'true') {
+      this.isCheckingSession = false;
+      return;
+    }
+
+    // Otherwise check for existing session
     this.checkExistingSession();
 
     // Initialize dark mode from the service
@@ -743,15 +897,17 @@ export default {
     // Add viewport meta tag for mobile responsiveness if it doesn't exist
     this.ensureViewportMeta();
 
-    // Check for mode in URL query params
-    const mode = this.$route.query.mode;
-    if (mode === 'signup') {
-      this.formMode = 'signup';
-      this.signUpStep = 1;
-    } else if (mode === 'forgot') {
-      this.formMode = 'forgot';
-    } else {
-      this.formMode = 'login';
+    // Check for mode in URL query params (if not handling reset token)
+    if (!token) {
+      const mode = this.$route.query.mode;
+      if (mode === 'signup') {
+        this.formMode = 'signup';
+        this.signUpStep = 1;
+      } else if (mode === 'forgot') {
+        this.formMode = 'forgot';
+      } else {
+        this.formMode = 'login';
+      }
     }
   },
   beforeUnmount() {
@@ -760,8 +916,98 @@ export default {
     document.body.style.overflow = '';
   },
   methods: {
+    async verifyResetToken() {
+      try {
+        this.isVerifyingToken = true;
+        this.isCheckingSession = false; // Prevent session check during token verification
+
+        const response = await axios.get(`${API_URL}/password/verify-token`, {
+          params: { token: this.resetToken }
+        });
+
+        if (response.data.valid) {
+          this.isTokenValid = true;
+        } else {
+          this.isTokenValid = false;
+          notify({ type: 'error', message: 'This password reset link is invalid or has expired. Please request a new one.' });
+        }
+      } catch (error) {
+        this.isTokenValid = false;
+        console.error('Error verifying token:', error);
+        notify({ type: 'error', message: 'Error verifying reset token. Please try again.' });
+      } finally {
+        this.isVerifyingToken = false;
+      }
+    },
+
+    async handleResetPassword() {
+      // Validate passwords
+      if (this.newPassword !== this.confirmPassword) {
+        this.resetErrors.confirmPassword = 'Passwords do not match.';
+        return;
+      }
+
+      if (this.passwordStrength < 3) {
+        this.resetErrors.password = 'Password is not strong enough. Please follow the requirements.';
+        return;
+      }
+
+      try {
+        this.isResetting = true;
+
+        await axios.post(`${API_URL}/password/reset`, {
+          token: this.resetToken,
+          password: this.newPassword
+        });
+
+        // Show success message
+        this.successMessage = {
+          title: 'Password Reset Successful',
+          message: 'Your password has been reset successfully. You can now log in with your new password.'
+        };
+        this.showSuccessModal = true;
+
+        // Clear form and switch to login after closing modal
+        setTimeout(() => {
+          if (this.showSuccessModal) {
+            this.closeSuccessModal();
+            this.switchToLogin();
+          }
+        }, 3000);
+      } catch (error) {
+        const errMsg = error.response?.data?.error || error.message;
+        notify({ type: 'error', message: 'Password reset failed: ' + errMsg });
+      } finally {
+        this.isResetting = false;
+      }
+    },
+
+    testTokenVerification() {
+      const token = this.resetToken || this.$route.query.token;
+      if (!token) {
+        console.error('No token available for testing');
+        return;
+      }
+
+      console.log('Testing token verification with token:', token);
+      axios.get(`${API_URL}/password/verify-token`, {
+        params: { token: token }
+      })
+          .then(response => {
+            console.log('Token verification response:', response.data);
+          })
+          .catch(error => {
+            console.error('Token verification error:', error);
+          });
+    },
+
     async checkExistingSession() {
-      // Add this at the very beginning of the method
+      // Skip the check if we're resetting password
+      if (this.resetToken) {
+        this.isCheckingSession = false;
+        return;
+      }
+
       // Skip the check if we just logged out
       if (this.$route.query.logout === 'true') {
         this.isCheckingSession = false;
@@ -901,7 +1147,7 @@ export default {
       }
     },
     checkPasswordStrength() {
-      const password = this.signUpPassword;
+      const password = this.formMode === 'signup' ? this.signUpPassword : this.newPassword;
 
       // Check for basic requirements
       this.passwordHasLength = password.length >= 8;
@@ -951,6 +1197,9 @@ export default {
     },
     clearForgotError(field) {
       this.forgotErrors[field] = '';
+    },
+    clearResetError(field) {
+      this.resetErrors[field] = '';
     },
     goToSignUpStep(step) {
       // Validate step 1 before proceeding
@@ -1012,7 +1261,7 @@ export default {
         // Show success message before redirect
         this.successMessage = {
           title: 'Account Created!',
-          message: 'Your account has been created successfully. Welcome to GradeGuard!'
+          message: 'Your account has been created successfully. A welcome email has been sent to your inbox!'
         };
         this.showSuccessModal = true;
 
@@ -1119,7 +1368,8 @@ export default {
       try {
         this.isResetting = true;
 
-        await axios.post(`${API_URL}/forgot-password`, {
+        // Update this endpoint to use the new password reset endpoint
+        await axios.post(`${API_URL}/password/forgot`, {
           email: this.forgotEmail
         });
 
@@ -1225,14 +1475,23 @@ export default {
         this.universityDocs = [];
       }
     },
-    '$route.query.mode'(newMode) {
-      if (newMode === 'signup') {
-        this.formMode = 'signup';
-        this.signUpStep = 1;
-      } else if (newMode === 'forgot') {
-        this.formMode = 'forgot';
-      } else {
-        this.formMode = 'login';
+    '$route.query'(newQuery) {
+      // Handle token in URL for password reset
+      if (newQuery.token && this.formMode !== 'reset') {
+        this.resetToken = newQuery.token;
+        this.formMode = 'reset';
+        this.verifyResetToken();
+      } else if (newQuery.mode && !newQuery.token) {
+        // Handle other mode switches
+        const mode = newQuery.mode;
+        if (mode === 'signup') {
+          this.formMode = 'signup';
+          this.signUpStep = 1;
+        } else if (mode === 'forgot') {
+          this.formMode = 'forgot';
+        } else if (mode === 'login') {
+          this.formMode = 'login';
+        }
       }
     },
     mobileMenuOpen(isOpen) {
@@ -3157,5 +3416,24 @@ export default {
   -o-transform: translateZ(0);
   transform: translateZ(0);
   backface-visibility: hidden;
+}
+
+
+.error-message-banner {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: var(--error-color);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.verifying-message {
+  text-align: center;
+  color: var(--text-secondary);
+  margin: 2rem 0;
+  font-style: italic;
 }
 </style>

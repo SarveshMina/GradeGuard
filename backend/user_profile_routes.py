@@ -1,9 +1,11 @@
 # Create file: user_profile_routes.py
 import azure.functions as func
 import json
+import traceback
 from models import UserProfileUpdate
 from database import get_user_by_email, _container
 from user_routes import verify_session
+from blob_storage import generate_avatar_upload_url
 
 def get_user_profile(req: func.HttpRequest) -> func.HttpResponse:
     is_valid, identity = verify_session(req)
@@ -79,22 +81,38 @@ def get_avatar_upload_url(req: func.HttpRequest) -> func.HttpResponse:
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
+
     try:
         body = req.get_json()
         filename = body.get("filename")
-        
+
         if not filename:
             return func.HttpResponse(json.dumps({"error": "Filename is required"}), status_code=400)
-        
-        upload_url, public_url = generate_avatar_upload_url(identity, filename)
-        
+
+        # Add more detailed logging
+        print(f"Generating upload URL for user: {identity}")
+        print(f"Filename: {filename}")
+
+        try:
+            upload_details = generate_avatar_upload_url(identity, filename)
+            print(f"Upload URL generated successfully: {upload_details['uploadUrl']}")
+            print(f"Public Avatar URL: {upload_details['avatarUrl']}")
+        except Exception as e:
+            print(f"Error generating upload URL: {str(e)}")
+            print(traceback.format_exc())
+            raise
+
         return func.HttpResponse(
             json.dumps({
-                "uploadUrl": upload_url,
-                "avatarUrl": public_url
-            }), 
+                "uploadUrl": upload_details["uploadUrl"],
+                "avatarUrl": upload_details["avatarUrl"]
+            }),
             status_code=200
         )
     except Exception as e:
-        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+        print(f"Unexpected error in get_avatar_upload_url: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(
+            json.dumps({"error": "Failed to generate upload URL", "details": str(e)}),
+            status_code=500
+        )

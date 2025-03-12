@@ -49,6 +49,11 @@ const routes = [
         component: ForgotPassword,
     },
     {
+        path: '/reset-password',
+        name: 'ResetPassword',
+        component: Login, // Use the Login component to handle reset password
+    },
+    {
         path: '/dashboard',
         name: 'Dashboard',
         component: Dashboard,

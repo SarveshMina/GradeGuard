@@ -88,7 +88,7 @@ def verify_session(req: HttpRequest) -> (bool, str):
 
 
 def register_user(req: HttpRequest) -> HttpResponse:
-    # (unchanged from your code)
+    # Process registration with email notification
     try:
         body = req.get_json()
     except Exception:
@@ -121,10 +121,19 @@ def register_user(req: HttpRequest) -> HttpResponse:
         "university": user_in.university,
         "degree": user_in.degree,
         "calcType": user_in.calcType,
-        "createdAt": datetime.datetime.utcnow().isoformat()
+        "createdAt": datetime.datetime.utcnow().isoformat(),
+        "knownDevices": []  # Track known devices for login notifications
     }
     create_user(user_doc)
     increment_university_and_major_counter(user_in.university, user_in.degree)
+
+    # Send welcome email
+    try:
+        from email_service import send_welcome_email
+        send_welcome_email(user_in.email, user_in.firstName)
+    except Exception as e:
+        print(f"Error sending welcome email: {str(e)}")
+        # Don't fail registration if email fails
 
     session_id = create_session(user_in.email)
     response = HttpResponse(
@@ -141,7 +150,6 @@ def register_user(req: HttpRequest) -> HttpResponse:
         "SameSite=None; Secure"
     )
     return response
-
 
 def login_user(req: HttpRequest) -> HttpResponse:
     # (unchanged from your code)

@@ -451,10 +451,14 @@ export default {
             { withCredentials: true }
         );
 
-        // Use the returned URL to upload the file directly to blob storage
         const { uploadUrl, avatarUrl } = uploadUrlResponse.data;
 
-        await fetch(uploadUrl, {
+        // Debug logging
+        console.log('Upload URL:', uploadUrl);
+        console.log('Avatar URL:', avatarUrl);
+
+        // Use the returned URL to upload the file directly to blob storage
+        const uploadResponse = await fetch(uploadUrl, {
           method: 'PUT',
           headers: {
             'x-ms-blob-type': 'BlockBlob',
@@ -463,8 +467,15 @@ export default {
           body: file
         });
 
+        // Check upload response
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error('Upload failed:', errorText);
+          throw new Error(`Upload failed: ${errorText}`);
+        }
+
         // Update profile with new avatar URL
-        await axios.put(
+        const profileUpdateResponse = await axios.put(
             `${API_URL}/user/profile`,
             { avatar: avatarUrl },
             { withCredentials: true }
@@ -475,7 +486,24 @@ export default {
         notify({ type: "success", message: "Profile picture updated successfully!" });
       } catch (error) {
         console.error("Error uploading avatar:", error);
-        notify({ type: "error", message: "Failed to update profile picture. Please try again." });
+
+        // More detailed error logging
+        if (error.response) {
+          // The request was made and the server responded with a status code
+          console.error("Server response error:", error.response.data);
+          console.error("Status code:", error.response.status);
+        } else if (error.request) {
+          // The request was made but no response was received
+          console.error("No response received:", error.request);
+        } else {
+          // Something happened in setting up the request
+          console.error("Error setting up request:", error.message);
+        }
+
+        notify({
+          type: "error",
+          message: error.response?.data?.error || "Failed to update profile picture. Please try again."
+        });
       } finally {
         this.avatarUploading = false;
         // Reset the file input

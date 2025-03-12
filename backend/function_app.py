@@ -46,6 +46,8 @@ from user_routes import verify_session, logout_user
 from database import get_user_by_email, _container
 from onboarding_routes import get_onboarding_status, save_onboarding_questionnaire
 from module_routes import get_module_analytics
+from password_reset_routes import request_password_reset, reset_password, verify_token
+from reminder_routes import create_reminder, get_reminders, delete_reminder, process_reminders, create_event_reminder
 
 # Configure CORS settings - UPDATED FOR MULTIPLE ENVIRONMENTS
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173,https://sarveshmina.co.uk").split(",")
@@ -59,7 +61,7 @@ def cors_preflight_response(req: func.HttpRequest = None) -> func.HttpResponse:
     # Get the Origin header from the request if available
     requested_origin = req.headers.get("Origin", DEFAULT_ORIGIN) if req else DEFAULT_ORIGIN
     origin = requested_origin if is_allowed_origin(requested_origin) else DEFAULT_ORIGIN
-    
+
     headers = {
         "Access-Control-Allow-Origin": origin,
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -72,7 +74,7 @@ def add_cors_headers(response: func.HttpResponse, req: func.HttpRequest = None) 
     # Get the Origin header from the request if available
     requested_origin = req.headers.get("Origin", DEFAULT_ORIGIN) if req else DEFAULT_ORIGIN
     origin = requested_origin if is_allowed_origin(requested_origin) else DEFAULT_ORIGIN
-    
+
     response.headers["Access-Control-Allow-Origin"] = origin
     response.headers["Access-Control-Allow-Credentials"] = "true"
     return response
@@ -453,4 +455,75 @@ def logout_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
     response = logout_user(req)
+    return add_cors_headers(response, req)
+
+# Password reset routes
+@app.route(route="password/forgot", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def forgot_password_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = request_password_reset(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="password/reset", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def reset_password_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = reset_password(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="password/verify-token", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def verify_token_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = verify_token(req)
+    return add_cors_headers(response, req)
+
+# Reminder routes
+@app.route(route="reminders", methods=["GET", "POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def reminders_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    
+    if req.method == "GET":
+        response = get_reminders(req)
+    elif req.method == "POST":
+        response = create_reminder(req)
+    else:
+        response = func.HttpResponse(
+            json.dumps({"error": f"Method {req.method} not allowed"}),
+            status_code=405,
+            mimetype="application/json"
+        )
+    
+    return add_cors_headers(response, req)
+
+@app.route(route="reminders/{id}", methods=["DELETE", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def reminder_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    
+    if req.method == "DELETE":
+        response = delete_reminder(req)
+    else:
+        response = func.HttpResponse(
+            json.dumps({"error": f"Method {req.method} not allowed"}),
+            status_code=405,
+            mimetype="application/json"
+        )
+    
+    return add_cors_headers(response, req)
+
+@app.route(route="reminders/process", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def process_reminders_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = process_reminders(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="reminders/event", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def create_event_reminder_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = create_event_reminder(req)
     return add_cors_headers(response, req)

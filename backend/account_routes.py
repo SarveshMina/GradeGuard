@@ -10,23 +10,31 @@ def change_password(req: func.HttpRequest) -> func.HttpResponse:
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
+
     try:
         body = req.get_json()
         pw_change = PasswordChange(**body)
-        
+
         user_doc = get_user_by_email(identity)
         if not user_doc:
             return func.HttpResponse(json.dumps({"error": "User not found"}), status_code=404)
-        
+
         # Verify current password
         if not bcrypt.verify(pw_change.current_password, user_doc["password"]):
             return func.HttpResponse(json.dumps({"error": "Current password is incorrect"}), status_code=400)
-        
+
         # Update to new password
         user_doc["password"] = bcrypt.hash(pw_change.new_password)
         _container.upsert_item(user_doc)
-        
+
+        # Send password change notification email
+        try:
+            from email_service import send_password_changed_email
+            send_password_changed_email(identity, user_doc.get("firstName", "User"))
+        except Exception as e:
+            print(f"Error sending password change notification: {str(e)}")
+            # Don't fail the password change if email fails
+
         return func.HttpResponse(json.dumps({"message": "Password updated successfully"}), status_code=200)
     except Exception as e:
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=400)
