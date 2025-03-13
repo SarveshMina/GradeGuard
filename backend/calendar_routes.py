@@ -23,16 +23,21 @@ def get_events(req: func.HttpRequest) -> func.HttpResponse:
         print(traceback.format_exc())
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
-def create_event(req: func.HttpRequest) -> func.HttpResponse:
+def create_event(req: func.HttpRequest, user_email: str = None) -> func.HttpResponse:
+    """Create a new calendar event"""
     is_valid, identity = verify_session(req)
-    if not is_valid:
+    
+    # If user_email is provided directly, use it instead of the verified identity
+    if user_email is not None:
+        identity = user_email
+    elif not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
 
     try:
         # Get request body
         event_data = req.get_json()
         print(f"Received event data: {event_data}")
-        
+
         # Explicit validation to catch issues before Pydantic
         required_fields = ['title', 'date']
         for field in required_fields:
@@ -41,16 +46,16 @@ def create_event(req: func.HttpRequest) -> func.HttpResponse:
                     json.dumps({"error": f"Missing required field: {field}"}),
                     status_code=400
                 )
-        
+
         try:
             # Add user_email to event data before validation
             # This fixes the validation error
             event_data['user_email'] = identity
-            
+
             # Validate with Pydantic model
             event = CalendarEvent(**event_data)
             print(f"Validated event data: {event.dict()}")
-            
+
             # Create event in database
             created_event = create_calendar_event(identity, event.dict(exclude_none=True))
             return func.HttpResponse(json.dumps(created_event), status_code=201)

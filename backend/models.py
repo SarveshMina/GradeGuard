@@ -1,8 +1,9 @@
 # models.py
 
 import re
-from pydantic import BaseModel, EmailStr, field_validator, constr, conint, confloat
-from typing import Dict, List, Optional
+from pydantic import BaseModel, EmailStr, field_validator, constr, conint, confloat, Field
+from typing import Dict, List, Optional, Any
+from datetime import time, date, datetime
 
 class YearSetting(BaseModel):
     year: str
@@ -190,3 +191,86 @@ class DegreeStructure(BaseModel):
 class OnboardingQuestionnaire(BaseModel):
     educationDetails: Optional[EducationDetails] = None
     degreeStructure: Optional[DegreeStructure] = None
+
+
+
+# Add these classes to your existing models.py file
+
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Optional, Dict, Any
+from datetime import time, date, datetime
+
+class StudyPreference(BaseModel):
+    user_email: str
+    preferred_times: List[str] = ["morning", "afternoon", "evening"]  # Options: morning, afternoon, evening, night
+    preferred_days: List[str] = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    study_session_duration: int = 60  # minutes
+    breaks_between_sessions: int = 15  # minutes
+    max_sessions_per_day: int = 3
+    min_sessions_per_week: int = 10
+    focus_areas: List[Dict[str, Any]] = []  # List of modules to focus on with relative importance
+    excluded_times: List[Dict[str, Any]] = []  # Times user doesn't want to study (social events, etc.)
+    
+    @field_validator('preferred_times')
+    @classmethod
+    def validate_preferred_times(cls, v):
+        valid_times = ["morning", "afternoon", "evening", "night"]
+        for time in v:
+            if time.lower() not in valid_times:
+                raise ValueError(f"Invalid preferred time: {time}. Must be one of {valid_times}")
+        return v
+    
+    @field_validator('preferred_days')
+    @classmethod
+    def validate_preferred_days(cls, v):
+        valid_days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+        for day in v:
+            if day.lower() not in valid_days:
+                raise ValueError(f"Invalid preferred day: {day}. Must be one of {valid_days}")
+        return v
+
+class StudySession(BaseModel):
+    id: Optional[str] = None
+    user_email: str
+    title: str
+    module_id: str
+    module_name: str
+    date: str  # ISO format date
+    start_time: str
+    end_time: str
+    description: Optional[str] = None
+    status: str = "scheduled"  # scheduled, completed, missed, rescheduled
+    feedback: Optional[Dict[str, Any]] = None
+    is_ai_generated: bool = True
+    calendar_event_id: Optional[str] = None  # Link to the actual calendar event
+    batch_id: Optional[str] = None  # For grouping sessions generated together
+
+class SessionFeedback(BaseModel):
+    session_id: str
+    completed: bool
+    productivity_rating: int = Field(ge=1, le=5)  # 1-5 scale
+    difficulty_rating: int = Field(ge=1, le=5)  # 1-5 scale
+    notes: Optional[str] = None
+    mood: Optional[str] = None
+
+class ImportedCalendar(BaseModel):
+    id: Optional[str] = None
+    user_email: str
+    name: str
+    url: str
+    last_sync: Optional[str] = None  # ISO timestamp
+    sync_frequency: str = "daily"  # daily, weekly
+    enabled: bool = True
+
+class SchedulerSettings(BaseModel):
+    user_email: str
+    auto_schedule_enabled: bool = True
+    weekly_suggestions_enabled: bool = True
+    auto_adjust_based_on_feedback: bool = True
+    ical_export_enabled: bool = True
+    ical_export_url: Optional[str] = None
+    notification_preferences: Dict[str, bool] = {
+        "before_study_session": True,
+        "missed_session_reminder": True,
+        "weekly_performance_report": True
+    }

@@ -3,6 +3,7 @@ import json
 import sys
 import os
 import datetime
+import logging
 
 # Add the current directory to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -42,12 +43,33 @@ from university_routes import (
     get_degree_requirements,
     import_template_modules
 )
+
+from scheduler_routes import (
+    get_study_preferences,
+    update_study_preferences,
+    generate_schedule,
+    save_schedule,
+    get_study_sessions,
+    update_session,
+    get_recommendations,
+    import_calendar,
+    upload_calendar_file,
+    get_imported_calendars,
+    export_calendar,
+    get_module_mapping,
+    update_module_mapping,
+    sync_imported_calendar
+)
+
 from user_routes import verify_session, logout_user
 from database import get_user_by_email, _container
 from onboarding_routes import get_onboarding_status, save_onboarding_questionnaire
 from module_routes import get_module_analytics
 from password_reset_routes import request_password_reset, reset_password, verify_token
 from reminder_routes import create_reminder, get_reminders, delete_reminder, process_reminders, create_event_reminder
+
+
+
 
 # Configure CORS settings - UPDATED FOR MULTIPLE ENVIRONMENTS
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173,https://sarveshmina.co.uk").split(",")
@@ -527,3 +549,204 @@ def create_event_reminder_endpoint(req: func.HttpRequest) -> func.HttpResponse:
         return cors_preflight_response(req)
     response = create_event_reminder(req)
     return add_cors_headers(response, req)
+
+@app.route(route="scheduler/preferences", methods=["GET", "PUT", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def study_preferences_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+
+    if req.method == "GET":
+        response = get_study_preferences(req)
+    elif req.method == "PUT":
+        response = update_study_preferences(req)
+    else:
+        response = func.HttpResponse(
+            json.dumps({"error": f"Method {req.method} not allowed"}),
+            status_code=405,
+            mimetype="application/json"
+        )
+
+    return add_cors_headers(response, req)
+
+@app.route(route="scheduler/generate", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def generate_schedule_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+
+    response = generate_schedule(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="scheduler/save", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def save_schedule_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+
+    response = save_schedule(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="scheduler/sessions", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def study_sessions_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+
+    response = get_study_sessions(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="scheduler/sessions/{id}", methods=["PUT", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def update_session_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+
+    response = update_session(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="scheduler/recommendations", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def recommendations_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+
+    response = get_recommendations(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="scheduler/calendars/import", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def import_calendar_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+
+    response = import_calendar(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="scheduler/calendars/upload", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def upload_calendar_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+
+    response = upload_calendar_file(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="scheduler/calendars", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def imported_calendars_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+
+    response = get_imported_calendars(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="scheduler/calendars/{id}/sync", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def sync_calendar_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+
+    response = sync_imported_calendar(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="scheduler/export", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def export_calendar_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+
+    response = export_calendar(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="scheduler/modules/mapping", methods=["GET", "PUT", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def module_mapping_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+
+    if req.method == "GET":
+        response = get_module_mapping(req)
+    elif req.method == "PUT":
+        response = update_module_mapping(req)
+    else:
+        response = func.HttpResponse(
+            json.dumps({"error": f"Method {req.method} not allowed"}),
+            status_code=405,
+            mimetype="application/json"
+        )
+
+    return add_cors_headers(response, req)
+
+# Add these timer triggers for background jobs
+
+@app.timer_trigger(schedule="0 0 0 * * *", arg_name="timer")
+def sync_calendars_timer(timer: func.TimerRequest) -> None:
+    """Sync imported calendars daily at midnight"""
+    if timer.past_due:
+        logging.info('sync_calendars_timer is past due!')
+
+    try:
+        from ical_service import sync_imported_calendars
+        result = sync_imported_calendars()
+        logging.info(f"Calendar sync completed: {result}")
+    except Exception as e:
+        logging.error(f"Error in calendar sync: {str(e)}")
+
+@app.timer_trigger(schedule="0 0 1 * * *", arg_name="timer")
+def update_ical_exports_timer(timer: func.TimerRequest) -> None:
+    """Update iCal exports daily at 1:00 AM"""
+    if timer.past_due:
+        logging.info('update_ical_exports_timer is past due!')
+
+    try:
+        from ical_service import update_calendar_exports
+        result = update_calendar_exports()
+        logging.info(f"iCal export update completed: {result}")
+    except Exception as e:
+        logging.error(f"Error in iCal export update: {str(e)}")
+
+@app.timer_trigger(schedule="0 0 2 * * 1", arg_name="timer")
+def weekly_schedule_suggestions_timer(timer: func.TimerRequest) -> None:
+    """Generate weekly schedule suggestions every Monday at 2:00 AM"""
+    if timer.past_due:
+        logging.info('weekly_schedule_suggestions_timer is past due!')
+
+    try:
+        # Find users with auto-suggestions enabled
+        query = "SELECT c.id FROM c WHERE IS_DEFINED(c.schedulerSettings) AND c.schedulerSettings.weekly_suggestions_enabled = true"
+        
+        users = list(_container.query_items(
+            query=query,
+            enable_cross_partition_query=True
+        ))
+        
+        for user in users:
+            try:
+                user_email = user["id"]
+                logging.info(f"Generating suggestions for user: {user_email}")
+                
+                # Generate new schedule for next week
+                from ai_scheduler import generate_study_schedule
+                import datetime
+                
+                # Set start date to next Monday
+                today = datetime.date.today()
+                days_until_monday = (7 - today.weekday()) % 7
+                if days_until_monday == 0:
+                    days_until_monday = 7  # If today is Monday, schedule for next Monday
+                
+                next_monday = today + datetime.timedelta(days=days_until_monday)
+                start_date = next_monday.isoformat()
+                
+                study_sessions = generate_study_schedule(user_email, start_date, 7)
+                
+                if study_sessions:
+                    # Store as suggestions (don't save to calendar yet)
+                    for session in study_sessions:
+                        session_dict = session.dict()
+                        session_dict["type"] = "study_suggestion"
+                        session_dict["id"] = f"suggestion_{session_dict['id']}"
+                        session_dict["status"] = "suggested"
+                        session_dict["suggestion_type"] = "weekly"
+                        session_dict["suggested_at"] = datetime.datetime.utcnow().isoformat()
+                        
+                        # Add to database
+                        _container.upsert_item(body=session_dict)
+                
+                    logging.info(f"Generated {len(study_sessions)} suggestions for user {user_email}")
+                
+            except Exception as e:
+                logging.error(f"Error generating suggestions for user {user['id']}: {str(e)}")
+        
+        logging.info(f"Weekly suggestions completed for {len(users)} users")
+    except Exception as e:
+        logging.error(f"Error in weekly schedule suggestions: {str(e)}")

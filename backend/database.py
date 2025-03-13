@@ -198,39 +198,68 @@ def update_calendar_event(user_email: str, event_id: str, update_data: dict):
             raise query_error
 
 def delete_calendar_event(user_email: str, event_id: str):
-    pk = f"{user_email}:{event_id}"
+    """Delete a calendar event with improved error handling and troubleshooting."""
     try:
-        # Try deleting with the constructed partition key
-        print(f"Attempting to delete event with ID: {event_id} and partition key: {pk}")
-        _events_container.delete_item(item=event_id, partition_key=pk)
-        return True
-    except Exception as e:
-        print(f"Error deleting with direct approach: {str(e)}")
+        # First try to find the event to verify it exists and get its actual structure
+        query = f"SELECT * FROM c WHERE c.id = '{event_id}' AND c.user_email = '{user_email}'"
+        items = list(_container.query_items(
+            query=query,
+            enable_cross_partition_query=True
+        ))
         
-        try:
-            # If direct delete fails, try to find the event by query first
-            query = f"SELECT * FROM c WHERE c.id = '{event_id}' AND c.user_email = '{user_email}'"
-            items = list(_events_container.query_items(
-                query=query,
-                enable_cross_partition_query=True
-            ))
-            
-            if items:
-                item = items[0]
-                print(f"Found item by query: {item}")
-                # Use the actual partition key from the found item
-                actual_pk = item.get("pk", pk)
-                print(f"Using actual partition key: {actual_pk}")
-                _events_container.delete_item(item=event_id, partition_key=actual_pk)
-                return True
-            else:
-                print(f"Event with ID {event_id} not found in database")
-                return False
-                
-        except Exception as query_error:
-            print(f"Error in query approach: {str(query_error)}")
+        if not items:
+            print(f"Event with ID {event_id} not found for user {user_email}")
             return False
-
+            
+        # Get the event and inspect its structure
+        event = items[0]
+        print(f"Found event to delete: {event}")
+        
+        # Try different partition key strategies
+        
+        # 1. Try using event ID as partition key (common pattern)
+        try:
+            print(f"Attempting to delete with event ID as partition key")
+            _container.delete_item(item=event_id, partition_key=event_id)
+            return True
+        except Exception as e:
+            print(f"Failed with event ID as partition key: {str(e)}")
+        
+        # 2. Try user_email as partition key
+        try:
+            print(f"Attempting to delete with user_email as partition key")
+            _container.delete_item(item=event_id, partition_key=user_email)
+            return True
+        except Exception as e:
+            print(f"Failed with user_email as partition key: {str(e)}")
+        
+        # 3. Try composite key if it exists in the event
+        if "pk" in event:
+            try:
+                print(f"Attempting to delete with pk={event['pk']} from event")
+                _container.delete_item(item=event_id, partition_key=event["pk"])
+                return True
+            except Exception as e:
+                print(f"Failed with pk from event: {str(e)}")
+        
+        # 4. Try the composite key format
+        composite_key = f"{user_email}:{event_id}"
+        try:
+            print(f"Attempting to delete with composite key: {composite_key}")
+            _container.delete_item(item=event_id, partition_key=composite_key)
+            return True
+        except Exception as e:
+            print(f"Failed with composite key: {str(e)}")
+        
+        # If we got here, all delete attempts failed
+        print("All deletion methods failed. Check Cosmos DB configuration.")
+        return False
+        
+    except Exception as e:
+        print(f"Error in delete_calendar_event: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return False
 
 # Add this helper function to get modules with statistics
 def get_modules_with_stats(university: str, degree: str):
