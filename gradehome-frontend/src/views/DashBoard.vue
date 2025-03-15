@@ -479,7 +479,7 @@
               <div class="chart-card">
                 <h3>Grade Distribution</h3>
                 <div class="chart-container grade-chart">
-                  <GradeDistributionChart :moduleData="moduleData" />
+                  <GradeDistributionChart :moduleData="completedModuleData" />
                 </div>
               </div>
 
@@ -576,6 +576,7 @@
                   <option value="score-asc">Score (Low to High)</option>
                   <option value="score-desc">Score (High to Low)</option>
                   <option value="credits">Credits</option>
+                  <option value="status">Enrollment Status</option>
                 </select>
               </div>
 
@@ -625,11 +626,14 @@
                 <div v-for="(module, moduleIndex) in year.modules" :key="moduleIndex" class="module-card" @click="viewModuleDetails(module)">
                   <div class="module-icon" :class="getModuleIconClass(module.score)">{{ module.code ? module.code.charAt(0) : module.name.charAt(0) }}</div>
                   <div class="module-details">
-                    <div class="module-name">{{ module.name }}</div>
-                    <div class="module-info">{{ module.credits }} credits | Semester {{ module.semester || 1 }}</div>
+                    <div class="module-name">
+                      {{ module.name }}
+                      <span v-if="module.isCurrentlyEnrolled" class="enrolled-badge">Current</span>
+                    </div>
+                    <div class="module-info">{{ module.credits }} credits | {{ module.semester === 0 ? 'Full Year' : `Semester ${module.semester || 1}` }}</div>
                   </div>
                   <div class="module-score" :class="getScoreClass(module.score)">
-                    {{ module.score }}%
+                    {{ module.isCurrentlyEnrolled ? 'In Progress' : `${module.score}%` }}
                   </div>
                 </div>
               </div>
@@ -652,7 +656,7 @@
               <h2>Performance Insights</h2>
 
               <div class="insight-metrics">
-                <div class="metric-item">
+                <div class="metric-item" v-tooltip="'This compares your current average (excluding ongoing modules) with your target grade'">
                   <div class="metric-value" :class="getComparisonClass(averageVsTarget)">{{ overallAverage }}%</div>
                   <div class="metric-label">Current Average</div>
                   <div class="metric-comparison">
@@ -668,7 +672,7 @@
                   </div>
                 </div>
 
-                <div class="metric-item">
+                <div class="metric-item" v-tooltip="'Calculated based on how accurately your previous performance predicted your next results. Higher accuracy means more reliable future predictions.'">
                   <div class="metric-value">{{ predictionAccuracy }}%</div>
                   <div class="metric-label">Prediction Accuracy</div>
                   <div class="metric-comparison">
@@ -676,7 +680,7 @@
                   </div>
                 </div>
 
-                <div class="metric-item">
+                <div class="metric-item" v-tooltip="'Measures how consistent your scores are across all modules. Higher consistency (closer to 100%) means your performance is stable, while lower scores indicate variability. Variance shows the difference between your highest and lowest scores.'">
                   <div class="metric-value">{{ consistencyScore }}%</div>
                   <div class="metric-label">Consistency Score</div>
                   <div class="metric-comparison">
@@ -684,7 +688,7 @@
                   </div>
                 </div>
 
-                <div class="metric-item">
+                <div class="metric-item" v-tooltip="'Shows how much your performance has improved over time. Calculated as the percentage change between your earliest and latest completed modules.'">
                   <div class="metric-value">{{ improvementRate }}%</div>
                   <div class="metric-label">Improvement Rate</div>
                   <div class="metric-comparison">
@@ -749,19 +753,19 @@
               <h2>Predictive Analysis</h2>
 
               <div class="prediction-scenarios">
-                <div class="scenario-card best">
+                <div class="scenario-card best" v-tooltip="'This scenario represents the best possible outcome based on your top performances in previous modules.'">
                   <h3>Best Case</h3>
                   <div class="scenario-grade">{{ bestCaseGrade }}%</div>
                   <p>Based on your top performance in similar modules</p>
                 </div>
 
-                <div class="scenario-card expected">
+                <div class="scenario-card expected" v-tooltip="'This represents the most likely outcome based on your average performance and current trend.'">
                   <h3>Expected</h3>
                   <div class="scenario-grade">{{ expectedGrade }}%</div>
                   <p>Based on your average performance pattern</p>
                 </div>
 
-                <div class="scenario-card minimum">
+                <div class="scenario-card minimum" v-tooltip="'This is the minimum grade needed to maintain your current degree classification.'">
                   <h3>Minimum Target</h3>
                   <div class="scenario-grade">{{ minimumGrade }}%</div>
                   <p>To maintain your current classification</p>
@@ -798,11 +802,22 @@
                 </div>
                 <div class="info-item">
                   <div class="info-label">Semester</div>
-                  <div class="info-value">{{ selectedModule.semester || 1 }}</div>
+                  <div class="info-value">{{ selectedModule.semester === 0 ? 'Full Academic Year' : `Semester ${selectedModule.semester || 1}` }}</div>
                 </div>
                 <div class="info-item">
                   <div class="info-label">Overall Score</div>
-                  <div class="info-value score" :class="getScoreClass(selectedModule.score)">{{ selectedModule.score }}%</div>
+                  <div class="info-value score" :class="getScoreClass(selectedModule.score)">
+                    {{ selectedModule.isCurrentlyEnrolled ? 'In Progress' : `${selectedModule.score}%` }}
+                  </div>
+                </div>
+                <!-- New enrollment status display -->
+                <div class="info-item">
+                  <div class="info-label">Status</div>
+                  <div class="info-value">
+                    <span class="enrollment-status" :class="{ 'active': selectedModule.isCurrentlyEnrolled }">
+                      {{ selectedModule.isCurrentlyEnrolled ? 'Currently Enrolled' : 'Completed' }}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -886,7 +901,7 @@
                   </select>
                 </div>
 
-                <!-- Add the new semester field here -->
+                <!-- Semester field -->
                 <div class="form-group">
                   <label for="moduleSemester">Semester <span class="required">*</span></label>
                   <select id="moduleSemester" v-model="moduleForm.semester">
@@ -894,6 +909,15 @@
                       {{ option.label }}
                     </option>
                   </select>
+                </div>
+
+                <!-- New Currently Enrolled field -->
+                <div class="form-group enrollment-checkbox">
+                  <label class="checkbox-container">
+                    <input type="checkbox" id="moduleEnrolled" v-model="moduleForm.isCurrentlyEnrolled">
+                    <span class="checkbox-label">Currently Enrolled</span>
+                  </label>
+                  <div class="field-hint">Check this if you are taking this module this semester</div>
                 </div>
               </div>
 
@@ -904,8 +928,19 @@
                     <input type="text" v-model="assessment.name" placeholder="Assessment name">
                     <div class="assessment-numbers">
                       <input type="number" v-model.number="assessment.weight" min="0" max="100" placeholder="Weight %">
-                      <input type="number" v-model.number="assessment.score" min="0" max="100" placeholder="Score %">
+                      <input type="number"
+                             v-model.number="assessment.score"
+                             min="0"
+                             max="100"
+                             placeholder="Score %"
+                             :disabled="moduleForm.isCurrentlyEnrolled && !assessment.completed">
                     </div>
+                  </div>
+                  <div v-if="moduleForm.isCurrentlyEnrolled" class="assessment-status">
+                    <label class="checkbox-container">
+                      <input type="checkbox" v-model="assessment.completed">
+                      <span class="checkbox-label">Completed</span>
+                    </label>
                   </div>
                   <button class="remove-assessment" @click="removeAssessment(index)">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -975,6 +1010,9 @@ import PerformanceChart from "@/components/charts/PerformanceChart.vue";
 import StrengthsRadarChart from "@/components/charts/StrengthsRadarChart.vue";
 import ModuleComparisonChart from "@/components/charts/ModuleComparisonChart.vue";
 
+// Import tooltip directive
+import VTooltip from 'v-tooltip';
+
 export default {
   name: "Dashboard",
   components: {
@@ -985,6 +1023,9 @@ export default {
     PerformanceChart,
     StrengthsRadarChart,
     ModuleComparisonChart
+  },
+  directives: {
+    tooltip: VTooltip.VTooltip
   },
   data() {
     return {
@@ -1059,6 +1100,7 @@ export default {
         year: '',
         semester: 1, // Default to semester 1
         score: 0,
+        isCurrentlyEnrolled: false, // New property for enrollment status
         assessments: []
       },
 
@@ -1089,6 +1131,15 @@ export default {
     };
   },
   computed: {
+    // Get completed and in-progress modules
+    completedModuleData() {
+      return this.moduleData.filter(m => !m.isCurrentlyEnrolled);
+    },
+
+    currentModuleData() {
+      return this.moduleData.filter(m => m.isCurrentlyEnrolled);
+    },
+
     // Total weight of all years in calculator config
     totalWeight() {
       if (!this.yearWeights.length) return 0;
@@ -1119,46 +1170,98 @@ export default {
           this.totalAssessmentWeight === 100;
     },
 
-    // Get overall average across all years
+    // Get overall average across all years (excluding currently enrolled modules)
     overallAverage() {
-      return this.dashboardStats?.overallAverage || 0;
+      // If we have a stat from the API, use that
+      if (this.dashboardStats?.overallAverage) {
+        return this.dashboardStats.overallAverage;
+      }
+
+      // Otherwise calculate it manually excluding currently enrolled modules
+      const completedModules = this.completedModuleData;
+      if (!completedModules || completedModules.length === 0) return 0;
+
+      const totalCredits = completedModules.reduce((sum, m) => sum + m.credits, 0);
+      const weightedSum = completedModules.reduce((sum, m) => sum + (m.score * m.credits), 0);
+
+      return totalCredits > 0 ? Math.round((weightedSum / totalCredits) * 10) / 10 : 0;
     },
 
-    // Get current yearly average
+    // Get current yearly average (excluding currently enrolled modules)
     yearlyAverage() {
+      // Use API data if available
       const yearlyAvgs = this.dashboardStats?.yearlyAverages || {};
-      const latest = Object.keys(yearlyAvgs).sort().pop();
-      return latest ? yearlyAvgs[latest] : 0;
+      if (Object.keys(yearlyAvgs).length > 0) {
+        const latest = Object.keys(yearlyAvgs).sort().pop();
+        return latest ? yearlyAvgs[latest] : 0;
+      }
+
+      // Otherwise calculate manually for the latest year
+      const latestYear = [...this.moduleData]
+          .filter(m => !m.isCurrentlyEnrolled)
+          .sort((a, b) => {
+            const yearA = parseInt(a.year.replace('Year ', ''));
+            const yearB = parseInt(b.year.replace('Year ', ''));
+            return yearB - yearA;
+          })[0];
+
+      if (!latestYear) return 0;
+
+      const latestYearModules = this.completedModuleData.filter(m => m.year === latestYear.year);
+      const totalCredits = latestYearModules.reduce((sum, m) => sum + m.credits, 0);
+      const weightedSum = latestYearModules.reduce((sum, m) => sum + (m.score * m.credits), 0);
+
+      return totalCredits > 0 ? Math.round((weightedSum / totalCredits) * 10) / 10 : 0;
     },
 
     // Get completed and total credits
     completedCredits() {
-      return this.dashboardStats?.completedCredits || 0;
+      return this.completedModuleData.reduce((sum, m) => sum + m.credits, 0);
     },
 
     totalCredits() {
-      return this.dashboardStats?.totalCredits || 0;
+      return this.dashboardStats?.totalCredits ||
+          this.moduleData.reduce((sum, m) => sum + m.credits, 0);
     },
 
-    // Get top module
+    // Get top module (only from completed modules)
     topModule() {
-      return this.dashboardStats?.topModule || { name: 'N/A', score: 0 };
+      if (this.dashboardStats?.topModule) {
+        return this.dashboardStats.topModule;
+      }
+
+      if (this.completedModuleData.length === 0) return { name: 'N/A', score: 0 };
+
+      return this.completedModuleData.reduce((top, module) => {
+        return (module.score > top.score) ? module : top;
+      }, { name: 'N/A', score: 0 });
     },
 
     // Get progress percentages
     achievedPercentage() {
-      const totalPossible = this.completedCredits * 100;
-      const achieved = this.moduleData.reduce((sum, module) => sum + (module.score * module.credits), 0);
+      const completedModules = this.completedModuleData;
+      const totalPossible = completedModules.reduce((sum, m) => sum + (m.credits * 100), 0);
+      const achieved = completedModules.reduce((sum, m) => sum + (m.score * m.credits), 0);
 
       return totalPossible > 0 ? Math.round((achieved / totalPossible) * 100) : 0;
     },
 
     lostPercentage() {
-      return Math.round(this.completedCredits / this.totalCredits * 100) - this.achievedPercentage;
+      const completedCredits = this.completedCredits;
+      const totalCredits = this.totalCredits;
+
+      if (totalCredits === 0) return 0;
+
+      return Math.round((completedCredits / totalCredits * 100) - this.achievedPercentage);
     },
 
     remainingPercentage() {
-      return 100 - (this.achievedPercentage + this.lostPercentage);
+      const completedCredits = this.completedCredits;
+      const totalCredits = this.totalCredits;
+
+      if (totalCredits === 0) return 100;
+
+      return Math.round(100 - (completedCredits / totalCredits * 100));
     },
 
     // Get target grades needed for different classifications
@@ -1187,9 +1290,10 @@ export default {
 
     consistencyScore() {
       // Calculate consistency based on standard deviation of scores
-      if (this.moduleData.length < 2) return 100;
+      const completedModules = this.completedModuleData;
+      if (completedModules.length < 2) return 100;
 
-      const scores = this.moduleData.map(m => m.score);
+      const scores = completedModules.map(m => m.score);
       const mean = scores.reduce((sum, score) => sum + score, 0) / scores.length;
       const squaredDiffs = scores.map(score => Math.pow(score - mean, 2));
       const variance = squaredDiffs.reduce((sum, sqrDiff) => sum + sqrDiff, 0) / scores.length;
@@ -1202,9 +1306,10 @@ export default {
 
     performanceVariance() {
       // Calculate variance between highest and lowest scores
-      if (this.moduleData.length < 2) return 0;
+      const completedModules = this.completedModuleData;
+      if (completedModules.length < 2) return 0;
 
-      const scores = this.moduleData.map(m => m.score);
+      const scores = completedModules.map(m => m.score);
       const highest = Math.max(...scores);
       const lowest = Math.min(...scores);
 
@@ -1213,10 +1318,11 @@ export default {
 
     improvementRate() {
       // Calculate improvement rate between earliest and latest modules
-      if (this.moduleData.length < 2) return 0;
+      const completedModules = this.completedModuleData;
+      if (completedModules.length < 2) return 0;
 
       // Sort modules by year (assuming format "Year X")
-      const sortedModules = [...this.moduleData].sort((a, b) => {
+      const sortedModules = [...completedModules].sort((a, b) => {
         const yearA = parseInt(a.year.replace('Year ', ''));
         const yearB = parseInt(b.year.replace('Year ', ''));
         return yearA - yearB;
@@ -1239,7 +1345,12 @@ export default {
     // Predictive grades
     bestCaseGrade() {
       // Based on current average and assuming best possible performance for remaining modules
-      const remainingWeight = 100 - Math.round(this.completedCredits / this.totalCredits * 100);
+      const completedCredits = this.completedCredits;
+      const totalCredits = this.totalCredits;
+
+      if (totalCredits === 0) return 0;
+
+      const remainingWeight = 100 - Math.round(completedCredits / totalCredits * 100);
       const bestRemainingScore = 95; // Assuming 95% is reasonable "best case"
 
       return Math.min(100, Math.round((this.overallAverage * (100 - remainingWeight) / 100) +
@@ -1271,6 +1382,7 @@ export default {
         if (this.selectedYear !== 'all' && yearConfig.year !== this.selectedYear) return;
 
         const yearModules = this.moduleData.filter(m => m.year === yearConfig.year);
+        const completedYearModules = yearModules.filter(m => !m.isCurrentlyEnrolled);
 
         // Sort modules based on selected sort method
         let sortedModules = [...yearModules];
@@ -1283,20 +1395,41 @@ export default {
             sortedModules.sort((a, b) => (a.semester || 1) - (b.semester || 1));
             break;
           case 'score-asc':
-            sortedModules.sort((a, b) => a.score - b.score);
+            sortedModules.sort((a, b) => {
+              // Handle currently enrolled modules (place them at the end)
+              if (a.isCurrentlyEnrolled && !b.isCurrentlyEnrolled) return 1;
+              if (!a.isCurrentlyEnrolled && b.isCurrentlyEnrolled) return -1;
+              return a.score - b.score;
+            });
             break;
           case 'score-desc':
-            sortedModules.sort((a, b) => b.score - a.score);
+            sortedModules.sort((a, b) => {
+              // Handle currently enrolled modules (place them at the end)
+              if (a.isCurrentlyEnrolled && !b.isCurrentlyEnrolled) return 1;
+              if (!a.isCurrentlyEnrolled && b.isCurrentlyEnrolled) return -1;
+              return b.score - a.score;
+            });
             break;
           case 'credits':
             sortedModules.sort((a, b) => b.credits - a.credits);
             break;
+          case 'status':
+            sortedModules.sort((a, b) => {
+              // Sort by enrollment status (current modules first)
+              if (a.isCurrentlyEnrolled && !b.isCurrentlyEnrolled) return -1;
+              if (!a.isCurrentlyEnrolled && b.isCurrentlyEnrolled) return 1;
+              // Then by name
+              return a.name.localeCompare(b.name);
+            });
+            break;
         }
 
         const totalCredits = yearConfig.credits;
-        const completedCredits = yearModules.reduce((sum, m) => sum + m.credits, 0);
-        const average = yearModules.length ?
-            Math.round(yearModules.reduce((sum, m) => sum + (m.score * m.credits), 0) /
+        const completedCredits = completedYearModules.reduce((sum, m) => sum + m.credits, 0);
+
+        // Calculate average only from completed modules
+        const average = completedYearModules.length ?
+            Math.round(completedYearModules.reduce((sum, m) => sum + (m.score * m.credits), 0) /
                 completedCredits * 10) / 10 : 0;
 
         years.push({
@@ -1335,12 +1468,20 @@ export default {
 
       // Generate options with label and value
       const options = [];
+
+      // Add semester options
       for (let i = 1; i <= maxSemesters; i++) {
         options.push({
           label: `Semester ${i}`,
           value: i
         });
       }
+
+      // Add Full Academic Year option with a special value (0)
+      options.push({
+        label: "Full Academic Year",
+        value: 0
+      });
 
       return options;
     }
@@ -1364,6 +1505,18 @@ export default {
     'nextConfig.customYears': function(newValue) {
       if (this.nextConfig.numYears === 'other' && newValue > 0) {
         this.initializeYearWeights(newValue);
+      }
+    },
+
+    // Watch for changes in module enrollment status
+    'moduleForm.isCurrentlyEnrolled': function(newValue) {
+      if (newValue) {
+        // Add completed flag to assessments when isCurrentlyEnrolled becomes true
+        this.moduleForm.assessments.forEach(assessment => {
+          if (!assessment.hasOwnProperty('completed')) {
+            this.$set(assessment, 'completed', false);
+          }
+        });
       }
     }
   },
@@ -1456,6 +1609,9 @@ export default {
         this.yearData = stats.yearData || [];
         this.scoreDistribution = stats.gradeDistribution || [];
 
+        // Generate personalized tips
+        this.generatePersonalizedTips();
+
         return response.data;
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -1474,12 +1630,27 @@ export default {
       try {
         this.loading = true;
 
-        // Calculate overall score based on assessments
-        const totalScore = this.moduleForm.assessments.reduce((sum, assessment) => {
-          return sum + (assessment.score * assessment.weight / 100);
-        }, 0);
+        // Calculate overall score based on completed assessments
+        if (this.moduleForm.isCurrentlyEnrolled) {
+          // Only calculate score from completed assessments
+          const completedAssessments = this.moduleForm.assessments.filter(a => a.completed);
 
-        this.moduleForm.score = Math.round(totalScore * 10) / 10;
+          if (completedAssessments.length > 0) {
+            const totalWeight = completedAssessments.reduce((sum, a) => sum + a.weight, 0);
+            const weightedScore = completedAssessments.reduce((sum, a) => sum + (a.score * a.weight), 0);
+
+            this.moduleForm.score = totalWeight > 0 ? Math.round((weightedScore / totalWeight) * 10) / 10 : 0;
+          } else {
+            this.moduleForm.score = 0; // No completed assessments yet
+          }
+        } else {
+          // For completed modules, calculate normally
+          const totalScore = this.moduleForm.assessments.reduce((sum, assessment) => {
+            return sum + (assessment.score * assessment.weight / 100);
+          }, 0);
+
+          this.moduleForm.score = Math.round(totalScore * 10) / 10;
+        }
 
         let response;
         if (this.editingModule) {
@@ -1512,7 +1683,7 @@ export default {
         this.addActivity({
           type: 'grade',
           title: this.editingModule ? 'Module Updated' : 'Module Added',
-          description: `${this.moduleForm.name}: ${this.moduleForm.score}%`,
+          description: `${this.moduleForm.name}: ${this.moduleForm.isCurrentlyEnrolled ? 'In Progress' : `${this.moduleForm.score}%`}`,
           time: 'Just now'
         });
       } catch (error) {
@@ -1896,8 +2067,9 @@ export default {
         year: year.year,
         semester: 1, // Default to semester 1
         score: 0,
+        isCurrentlyEnrolled: true, // Default to true for new modules
         assessments: [
-          { name: 'Exam', weight: 100, score: 0 }
+          { name: 'Exam', weight: 100, score: 0, completed: false }
         ]
       };
       this.showModuleForm = true;
@@ -1913,11 +2085,23 @@ export default {
         this.moduleForm.semester = 1;
       }
 
+      // If the module doesn't have the isCurrentlyEnrolled field, default to false
+      if (this.moduleForm.isCurrentlyEnrolled === undefined) {
+        this.moduleForm.isCurrentlyEnrolled = false;
+      }
+
       // Ensure assessments array exists
       if (!this.moduleForm.assessments || !this.moduleForm.assessments.length) {
         this.moduleForm.assessments = [
-          { name: 'Exam', weight: 100, score: module.score }
+          { name: 'Exam', weight: 100, score: module.score, completed: !module.isCurrentlyEnrolled }
         ];
+      } else if (this.moduleForm.isCurrentlyEnrolled) {
+        // Make sure all assessments have the 'completed' property if the module is currently enrolled
+        this.moduleForm.assessments.forEach(assessment => {
+          if (!assessment.hasOwnProperty('completed')) {
+            this.$set(assessment, 'completed', false);
+          }
+        });
       }
 
       this.showModuleDetail = false;
@@ -1929,7 +2113,8 @@ export default {
       this.moduleForm.assessments.push({
         name: `Assessment ${this.moduleForm.assessments.length + 1}`,
         weight: 0,
-        score: 0
+        score: 0,
+        completed: false
       });
     },
 
@@ -1941,10 +2126,12 @@ export default {
     // Export grades to CSV
     exportGrades() {
       // Create CSV content
-      let csv = 'Year,Module,Code,Credits,Semester,Score\n';
+      let csv = 'Year,Module,Code,Credits,Semester,Score,Currently Enrolled\n';
 
       this.moduleData.forEach(module => {
-        csv += `${module.year},${module.name},${module.code || ''},${module.credits},${module.semester || 1},${module.score}\n`;
+        const semesterText = module.semester === 0 ? 'Full Year' : `Semester ${module.semester || 1}`;
+        const scoreText = module.isCurrentlyEnrolled ? 'In Progress' : `${module.score}`;
+        csv += `${module.year},${module.name},${module.code || ''},${module.credits},${semesterText},${scoreText},${module.isCurrentlyEnrolled ? 'Yes' : 'No'}\n`;
       });
 
       // Create download link
@@ -1966,7 +2153,8 @@ export default {
       // Year data for year comparison chart will be from API
 
       // Score distribution for charts
-      const scores = this.moduleData.map(m => m.score);
+      const completedModules = this.completedModuleData;
+      const scores = completedModules.map(m => m.score);
       const ranges = [
         { name: '0-39%', range: [0, 39] },
         { name: '40-49%', range: [40, 49] },
@@ -1986,9 +2174,10 @@ export default {
     // Prepare data for insights charts
     prepareInsightsData() {
       // Performance data for line chart
+      const completedModules = this.completedModuleData;
       const modulesByYear = {};
 
-      this.moduleData.forEach(module => {
+      completedModules.forEach(module => {
         if (!modulesByYear[module.year]) {
           modulesByYear[module.year] = [];
         }
@@ -2019,7 +2208,7 @@ export default {
       ];
 
       this.strengthsData = subjectCategories.map(category => {
-        const matchingModules = this.moduleData.filter(m =>
+        const matchingModules = completedModules.filter(m =>
             category.pattern.test(m.name) || category.pattern.test(m.code)
         );
 
@@ -2039,37 +2228,49 @@ export default {
     generatePersonalizedTips() {
       const tips = [];
 
-      // Find lowest scoring module
-      if (this.moduleData.length > 0) {
-        const sortedByScore = [...this.moduleData].sort((a, b) => a.score - b.score);
-        const lowestModule = sortedByScore[0];
+      // Focus on currently enrolled modules
+      const currentModules = this.currentModuleData;
+      if (currentModules.length > 0) {
+        // Group by completion date or urgency
+        const upcomingModules = currentModules.slice(0, 3); // Take the first 3 for simplicity
 
-        if (lowestModule.score < 50) {
+        upcomingModules.forEach(module => {
           tips.push({
-            title: `Focus on ${lowestModule.name}`,
-            description: `This is your lowest scoring module (${lowestModule.score}%). Consider allocating more study time to improve your understanding of key concepts.`
+            title: `Focus on ${module.name}`,
+            description: `You're currently enrolled in this module. Create a study plan and allocate regular time to stay on top of the coursework.`
+          });
+        });
+
+        // Add general study tip for current modules
+        if (currentModules.length > 0) {
+          tips.push({
+            title: 'Current Modules Strategy',
+            description: `You're currently enrolled in ${currentModules.length} module${currentModules.length > 1 ? 's' : ''}. Try to distribute your effort based on credit weighting and assessment schedules.`
           });
         }
       }
 
-      // Find strongest subject area
-      if (this.strengthsData.length > 0) {
-        const sortedStrengths = [...this.strengthsData].sort((a, b) => b.score - a.score);
-        const topStrength = sortedStrengths[0];
+      // Add time management tip
+      tips.push({
+        title: 'Effective Time Management',
+        description: 'Break down large assignments into smaller tasks and set deadlines for each part. This makes progress more manageable and reduces last-minute stress.'
+      });
 
+      // Add study technique tip
+      tips.push({
+        title: 'Active Learning Techniques',
+        description: 'Instead of passive reading, try active recall by testing yourself on key concepts. Research shows this significantly improves retention compared to re-reading materials.'
+      });
+
+      // If we have less than 4 tips, add general ones
+      if (tips.length < 4) {
         tips.push({
-          title: `Maintain Strong Performance`,
-          description: `You're excelling in ${topStrength.subject} modules. Keep up the good work and consider peer tutoring to reinforce your knowledge.`
+          title: 'Balance Your Workload',
+          description: 'Try spacing out your work to reduce stress and improve quality. Setting regular study periods can help maintain consistent progress.'
         });
       }
 
-      // Add general tip
-      tips.push({
-        title: 'Balance Your Workload',
-        description: 'Try spacing out your work to reduce stress and improve quality. Setting regular study periods can help maintain consistent progress.'
-      });
-
-      this.personalizedTips = tips;
+      this.personalizedTips = tips.slice(0, 4); // Limit to 4 tips
     }
   }
 };
@@ -2083,6 +2284,44 @@ export default {
   color: var(--text-primary);
   transition: background-color var(--transition-speed) ease,
   color var(--transition-speed) ease;
+  --bg-light: #f8f9fa;
+  --bg-card: #ffffff;
+  --bg-accent: #f1f3f9;
+  --bg-input: #ffffff;
+  --text-primary: #333333;
+  --text-secondary: #667085;
+  --text-muted: #94a3b8;
+  --primary-color: #7b49ff;
+  --primary-dark: #6038cc;
+  --primary-light: #9a73ff;
+  --success-color: #22c55e;
+  --info-color: #3b82f6;
+  --warning-color: #f59e0b;
+  --danger-color: #ef4444;
+  --border-color: #e2e8f0;
+  --border-color-light: #f1f5f9;
+  --border-radius: 8px;
+  --border-radius-lg: 12px;
+  --transition-speed: 0.3s;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.dashboard.dark-mode {
+  --bg-light: #111827;
+  --bg-card: #1f2937;
+  --bg-accent: #2d3748;
+  --bg-input: #374151;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --primary-color: #8b5cf6;
+  --primary-dark: #7c3aed;
+  --primary-light: #a78bfa;
+  --border-color: #374151;
+  --border-color-light: #4b5563;
 }
 
 .dashboard-layout {
@@ -2091,6 +2330,7 @@ export default {
   position: relative;
   padding-top: 70px; /* Space for fixed navbar */
   min-height: calc(100vh - 70px);
+  font-family: var(--font-main);
 }
 
 /* ========== Main Content Styles ========== */
@@ -2098,6 +2338,11 @@ export default {
   flex: 1;
   padding: 2rem;
   transition: all var(--transition-speed) ease;
+  background-image: linear-gradient(to bottom, rgba(248, 250, 252, 0.8), rgba(241, 245, 249, 0.4));
+}
+
+.dark-mode .dashboard-main-content {
+  background-image: linear-gradient(to bottom, rgba(17, 24, 39, 0.8), rgba(31, 41, 55, 0.4));
 }
 
 .dashboard-main-content.expanded {
@@ -2113,12 +2358,25 @@ export default {
 
 .dashboard-header h1 {
   font-size: 1.75rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--primary-dark);
   margin: 0;
+  letter-spacing: -0.5px;
+  position: relative;
 }
 
-body.dark-mode .dashboard-header h1 {
+.dashboard-header h1::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 40px;
+  height: 3px;
+  background: var(--primary-color);
+  border-radius: 4px;
+}
+
+.dark-mode .dashboard-header h1 {
   color: var(--primary-light);
 }
 
@@ -2130,10 +2388,11 @@ body.dark-mode .dashboard-header h1 {
   border-radius: 24px;
   padding: 0.25rem;
   box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color-light);
 }
 
 .view-controls button {
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 1.25rem;
   border: none;
   background: transparent;
   color: var(--text-secondary);
@@ -2141,11 +2400,13 @@ body.dark-mode .dashboard-header h1 {
   cursor: pointer;
   font-weight: 500;
   transition: all 0.2s ease;
+  font-size: 0.9rem;
 }
 
 .view-controls button.active {
   background: var(--primary-color);
   color: white;
+  box-shadow: 0 2px 8px rgba(123, 73, 255, 0.25);
 }
 
 .view-controls button:hover:not(.active) {
@@ -2166,7 +2427,7 @@ body.dark-mode .dashboard-header h1 {
   padding: 0.6rem 1.2rem;
   cursor: pointer;
   font-weight: 500;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 3px 10px rgba(123, 73, 255, 0.3);
   transition: all 0.2s ease;
   z-index: 10;
 }
@@ -2178,14 +2439,15 @@ body.dark-mode .dashboard-header h1 {
 
 .sidebar-toggle:hover {
   background-color: var(--primary-dark);
-  transform: scale(1.05);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(123, 73, 255, 0.4);
 }
 
 .sidebar-show-button {
   position: fixed;
   right: 2rem;
   top: 6rem;
-  box-shadow: 0 2px 10px rgba(123, 73, 255, 0.3);
+  box-shadow: 0 3px 10px rgba(123, 73, 255, 0.3);
 }
 
 /* Ensure button is visible and clickable */
@@ -2258,118 +2520,132 @@ button.sidebar-show-button:not([disabled]) {
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
+  border: 1px solid var(--border-color-light);
 }
 
 .auth-card svg {
   color: var(--primary-color);
+  filter: drop-shadow(0 2px 4px rgba(123, 73, 255, 0.2));
 }
 
 .auth-card h2 {
   margin: 0;
   font-size: 1.5rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--primary-dark);
+  letter-spacing: -0.5px;
 }
 
 .auth-card p {
   margin: 0;
   color: var(--text-secondary);
+  line-height: 1.5;
 }
 
 .login-button {
   display: inline-block;
   background: var(--primary-color);
   color: white;
-  padding: 0.75rem 1.5rem;
+  padding: 0.75rem 1.75rem;
   border-radius: 24px;
   text-decoration: none;
   font-weight: 500;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 12px rgba(123, 73, 255, 0.25);
   transition: all 0.2s ease;
 }
 
 .login-button:hover {
   background: var(--primary-dark);
   transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(123, 73, 255, 0.35);
 }
 
 /* ========== Wizard Styles ========== */
 .wizard-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
-  padding: 2rem;
+  padding: 2.5rem;
   box-shadow: var(--shadow-md);
   max-width: 700px;
   width: 100%;
   margin: 0 auto;
   transition: all var(--transition-speed) ease;
+  border: 1px solid var(--border-color-light);
 }
 
 .wizard-header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
 }
 
 .step-indicator {
   display: inline-block;
   background-color: var(--primary-color);
   color: white;
-  padding: 0.25rem 0.75rem;
+  padding: 0.3rem 0.9rem;
   border-radius: 20px;
   font-size: 0.8rem;
-  font-weight: 500;
-  margin-bottom: 1rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 2px 6px rgba(123, 73, 255, 0.2);
 }
 
 .wizard-header h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.5rem;
-  font-weight: 600;
+  margin: 0 0 0.75rem;
+  font-size: 1.75rem;
+  font-weight: 700;
   color: var(--primary-dark);
+  letter-spacing: -0.5px;
 }
 
 .wizard-header p {
   margin: 0;
   color: var(--text-secondary);
+  font-size: 1.05rem;
+  line-height: 1.5;
 }
 
 /* ========== Form Styling ========== */
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
   color: var(--text-primary);
+  font-size: 0.95rem;
 }
 
 .required {
-  color: #e74c3c;
+  color: var(--danger-color);
+  margin-left: 3px;
 }
 
 .form-group input[type="number"],
 .form-group input[type="text"] {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.85rem 1rem;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   font-size: 1rem;
   background-color: var(--bg-input);
   color: var(--text-primary);
-  transition: border-color var(--transition-speed) ease;
+  transition: all var(--transition-speed) ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .form-group input[type="number"]:focus,
 .form-group input[type="text"]:focus {
   border-color: var(--primary-color);
   outline: none;
+  box-shadow: 0 0 0 3px rgba(123, 73, 255, 0.15);
 }
 
 .form-group select {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.85rem 1rem;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   font-size: 1rem;
@@ -2378,71 +2654,88 @@ button.sidebar-show-button:not([disabled]) {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.75rem center;
+  background-position: right 0.85rem center;
   background-size: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .form-group select:focus {
   border-color: var(--primary-color);
   outline: none;
+  box-shadow: 0 0 0 3px rgba(123, 73, 255, 0.15);
 }
 
 .select-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.85rem;
   justify-content: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .select-btn {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  border: 2px solid var(--primary-color);
-  background: transparent;
-  color: var(--primary-color);
-  padding: 0.75rem 1.25rem;
+  border: 2px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  padding: 0.85rem 1.35rem;
   border-radius: var(--border-radius);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 500;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .select-btn:hover {
-  background: rgba(123, 73, 255, 0.1);
+  border-color: var(--primary-color);
+  background: rgba(123, 73, 255, 0.05);
+  color: var(--primary-color);
+  transform: translateY(-2px);
 }
 
 .select-btn.active {
   background: var(--primary-color);
   color: white;
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(123, 73, 255, 0.2);
 }
 
 .btn-icon {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
 }
 
 /* ========== Year Weights Styles ========== */
 .year-weights-container {
-  margin-bottom: 2rem;
+  margin-bottom: 2.25rem;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   overflow: hidden;
+  background-color: var(--bg-card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .year-weights-header {
   display: flex;
   background-color: var(--bg-accent);
-  padding: 0.75rem;
+  padding: 0.85rem;
   font-weight: 600;
   border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
 }
 
 .year-weight-row {
   display: flex;
-  padding: 0.75rem;
+  padding: 0.85rem;
   border-bottom: 1px solid var(--border-color-light);
+  transition: background-color 0.2s ease;
+}
+
+.year-weight-row:hover {
+  background-color: rgba(123, 73, 255, 0.03);
 }
 
 .year-weight-row:last-child {
@@ -2453,6 +2746,7 @@ button.sidebar-show-button:not([disabled]) {
   flex: 1;
   display: flex;
   align-items: center;
+  font-weight: 500;
 }
 
 .weight-column {
@@ -2463,10 +2757,17 @@ button.sidebar-show-button:not([disabled]) {
 
 .weight-column input {
   width: 80px;
-  padding: 0.5rem;
+  padding: 0.6rem;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   background-color: var(--bg-input);
+  font-size: 0.95rem;
+}
+
+.weight-column input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(123, 73, 255, 0.15);
 }
 
 .active-column {
@@ -2480,7 +2781,7 @@ button.sidebar-show-button:not([disabled]) {
   position: relative;
   display: inline-block;
   width: 50px;
-  height: 24px;
+  height: 26px;
   cursor: pointer;
 }
 
@@ -2497,20 +2798,21 @@ button.sidebar-show-button:not([disabled]) {
   right: 0;
   bottom: 0;
   background-color: #ccc;
-  border-radius: 24px;
+  border-radius: 26px;
   transition: .4s;
 }
 
 .toggle-switch:before {
   position: absolute;
   content: "";
-  height: 16px;
-  width: 16px;
+  height: 18px;
+  width: 18px;
   left: 4px;
   bottom: 4px;
   background-color: white;
   border-radius: 50%;
   transition: .4s;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
 input:checked + .toggle-switch {
@@ -2518,15 +2820,16 @@ input:checked + .toggle-switch {
 }
 
 input:checked + .toggle-switch:before {
-  transform: translateX(26px);
+  transform: translateX(24px);
 }
 
 .total-weight {
-  padding: 0.75rem;
+  padding: 0.85rem;
   text-align: right;
   font-weight: 600;
   background-color: var(--bg-accent);
   border-top: 1px solid var(--border-color);
+  color: var(--success-color);
 }
 
 .weight-error {
@@ -2539,36 +2842,40 @@ input:checked + .toggle-switch:before {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  margin-top: 1.5rem;
-  padding: 0.75rem 1.5rem;
-  font-weight: 500;
+  margin-top: 1.75rem;
+  padding: 0.85rem 1.75rem;
+  font-weight: 600;
+  font-size: 0.95rem;
   background-color: var(--primary-color);
   color: white;
   border: none;
   border-radius: var(--border-radius);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
   width: 100%;
   max-width: 300px;
   margin-left: auto;
   margin-right: auto;
+  box-shadow: 0 4px 12px rgba(123, 73, 255, 0.25);
 }
 
 .save-button:hover {
   background-color: var(--primary-dark);
   transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(123, 73, 255, 0.35);
 }
 
 .save-button:disabled {
   background-color: var(--text-muted);
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
 .button-group {
   display: flex;
-  gap: 1rem;
-  margin-top: 1.5rem;
+  gap: 1.25rem;
+  margin-top: 1.75rem;
 }
 
 .back-button {
@@ -2576,25 +2883,27 @@ input:checked + .toggle-switch:before {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  font-weight: 500;
+  padding: 0.85rem 1.75rem;
+  font-weight: 600;
+  font-size: 0.95rem;
   background-color: transparent;
   color: var(--primary-color);
   border: 2px solid var(--primary-color);
   border-radius: var(--border-radius);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
 
 .back-button:hover {
   background-color: rgba(123, 73, 255, 0.1);
+  transform: translateY(-2px);
 }
 
 /* ========== Dashboard Overview Tab ========== */
 .dashboard-overview {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 2.25rem;
 }
 
 .overview-card {
@@ -2602,6 +2911,13 @@ input:checked + .toggle-switch:before {
   border-radius: var(--border-radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color-light);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.overview-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .overview-header {
@@ -2610,22 +2926,41 @@ input:checked + .toggle-switch:before {
   align-items: center;
   padding: 1.5rem;
   border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(to right, var(--bg-card), rgba(123, 73, 255, 0.05));
 }
 
 .overview-header h2 {
   margin: 0;
   font-size: 1.5rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--primary-dark);
+  letter-spacing: -0.5px;
+  position: relative;
+}
+
+.overview-header h2::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 30px;
+  height: 3px;
+  background: var(--primary-color);
+  border-radius: 4px;
 }
 
 .time-filters {
   display: flex;
   gap: 0.5rem;
+  background: var(--bg-card);
+  border-radius: 20px;
+  padding: 0.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-color-light);
 }
 
 .time-filters button {
-  padding: 0.35rem 0.75rem;
+  padding: 0.4rem 0.85rem;
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -2639,6 +2974,7 @@ input:checked + .toggle-switch:before {
 .time-filters button.active {
   background: var(--primary-color);
   color: white;
+  box-shadow: 0 2px 6px rgba(123, 73, 255, 0.25);
 }
 
 .time-filters button:hover:not(.active) {
@@ -2647,13 +2983,13 @@ input:checked + .toggle-switch:before {
 }
 
 .overview-body {
-  padding: 1.5rem;
+  padding: 1.75rem;
 }
 
 .grade-summary {
   display: flex;
   align-items: center;
-  gap: 3rem;
+  gap: 3.5rem;
 }
 
 .grade-circle {
@@ -2671,7 +3007,7 @@ input:checked + .toggle-switch:before {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .grade-circle::before {
@@ -2688,22 +3024,25 @@ input:checked + .toggle-switch:before {
 
 .grade-value {
   position: relative;
-  font-size: 2.5rem;
-  font-weight: 700;
+  font-size: 2.75rem;
+  font-weight: 800;
   color: var(--primary-dark);
+  line-height: 1;
+  letter-spacing: -1px;
 }
 
 .grade-label {
   position: relative;
   font-size: 0.9rem;
   color: var(--text-secondary);
-  margin-top: 0.25rem;
+  margin-top: 0.35rem;
+  font-weight: 500;
 }
 
 .grade-stats {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
   flex: 1;
 }
 
@@ -2711,15 +3050,16 @@ input:checked + .toggle-switch:before {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1.25rem;
   background: var(--bg-accent);
   border-radius: var(--border-radius);
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
+  border-left: 3px solid var(--primary-color);
 }
 
 .stats-item:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
+  transform: translateX(5px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
 }
 
 .stats-label {
@@ -2728,54 +3068,62 @@ input:checked + .toggle-switch:before {
 }
 
 .stats-value {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--primary-dark);
+  font-size: 1.1rem;
 }
 
 /* ========== Progress Section ========== */
 .progress-section {
-  margin-top: 2rem;
+  margin-top: 2.5rem;
+  background: var(--bg-accent);
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .progress-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
 }
 
 .progress-header h3 {
   margin: 0;
   font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
 .progress-legend {
   display: flex;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .legend-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .progress-bar {
   display: flex;
-  height: 2.5rem;
+  height: 2.75rem;
   border-radius: var(--border-radius);
   overflow: hidden;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .progress-segment {
@@ -2783,131 +3131,206 @@ input:checked + .toggle-switch:before {
   align-items: center;
   justify-content: center;
   color: white;
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: all 0.3s ease;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: width 0.5s ease;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .progress-segment.achieved {
-  background-color: #2ecc71;
+  background: linear-gradient(to right, #2ecc71, #27ae60);
 }
 
 .progress-segment.lost {
-  background-color: #3498db;
+  background: linear-gradient(to right, #3498db, #2980b9);
 }
 
 .progress-segment.remaining {
-  background-color: #ecf0f1;
+  background: linear-gradient(to right, #ecf0f1, #bdc3c7);
   color: var(--text-secondary);
+  text-shadow: none;
 }
 
 .progress-targets {
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .target-item {
   flex: 1;
   text-align: center;
-  padding: 1rem;
-  background: var(--bg-accent);
+  padding: 1.25rem;
+  background: var(--bg-card);
   border-radius: var(--border-radius);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border-top: 3px solid transparent;
+  transition: all 0.25s ease;
+}
+
+.target-item:nth-child(1) {
+  border-top-color: #2ecc71;
+}
+
+.target-item:nth-child(2) {
+  border-top-color: #3498db;
+}
+
+.target-item:nth-child(3) {
+  border-top-color: #f1c40f;
+}
+
+.target-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 .target-value {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.75rem;
+  font-weight: 800;
   color: var(--primary-dark);
   margin-bottom: 0.5rem;
+  letter-spacing: -0.5px;
 }
 
 .target-label {
   font-size: 0.85rem;
   color: var(--text-secondary);
+  font-weight: 500;
 }
 
 /* ========== Visualization Row ========== */
 .visualization-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2rem;
+  gap: 2.25rem;
 }
 
 .chart-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
-  padding: 1.5rem;
+  padding: 1.75rem;
   box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color-light);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.chart-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .chart-card h3 {
-  margin: 0 0 1rem;
-  font-size: 1.1rem;
-  font-weight: 600;
+  margin: 0 0 1.25rem;
+  font-size: 1.2rem;
+  font-weight: 700;
   color: var(--text-primary);
+  position: relative;
+  display: inline-block;
+}
+
+.chart-card h3::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 30px;
+  height: 3px;
+  background: var(--primary-color);
+  border-radius: 4px;
 }
 
 .chart-container {
-  height: 300px;
+  height: 320px;
   position: relative;
 }
 
 .large-chart .chart-container {
-  height: 350px;
+  height: 370px;
 }
 
 /* ========== Bottom Row ========== */
 .bottom-row {
   display: grid;
   grid-template-columns: 1.5fr 1fr;
-  gap: 2rem;
+  gap: 2.25rem;
 }
 
 /* ========== Activity Card ========== */
 .activity-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
-  padding: 1.5rem;
+  padding: 1.75rem;
   box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color-light);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.activity-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .activity-card h3 {
-  margin: 0 0 1rem;
-  font-size: 1.1rem;
-  font-weight: 600;
+  margin: 0 0 1.25rem;
+  font-size: 1.2rem;
+  font-weight: 700;
   color: var(--text-primary);
+  position: relative;
+  display: inline-block;
+}
+
+.activity-card h3::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 30px;
+  height: 3px;
+  background: var(--primary-color);
+  border-radius: 4px;
 }
 
 .activity-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.85rem;
 }
 
 .activity-item {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
-  padding: 0.75rem;
+  gap: 1.25rem;
+  padding: 1rem;
   border-radius: var(--border-radius);
   background: var(--bg-accent);
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
+  border-left: 3px solid transparent;
 }
 
 .activity-item:hover {
   transform: translateX(5px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+}
+
+.activity-item.grade {
+  border-left-color: #2ecc71;
+}
+
+.activity-item.submission {
+  border-left-color: #3498db;
 }
 
 .activity-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: rgba(123, 73, 255, 0.1);
   color: var(--primary-color);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .activity-icon.grade {
@@ -2927,11 +3350,11 @@ input:checked + .toggle-switch:before {
 .activity-title {
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
 }
 
 .activity-description {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: var(--text-secondary);
 }
 
@@ -2939,41 +3362,69 @@ input:checked + .toggle-switch:before {
   font-size: 0.75rem;
   color: var(--text-muted);
   white-space: nowrap;
+  font-weight: 500;
 }
 
 /* ========== Goals Card ========== */
 .goals-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
-  padding: 1.5rem;
+  padding: 1.75rem;
   box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color-light);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.goals-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .goals-card h3 {
-  margin: 0 0 1rem;
-  font-size: 1.1rem;
-  font-weight: 600;
+  margin: 0 0 1.25rem;
+  font-size: 1.2rem;
+  font-weight: 700;
   color: var(--text-primary);
+  position: relative;
+  display: inline-block;
+}
+
+.goals-card h3::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 30px;
+  height: 3px;
+  background: var(--primary-color);
+  border-radius: 4px;
 }
 
 .goals-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .goal-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.75rem;
+  gap: 1.25rem;
+  padding: 1rem;
   border-radius: var(--border-radius);
   background: var(--bg-accent);
+  transition: all 0.25s ease;
+  border-left: 3px solid var(--primary-color);
+}
+
+.goal-item:hover {
+  transform: translateX(5px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
 }
 
 .goal-progress {
-  width: 60px;
-  height: 60px;
+  width: 64px;
+  height: 64px;
   flex-shrink: 0;
 }
 
@@ -2981,18 +3432,19 @@ input:checked + .toggle-switch:before {
   width: 100%;
   height: 100%;
   transform: rotate(-90deg);
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.1));
 }
 
 .goal-circle-bg {
   fill: none;
   stroke: var(--border-color);
-  stroke-width: 2.5;
+  stroke-width: 2.75;
 }
 
 .goal-circle-progress {
   fill: none;
   stroke: var(--primary-color);
-  stroke-width: 2.5;
+  stroke-width: 2.75;
   stroke-linecap: round;
 }
 
@@ -3002,6 +3454,7 @@ input:checked + .toggle-switch:before {
   text-anchor: middle;
   dominant-baseline: middle;
   transform: rotate(90deg);
+  font-weight: 700;
 }
 
 .goal-details {
@@ -3009,21 +3462,22 @@ input:checked + .toggle-switch:before {
 }
 
 .goal-title {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
 }
 
 .goal-description {
   font-size: 0.85rem;
   color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 /* ========== Yearly View Tab ========== */
 .yearly-view {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 2.25rem;
 }
 
 /* ========== Filters Row ========== */
@@ -3033,18 +3487,19 @@ input:checked + .toggle-switch:before {
   align-items: center;
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
-  padding: 1rem 1.5rem;
+  padding: 1.25rem 1.75rem;
   box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color-light);
 }
 
 .filter-group {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.85rem;
 }
 
 .filter-group label {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-primary);
   white-space: nowrap;
 }
@@ -3053,141 +3508,170 @@ input:checked + .toggle-switch:before {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 1.25rem;
   background: var(--primary-color);
   color: white;
   border: none;
   border-radius: var(--border-radius);
   cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  transition: all 0.25s ease;
+  box-shadow: 0 3px 10px rgba(123, 73, 255, 0.2);
 }
 
 .export-button:hover {
   background: var(--primary-dark);
   transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(123, 73, 255, 0.3);
 }
 
 /* ========== Year Card ========== */
 .year-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
-  padding: 1.5rem;
+  padding: 1.75rem;
   box-shadow: var(--shadow-md);
-  margin-bottom: 2rem;
+  margin-bottom: 2.25rem;
+  border: 1px solid var(--border-color-light);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.year-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .year-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
+  border-bottom: 1px solid var(--border-color-light);
+  padding-bottom: 1.25rem;
 }
 
 .year-header h2 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.6rem;
+  font-weight: 800;
   color: var(--primary-dark);
+  letter-spacing: -0.5px;
 }
 
 .year-stats {
   display: flex;
-  gap: 1.5rem;
+  gap: 1.75rem;
 }
 
 .year-stat {
   text-align: center;
+  padding: 0.5rem 1rem;
+  background: var(--bg-accent);
+  border-radius: var(--border-radius);
+  min-width: 100px;
 }
 
 .stat-value {
-  font-size: 1.2rem;
-  font-weight: 700;
+  font-size: 1.3rem;
+  font-weight: 800;
   color: var(--primary-dark);
+  letter-spacing: -0.5px;
 }
 
 .stat-label {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
+  font-weight: 500;
+  margin-top: 0.2rem;
 }
 
 /* ========== Year Progress ========== */
 .year-progress {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
 }
 
 .year-progress-bar {
-  height: 1.5rem;
+  height: 1.75rem;
   background-color: var(--bg-accent);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .progress-value {
   height: 100%;
-  background: linear-gradient(to right, #3498db, var(--primary-color));
+  background: linear-gradient(to right, var(--primary-color), var(--primary-light));
   color: white;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding-right: 0.75rem;
-  font-weight: 600;
-  font-size: 0.85rem;
+  padding-right: 0.85rem;
+  font-weight: 700;
+  font-size: 0.9rem;
   transition: width 0.5s ease;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 /* ========== Modules Grid ========== */
 .modules-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
 }
 
 .module-card {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 1.25rem;
+  padding: 1.25rem;
   background: var(--bg-accent);
   border-radius: var(--border-radius);
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
   cursor: pointer;
+  border: 1px solid transparent;
 }
 
 .module-card:hover {
   transform: translateY(-3px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.07);
+  border-color: var(--border-color);
+  background: var(--bg-card);
 }
 
 .module-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  font-weight: 600;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  font-weight: 700;
   color: white;
   background: var(--primary-color);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  font-size: 1.1rem;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
 .module-icon.excellent {
-  background: #2ecc71;
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
 }
 
 .module-icon.good {
-  background: #3498db;
+  background: linear-gradient(135deg, #3498db, #2980b9);
 }
 
 .module-icon.average {
-  background: #f1c40f;
+  background: linear-gradient(135deg, #f1c40f, #f39c12);
 }
 
 .module-icon.pass {
-  background: #e67e22;
+  background: linear-gradient(135deg, #e67e22, #d35400);
 }
 
 .module-icon.fail {
-  background: #e74c3c;
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
 }
 
 .module-details {
@@ -3195,19 +3679,39 @@ input:checked + .toggle-switch:before {
 }
 
 .module-name {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+}
+
+/* Enrollment badge styles */
+.enrolled-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+  color: white;
+  font-size: 0.65rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  vertical-align: middle;
+  margin-left: 8px;
+  font-weight: 700;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(123, 73, 255, 0.3);
 }
 
 .module-info {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .module-score {
-  font-size: 1.2rem;
-  font-weight: 700;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
 }
 
 .excellent-score {
@@ -3237,41 +3741,64 @@ input:checked + .toggle-switch:before {
   justify-content: center;
   gap: 0.5rem;
   margin: 0 auto;
-  padding: 0.75rem 1.5rem;
+  padding: 0.85rem 1.75rem;
   background: transparent;
   color: var(--primary-color);
   border: 2px dashed var(--primary-color);
   border-radius: var(--border-radius);
   cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  transition: all 0.25s ease;
+  font-size: 0.95rem;
 }
 
 .add-module-button:hover {
   background: rgba(123, 73, 255, 0.05);
   transform: scale(1.05);
+  box-shadow: 0 3px 10px rgba(123, 73, 255, 0.1);
 }
 
 /* ========== Insights Tab ========== */
 .insights-view {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 2.25rem;
 }
 
 /* ========== Insights Card ========== */
 .insights-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
-  padding: 1.5rem;
+  padding: 1.75rem;
   box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color-light);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.insights-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .insights-card h2 {
-  margin: 0 0 1.5rem;
-  font-size: 1.5rem;
-  font-weight: 600;
+  margin: 0 0 1.75rem;
+  font-size: 1.6rem;
+  font-weight: 800;
   color: var(--primary-dark);
+  letter-spacing: -0.5px;
+  position: relative;
+  display: inline-block;
+}
+
+.insights-card h2::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 0;
+  width: 40px;
+  height: 3px;
+  background: var(--primary-color);
+  border-radius: 4px;
 }
 
 .insight-metrics {
@@ -3282,33 +3809,41 @@ input:checked + .toggle-switch:before {
 
 .metric-item {
   text-align: center;
-  padding: 1.5rem 1rem;
+  padding: 1.75rem 1.25rem;
   background: var(--bg-accent);
   border-radius: var(--border-radius);
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
+  border-top: 4px solid var(--primary-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  cursor: help;
 }
 
 .metric-item:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-sm);
+  transform: translateY(-5px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
 .metric-value {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
+  font-size: 2.25rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+  letter-spacing: -1px;
+  line-height: 1;
 }
 
 .metric-label {
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.5px;
 }
 
 .metric-comparison {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .metric-comparison svg {
@@ -3336,100 +3871,170 @@ input:checked + .toggle-switch:before {
   color: var(--text-secondary);
 }
 
+/* ========== Tooltip Styles ========== */
+.tooltip {
+  display: block;
+  z-index: 10000;
+  max-width: 300px;
+}
+
+.tooltip .tooltip-inner {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border-color);
+}
+
+.tooltip .tooltip-arrow {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  position: absolute;
+  margin: 5px;
+  border-color: var(--bg-card);
+}
+
+.tooltip[x-placement^="top"] .tooltip-arrow {
+  border-width: 5px 5px 0 5px;
+  border-left-color: transparent !important;
+  border-right-color: transparent !important;
+  border-bottom-color: transparent !important;
+  bottom: -5px;
+  left: calc(50% - 5px);
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.tooltip[x-placement^="bottom"] .tooltip-arrow {
+  border-width: 0 5px 5px 5px;
+  border-left-color: transparent !important;
+  border-right-color: transparent !important;
+  border-top-color: transparent !important;
+  top: -5px;
+  left: calc(50% - 5px);
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 /* ========== Insights Charts ========== */
 .insights-charts {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 2.25rem;
 }
 
 .small-charts {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2rem;
+  gap: 2.25rem;
 }
 
 /* ========== Insights Tips ========== */
 .insights-tips {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
-  padding: 1.5rem;
+  padding: 1.75rem;
   box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color-light);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.insights-tips:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .tips-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1.5rem;
-  margin-top: 1.5rem;
+  margin-top: 1.75rem;
 }
 
 .tip-card {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
-  padding: 1.25rem;
+  gap: 1.25rem;
+  padding: 1.5rem;
   background: var(--bg-accent);
   border-radius: var(--border-radius);
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
+  border-left: 4px solid var(--primary-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .tip-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-sm);
+  transform: translateY(-5px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  background: linear-gradient(to right, var(--bg-accent), rgba(123, 73, 255, 0.05));
 }
 
 .tip-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: rgba(123, 73, 255, 0.1);
   color: var(--primary-color);
   flex-shrink: 0;
+  box-shadow: 0 3px 8px rgba(123, 73, 255, 0.15);
 }
 
 .tip-content h4 {
-  margin: 0 0 0.5rem;
-  font-size: 1rem;
-  font-weight: 600;
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: -0.25px;
 }
 
 .tip-content p {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 /* ========== Prediction Scenarios ========== */
 .insights-prediction {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
-  padding: 1.5rem;
+  padding: 1.75rem;
   box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color-light);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.insights-prediction:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .prediction-scenarios {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
-  margin-top: 1.5rem;
+  margin-top: 1.75rem;
 }
 
 .scenario-card {
   text-align: center;
-  padding: 1.5rem;
+  padding: 1.75rem;
   border-radius: var(--border-radius);
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  cursor: help;
 }
 
 .scenario-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-sm);
+  transform: translateY(-5px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
 .scenario-card.best {
@@ -3448,17 +4053,20 @@ input:checked + .toggle-switch:before {
 }
 
 .scenario-card h3 {
-  margin: 0 0 1rem;
-  font-size: 1.1rem;
-  font-weight: 600;
+  margin: 0 0 1.25rem;
+  font-size: 1.2rem;
+  font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: -0.25px;
 }
 
 .scenario-grade {
-  font-size: 2.5rem;
-  font-weight: 700;
+  font-size: 2.75rem;
+  font-weight: 800;
   color: var(--primary-dark);
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  letter-spacing: -1px;
+  line-height: 1;
 }
 
 .scenario-card.best .scenario-grade {
@@ -3475,8 +4083,10 @@ input:checked + .toggle-switch:before {
 
 .scenario-card p {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: var(--text-secondary);
+  line-height: 1.5;
+  font-weight: 500;
 }
 
 /* ========== Module Detail Dialog ========== */
@@ -3493,6 +4103,7 @@ input:checked + .toggle-switch:before {
   justify-content: center;
   z-index: 1000;
   padding: 2rem;
+  backdrop-filter: blur(5px);
 }
 
 .dialog-content {
@@ -3503,6 +4114,7 @@ input:checked + .toggle-switch:before {
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-color);
 }
 
 .dialog-header {
@@ -3511,13 +4123,15 @@ input:checked + .toggle-switch:before {
   align-items: center;
   padding: 1.5rem;
   border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(to right, var(--bg-card), rgba(123, 73, 255, 0.05));
 }
 
 .dialog-header h2 {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.6rem;
+  font-weight: 800;
   color: var(--primary-dark);
+  letter-spacing: -0.5px;
 }
 
 .close-dialog {
@@ -3536,69 +4150,111 @@ input:checked + .toggle-switch:before {
 .close-dialog:hover {
   background: var(--bg-accent);
   color: var(--text-primary);
+  transform: rotate(90deg);
 }
 
 .module-info-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  padding: 1.5rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  padding: 1.75rem;
 }
 
 .info-item {
   background: var(--bg-accent);
-  padding: 1rem;
+  padding: 1.25rem;
   border-radius: var(--border-radius);
   text-align: center;
+  transition: all 0.2s ease;
+  border-top: 3px solid transparent;
+}
+
+.info-item:nth-child(1) { border-top-color: #3498db; }
+.info-item:nth-child(2) { border-top-color: #2ecc71; }
+.info-item:nth-child(3) { border-top-color: #f1c40f; }
+.info-item:nth-child(4) { border-top-color: #e67e22; }
+.info-item:nth-child(5) { border-top-color: #9b59b6; }
+.info-item:nth-child(6) { border-top-color: #1abc9c; }
+
+.info-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
 }
 
 .info-label {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
 }
 
 .info-value {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
+  font-size: 1.1rem;
 }
 
 .info-value.score {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+/* Enrollment status indicator */
+.enrollment-status {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background-color: #e0e0e0;
+  color: #666;
+}
+
+.enrollment-status.active {
+  background-color: rgba(46, 204, 113, 0.2);
+  color: #27ae60;
+  box-shadow: 0 1px 3px rgba(46, 204, 113, 0.2);
 }
 
 .dialog-content h3 {
   margin: 0;
-  padding: 0 1.5rem;
-  font-size: 1.2rem;
-  font-weight: 600;
+  padding: 0 1.75rem;
+  font-size: 1.3rem;
+  font-weight: 700;
   color: var(--text-primary);
+  margin-top: 1.5rem;
+  letter-spacing: -0.25px;
 }
 
 .assessments-table {
-  padding: 1.5rem;
+  padding: 1.75rem;
 }
 
 .table-header,
 .table-row {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .table-header {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--border-color);
-  margin-bottom: 0.75rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 0.85rem;
 }
 
 .table-row {
-  padding: 0.5rem 0;
+  padding: 0.6rem 0;
   border-bottom: 1px solid var(--border-color-light);
   align-items: center;
+  transition: background-color 0.2s ease;
+}
+
+.table-row:hover {
+  background-color: rgba(123, 73, 255, 0.03);
 }
 
 .table-row:last-child {
@@ -3606,30 +4262,35 @@ input:checked + .toggle-switch:before {
 }
 
 .table-cell {
-  padding: 0.5rem 0;
+  padding: 0.6rem 0;
 }
 
 .module-charts {
-  padding: 1.5rem;
+  padding: 1.75rem;
 }
 
 .module-chart {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
+  background: var(--bg-accent);
+  padding: 1.25rem;
+  border-radius: var(--border-radius);
 }
 
 .module-chart h4 {
-  margin: 0 0 1rem;
-  font-size: 1rem;
-  font-weight: 600;
+  margin: 0 0 1.25rem;
+  font-size: 1.1rem;
+  font-weight: 700;
   color: var(--text-primary);
+  letter-spacing: -0.25px;
 }
 
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  padding: 1.5rem;
+  gap: 1.25rem;
+  padding: 1.75rem;
   border-top: 1px solid var(--border-color);
+  background: var(--bg-accent);
 }
 
 .edit-button,
@@ -3637,22 +4298,26 @@ input:checked + .toggle-switch:before {
 .cancel-button {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
+  gap: 0.6rem;
+  padding: 0.85rem 1.5rem;
   border-radius: var(--border-radius);
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
+  font-size: 0.95rem;
 }
 
 .edit-button {
   background: var(--primary-color);
   color: white;
   border: none;
+  box-shadow: 0 3px 10px rgba(123, 73, 255, 0.25);
 }
 
 .edit-button:hover {
   background: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(123, 73, 255, 0.35);
 }
 
 .delete-button {
@@ -3663,6 +4328,8 @@ input:checked + .toggle-switch:before {
 
 .delete-button:hover {
   background: rgba(231, 76, 60, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(231, 76, 60, 0.15);
 }
 
 .cancel-button {
@@ -3673,6 +4340,7 @@ input:checked + .toggle-switch:before {
 
 .cancel-button:hover {
   background: var(--bg-accent);
+  transform: translateY(-2px);
 }
 
 /* ========== Module Form ========== */
@@ -3680,48 +4348,91 @@ input:checked + .toggle-switch:before {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
-  padding: 1.5rem;
+  padding: 1.75rem;
 }
 
 .assessments-form {
-  padding: 1.5rem;
+  padding: 1.75rem;
+  background: var(--bg-accent);
+  margin: 0 1.75rem;
+  border-radius: var(--border-radius);
 }
 
 .assessment-row {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background: var(--bg-card);
+  border-radius: var(--border-radius);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.assessment-row:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
 }
 
 .assessment-inputs {
   flex: 1;
   display: flex;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .assessment-inputs input[type="text"] {
   flex: 2;
-  padding: 0.75rem;
+  padding: 0.85rem;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   background: var(--bg-input);
   color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.assessment-inputs input[type="text"]:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(123, 73, 255, 0.15);
 }
 
 .assessment-numbers {
   flex: 1;
   display: flex;
-  gap: 0.5rem;
+  gap: 0.6rem;
 }
 
 .assessment-numbers input {
   flex: 1;
-  padding: 0.75rem;
+  padding: 0.85rem;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   background: var(--bg-input);
   color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.assessment-numbers input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(123, 73, 255, 0.15);
+}
+
+.assessment-numbers input:disabled {
+  background: var(--bg-accent);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.assessment-status {
+  display: flex;
+  align-items: center;
+  padding: 0 0.5rem;
+}
+
+.assessment-status .checkbox-container {
+  margin: 0;
 }
 
 .remove-assessment {
@@ -3734,9 +4445,11 @@ input:checked + .toggle-switch:before {
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  border-radius: 50%;
 }
 
 .remove-assessment:hover {
+  background: rgba(231, 76, 60, 0.1);
   transform: scale(1.1);
 }
 
@@ -3744,31 +4457,72 @@ input:checked + .toggle-switch:before {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-  padding: 0.75rem 1.25rem;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+  padding: 0.85rem 1.5rem;
   background: transparent;
   color: var(--primary-color);
-  border: 1px dashed var(--primary-color);
+  border: 2px dashed var(--primary-color);
   border-radius: var(--border-radius);
   cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  transition: all 0.25s ease;
+  font-size: 0.95rem;
 }
 
 .add-assessment:hover {
   background: rgba(123, 73, 255, 0.05);
+  transform: scale(1.05);
+  box-shadow: 0 3px 10px rgba(123, 73, 255, 0.1);
 }
 
 .total-weight-indicator {
-  padding: 0 1.5rem 1.5rem;
+  padding: 1rem 1.75rem 1.75rem;
   text-align: right;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--success-color);
 }
 
 .total-weight-indicator.weight-error {
   color: var(--warning-color);
+}
+
+/* ========== Enrollment Checkbox Styling ========== */
+.enrollment-checkbox {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--bg-accent);
+  border-radius: var(--border-radius);
+  border-left: 3px solid var(--primary-color);
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+.checkbox-container input[type="checkbox"] {
+  margin-right: 8px;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+}
+
+.checkbox-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.field-hint {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+  line-height: 1.4;
 }
 
 /* ========== Responsive adjustments ========== */
@@ -3883,6 +4637,10 @@ input:checked + .toggle-switch:before {
   .weight-column input {
     width: 60px;
     padding: 0.4rem;
+  }
+
+  .enrollment-checkbox {
+    grid-column: span 2;
   }
 }
 
