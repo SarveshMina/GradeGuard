@@ -16,6 +16,8 @@
     "@capacitor/cli": "^7.0.1",
     "@capacitor/core": "^7.0.1",
     "@capacitor/ios": "^7.0.1",
+    "@capacitor/keyboard": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.0",
     "@fortawesome/fontawesome-svg-core": "^6.7.2",
     "@fortawesome/free-brands-svg-icons": "^6.7.2",
     "@fortawesome/free-solid-svg-icons": "^6.7.2",

@@ -4903,90 +4903,195 @@ input:checked + .toggle-switch:before {
   line-height: 1.4;
 }
 
-/* ========== Responsive adjustments ========== */
-@media (max-width: 1200px) {
-  .insight-metrics {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .visualization-row {
-    grid-template-columns: 1fr;
-  }
-
-  .small-charts {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 992px) {
-  .bottom-row {
-    grid-template-columns: 1fr;
-  }
-
-  .prediction-scenarios {
-    grid-template-columns: 1fr;
-  }
-}
-
+/* ========== Mobile Optimizations ========== */
+/* Base adjustments for mobile devices */
 @media (max-width: 768px) {
+  .dashboard {
+    /* Use full viewport space */
+    padding: 0;
+    overflow-x: hidden;
+  }
+
   .dashboard-layout {
     flex-direction: column;
-    padding-top: 60px; /* Smaller navbar height */
+    padding-top: 60px; /* Smaller navbar height for mobile */
   }
 
   .dashboard-main-content {
-    padding: 1.5rem;
-  }
-
-  .dashboard-sidebar {
+    padding: 0.75rem;
     width: 100%;
-    position: fixed;
-    top: 60px;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 100;
-    border-radius: 0;
-    border-left: none;
+    max-width: 100%;
+    margin: 0;
   }
 
-  .sidebar-hide-button {
-    top: 1rem;
-    right: 1rem;
+  /* Adjust header for mobile */
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
   }
 
-  .sidebar-show-button {
-    right: 1rem;
-    bottom: 1rem;
-    top: auto;
+  .dashboard-header h1 {
+    font-size: 1.5rem;
+    width: 100%;
   }
 
+  .view-controls {
+    width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding: 0.25rem 0;
+  }
+
+  .view-controls button {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  /* Overview tab adjustments */
+  .dashboard-overview {
+    gap: 1rem;
+  }
+
+  .overview-card {
+    margin-bottom: 1rem;
+  }
+
+  .overview-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .time-filters {
+    width: 100%;
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  /* Grade summary adjust for mobile */
   .grade-summary {
     flex-direction: column;
     align-items: center;
-    gap: 2rem;
+    gap: 1.5rem;
+    padding: 0 0.5rem;
   }
 
-  .modules-grid {
+  .grade-circle {
+    width: 140px;
+    height: 140px;
+  }
+
+  .grade-stats {
+    width: 100%;
+  }
+
+  /* Progress section adjustments */
+  .progress-section {
+    padding: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .progress-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .progress-legend {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .progress-targets {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .target-item {
+    padding: 1rem;
+  }
+
+  /* Visualization adjustments */
+  .visualization-row {
     grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 
+  .chart-container {
+    height: 250px;
+  }
+
+  /* Bottom row adjustments */
+  .bottom-row {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  /* Yearly view adjustments */
   .filters-row {
     flex-direction: column;
     gap: 1rem;
     align-items: flex-start;
+    padding: 1rem;
+  }
+
+  .filter-group {
+    width: 100%;
+  }
+
+  .filter-group select {
+    width: 100%;
+  }
+
+  .export-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .modules-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* Module detail dialog */
+  .module-detail-dialog,
+  .module-form-dialog {
+    padding: 0.5rem;
+  }
+
+  .dialog-content {
+    max-height: 95vh;
+    width: 95%;
+    padding: 0;
+  }
+
+  .dialog-header {
+    padding: 1rem;
+  }
+
+  .dialog-header h2 {
+    font-size: 1.3rem;
   }
 
   .module-info-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .form-grid {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
+    padding: 1rem;
   }
 
-  .assessment-inputs {
-    flex-direction: column;
+  .dialog-content h3 {
+    padding: 0 1rem;
+    font-size: 1.1rem;
+  }
+
+  .assessments-table {
+    padding: 1rem;
   }
 
   .table-header,
@@ -4999,67 +5104,275 @@ input:checked + .toggle-switch:before {
     display: none;
   }
 
-  .button-group {
+  .dialog-actions {
     flex-direction: column;
-  }
-
-  .year-weights-container {
-    font-size: 0.9rem;
-  }
-
-  .year-weights-header,
-  .year-weight-row {
-    padding: 0.5rem;
-  }
-
-  .weight-column input {
-    width: 60px;
-    padding: 0.4rem;
-  }
-
-  .enrollment-checkbox {
-    grid-column: span 2;
-  }
-}
-
-/* Small screen adjustments */
-@media (max-width: 480px) {
-  .dashboard-layout,
-  .dashboard-main-content {
+    gap: 0.75rem;
     padding: 1rem;
   }
 
-  .dashboard-header {
+  .dialog-actions button {
+    width: 100%;
+  }
+
+  /* Module form */
+  .form-grid {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+
+  .assessment-inputs {
     flex-direction: column;
-    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .assessment-numbers {
+    width: 100%;
+  }
+
+  /* Insights tab */
+  .insight-metrics {
+    grid-template-columns: 1fr;
     gap: 1rem;
   }
 
-  .select-group {
-    flex-direction: column;
-    align-items: stretch;
+  .small-charts {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 
-  .select-btn {
+  .tips-container {
+    grid-template-columns: 1fr;
+  }
+
+  .prediction-scenarios {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* Touch-specific optimizations */
+  .module-card,
+  .select-btn,
+  .save-button,
+  .back-button,
+  .add-module-button,
+  .sidebar-toggle,
+  button {
+    /* Increase touch targets */
+    min-height: 44px;
+  }
+
+  /* Fix button and input sizes */
+  input, select, button {
+    font-size: 16px !important; /* Prevent iOS zoom on focus */
+  }
+
+  /* Make sidebar fullscreen on mobile */
+  .dashboard-sidebar {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    bottom: 0;
     width: 100%;
-    justify-content: center;
+    height: calc(100vh - 60px);
+    z-index: 1000;
+    border-left: none;
   }
 
-  .module-detail-dialog,
-  .module-form-dialog {
-    padding: 1rem;
+  /* Sidebar buttons */
+  .sidebar-hide-button {
+    top: 0.75rem;
+    right: 0.75rem;
+  }
+
+  .sidebar-show-button {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    top: auto;
+    z-index: 900;
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  }
+
+  .sidebar-show-button .toggle-text {
+    display: none;
+  }
+
+  /* Fix for Capacitor status bar */
+  .ios .dashboard-layout {
+    padding-top: 75px; /* Extra padding for iOS status bar */
+  }
+
+  .android .dashboard-layout {
+    padding-top: 65px; /* Extra padding for Android status bar */
+  }
+
+  /* Ensure proper scroll behavior */
+  .dashboard-main-content {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Hide unnecessary elements on small screens */
+  .dashboard-sidebar {
+    display: none;
+  }
+
+  .dashboard-sidebar.visible {
+    display: block;
+  }
+
+  /* Improved touch feedback */
+  .select-btn:active,
+  .module-card:active,
+  .activity-item:active,
+  .stats-item:active,
+  .goal-item:active,
+  .target-item:active,
+  .tip-card:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+  }
+
+  /* Fix for sticky hover states on mobile */
+  @media (hover: none) {
+    .select-btn:hover,
+    .module-card:hover,
+    .activity-item:hover,
+    .stats-item:hover,
+    .goal-item:hover,
+    .target-item:hover,
+    .tip-card:hover {
+      transform: none;
+      box-shadow: none;
+    }
+  }
+}
+
+/* Specific adjustments for very small devices */
+@media (max-width: 375px) {
+  .dashboard-main-content {
+    padding: 0.5rem;
+  }
+
+  .grade-circle {
+    width: 120px;
+    height: 120px;
+  }
+
+  .grade-value {
+    font-size: 2.25rem;
+  }
+
+  .view-controls button {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  .dashboard-header h1 {
+    font-size: 1.35rem;
+  }
+}
+
+/* Improvements for landscape orientation */
+@media (max-width: 900px) and (orientation: landscape) {
+  .grade-summary {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .dialog-content {
+    max-height: 85vh;
+  }
+
+  .dashboard-layout {
+    padding-top: 55px;
   }
 
   .module-info-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Capacitor-specific adjustments */
+.capacitor-ios .dashboard-layout {
+  /* Safe area inset for iOS notches and home indicators */
+  padding-top: env(safe-area-inset-top, 60px);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+}
+
+.capacitor-ios .sidebar-show-button {
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0));
+}
+
+/* Fix for keyboard appearing */
+.keyboard-open .dashboard-main-content {
+  padding-bottom: 300px; /* Add extra space when keyboard is open */
+}
+
+/* Loading states for better UX on slower mobile connections */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: var(--primary-color);
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Optimizations for pull-to-refresh */
+.pull-to-refresh-indicator {
+  text-align: center;
+  height: 40px;
+  margin-top: -40px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding-top: 10px;
+}
+
+/* Navigation bar adjustments for mobile */
+@media (max-width: 768px) {
+  .dashboard-nav-bar {
+    height: 60px;
+    padding: 0 1rem;
   }
 
-  .progress-targets {
-    flex-direction: column;
+  .nav-title {
+    font-size: 1.1rem;
   }
 
-  .insight-metrics {
-    grid-template-columns: 1fr;
+  .nav-profile {
+    gap: 0.5rem;
+  }
+
+  .nav-avatar {
+    width: 32px;
+    height: 32px;
+  }
+
+  .nav-user-info {
+    display: none; /* Hide user info on mobile, keep only avatar */
   }
 }
 </style>
