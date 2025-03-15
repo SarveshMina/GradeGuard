@@ -1172,12 +1172,8 @@ export default {
 
     // Get overall average across all years (excluding currently enrolled modules)
     overallAverage() {
-      // If we have a stat from the API, use that
-      if (this.dashboardStats?.overallAverage) {
-        return this.dashboardStats.overallAverage;
-      }
-
-      // Otherwise calculate it manually excluding currently enrolled modules
+      // Always calculate manually excluding currently enrolled modules
+      // Don't rely on the backend stats as they might include currently enrolled modules
       const completedModules = this.completedModuleData;
       if (!completedModules || completedModules.length === 0) return 0;
 
@@ -1189,16 +1185,9 @@ export default {
 
     // Get current yearly average (excluding currently enrolled modules)
     yearlyAverage() {
-      // Use API data if available
-      const yearlyAvgs = this.dashboardStats?.yearlyAverages || {};
-      if (Object.keys(yearlyAvgs).length > 0) {
-        const latest = Object.keys(yearlyAvgs).sort().pop();
-        return latest ? yearlyAvgs[latest] : 0;
-      }
-
-      // Otherwise calculate manually for the latest year
-      const latestYear = [...this.moduleData]
-          .filter(m => !m.isCurrentlyEnrolled)
+      // Always calculate manually for the latest year to ensure in-progress modules are excluded
+      // First get the latest year from completed modules
+      const latestYear = [...this.completedModuleData]
           .sort((a, b) => {
             const yearA = parseInt(a.year.replace('Year ', ''));
             const yearB = parseInt(b.year.replace('Year ', ''));
@@ -1427,7 +1416,7 @@ export default {
         const totalCredits = yearConfig.credits;
         const completedCredits = completedYearModules.reduce((sum, m) => sum + m.credits, 0);
 
-        // Calculate average only from completed modules
+        // Calculate year averages using only completed modules
         const average = completedYearModules.length ?
             Math.round(completedYearModules.reduce((sum, m) => sum + (m.score * m.credits), 0) /
                 completedCredits * 10) / 10 : 0;
@@ -1512,10 +1501,11 @@ export default {
     'moduleForm.isCurrentlyEnrolled': function(newValue) {
       if (newValue) {
         // Add completed flag to assessments when isCurrentlyEnrolled becomes true
-        this.moduleForm.assessments.forEach(assessment => {
+        this.moduleForm.assessments = this.moduleForm.assessments.map(assessment => {
           if (!assessment.hasOwnProperty('completed')) {
-            this.$set(assessment, 'completed', false);
+            return { ...assessment, completed: false };
           }
+          return assessment;
         });
       }
     }
@@ -1541,6 +1531,25 @@ export default {
     // Listen for dark mode changes
     window.addEventListener('darkModeChange', this.onDarkModeChange);
 
+    // New Capacitor-specific setups
+    if (this.isCapacitorApp()) {
+      this.setupHardwareBackButton();
+      this.handleOrientationChange();
+      this.setupKeyboardListeners();
+      this.setupPullToRefresh();
+
+      // Add status bar color for Capacitor
+      if (window.Capacitor.Plugins.StatusBar) {
+        if (this.darkMode) {
+          window.Capacitor.Plugins.StatusBar.setBackgroundColor({ color: '#111827' });
+          window.Capacitor.Plugins.StatusBar.setStyle({ style: 'DARK' });
+        } else {
+          window.Capacitor.Plugins.StatusBar.setBackgroundColor({ color: '#f8f9fa' });
+          window.Capacitor.Plugins.StatusBar.setStyle({ style: 'LIGHT' });
+        }
+      }
+    }
+
     // Fetch data after UI is initialized
     await this.checkLoginAndFetchConfig();
     await this.fetchModules();
@@ -1551,6 +1560,250 @@ export default {
     window.removeEventListener('darkModeChange', this.onDarkModeChange);
   },
   methods: {
+    // Capacitor detection and mobile methods
+    isCapacitorApp() {
+      return window.Capacitor !== undefined && window.Capacitor.isNative === true;
+    },
+
+    // Method to handle hardware back button
+    setupHardwareBackButton() {
+      if (this.isCapacitorApp() && window.Capacitor.Plugins.App) {
+        // Add hardware back button handler for Android
+        window.Capacitor.Plugins.App.addListener('backButton', () => {
+          if (this.showModuleDetail) {
+            this.showModuleDetail = false;
+            return;
+          }
+
+          if (this.showModuleForm) {
+            this.showModuleForm = false;
+            return;
+          }
+
+          if (this.sidebarVisible && this.isMobile) {
+            this.sidebarVisible = false;
+            return;
+          }
+
+          // If on a wizard step, go back to previous step
+          if (this.showYearWeights) {
+            this.goBackToDegreeConfig();
+            return;
+          }
+
+          if (this.showNextConfig) {
+            this.goBackToStep1();
+            return;
+          }
+
+          if (this.showSetupWizard) {
+            // Just close the app, as we're at the beginning
+            window.Capacitor.Plugins.App.exitApp();
+            return;
+          }
+
+          // If on insights or yearly view, go back to overview
+          if (this.activeView !== 'overview') {
+            this.activeView = 'overview';
+            return;
+          }
+
+          // Allow system to handle back button (usually exit app)
+          window.Capacitor.Plugins.App.minimizeApp();
+        });
+      }
+    },
+
+    // Method to handle screen orientation changes
+    handleOrientationChange() {
+      if (this.isCapacitorApp() && window.screen.orientation) {
+        window.screen.orientation.addEventListener('change', () => {
+          // Force UI update on orientation change
+          this.checkMobile();
+
+          // Small timeout to allow UI to adjust
+          setTimeout(() => {
+            // Force chart redraw if needed
+            if (this.$refs.gradeChart) {
+              this.$refs.gradeChart.redrawChart();
+            }
+            if (this.$refs.yearChart) {
+              this.$refs.yearChart.redrawChart();
+            }
+          }, 300);
+        });
+      }
+    },
+
+    // Setup keyboard event listeners for Capacitor
+    setupKeyboardListeners() {
+      if (this.isCapacitorApp() && window.Capacitor.Plugins.Keyboard) {
+        window.Capacitor.Plugins.Keyboard.addListener('keyboardWillShow', () => {
+          document.body.classList.add('keyboard-open');
+        });
+
+        window.Capacitor.Plugins.Keyboard.addListener('keyboardWillHide', () => {
+          document.body.classList.remove('keyboard-open');
+        });
+      }
+    },
+
+    // Pull to refresh functionality
+    setupPullToRefresh() {
+      if (this.isCapacitorApp()) {
+        let startY = 0;
+        let currentY = 0;
+        const threshold = 100;
+        let isPulling = false;
+        let refreshIndicator = null;
+
+        // Create refresh indicator
+        const createIndicator = () => {
+          refreshIndicator = document.createElement('div');
+          refreshIndicator.className = 'pull-to-refresh-indicator';
+          refreshIndicator.textContent = 'Pull down to refresh';
+          document.querySelector('.dashboard-main-content').prepend(refreshIndicator);
+          return refreshIndicator;
+        };
+
+        // Handle touch start
+        document.addEventListener('touchstart', (e) => {
+          // Only activate at top of page
+          if (window.scrollY === 0) {
+            startY = e.touches[0].clientY;
+            isPulling = true;
+
+            if (!refreshIndicator) {
+              refreshIndicator = createIndicator();
+            }
+          }
+        });
+
+        // Handle touch move
+        document.addEventListener('touchmove', (e) => {
+          if (!isPulling) return;
+
+          currentY = e.touches[0].clientY;
+          const pullDistance = currentY - startY;
+
+          if (pullDistance > 0 && pullDistance < threshold) {
+            refreshIndicator.textContent = 'Pull down to refresh';
+            refreshIndicator.style.marginTop = `${pullDistance - 40}px`;
+          } else if (pullDistance >= threshold) {
+            refreshIndicator.textContent = 'Release to refresh';
+            refreshIndicator.style.marginTop = `${threshold - 40}px`;
+          }
+        });
+
+        // Handle touch end
+        document.addEventListener('touchend', async () => {
+          if (!isPulling) return;
+
+          const pullDistance = currentY - startY;
+          isPulling = false;
+
+          if (pullDistance >= threshold) {
+            refreshIndicator.textContent = 'Refreshing...';
+
+            // Refresh data
+            try {
+              await Promise.all([
+                this.fetchModules(),
+                this.fetchDashboardData()
+              ]);
+
+              refreshIndicator.textContent = 'Updated!';
+              setTimeout(() => {
+                refreshIndicator.style.marginTop = '-40px';
+              }, 500);
+            } catch (error) {
+              refreshIndicator.textContent = 'Failed to refresh';
+              setTimeout(() => {
+                refreshIndicator.style.marginTop = '-40px';
+              }, 500);
+            }
+          } else {
+            refreshIndicator.style.marginTop = '-40px';
+          }
+        });
+      }
+    },
+
+    // Show loading overlay
+    showLoading() {
+      if (document.querySelector('.loading-overlay')) return;
+
+      const overlay = document.createElement('div');
+      overlay.className = 'loading-overlay';
+
+      const spinner = document.createElement('div');
+      spinner.className = 'loading-spinner';
+      overlay.appendChild(spinner);
+
+      document.body.appendChild(overlay);
+    },
+
+    // Hide loading overlay
+    hideLoading() {
+      const overlay = document.querySelector('.loading-overlay');
+      if (overlay) {
+        overlay.remove();
+      }
+    },
+
+    // Show native toast notification (Capacitor)
+    showNativeToast(message) {
+      if (this.isCapacitorApp() && window.Capacitor.Plugins.Toast) {
+        window.Capacitor.Plugins.Toast.show({
+          text: message,
+          duration: 'short',
+          position: 'bottom'
+        });
+      } else {
+        // Fallback to notify service
+        notify({ type: "info", message: message });
+      }
+    },
+
+    // Enhanced checkMobile method
+    checkMobile() {
+      const wasMobile = this.isMobile;
+
+      // Check if we're in a Capacitor app
+      if (this.isCapacitorApp()) {
+        // Always treat Capacitor as mobile
+        this.isMobile = true;
+      } else {
+        // Regular browser check
+        this.isMobile = window.innerWidth <= 768;
+      }
+
+      // Add appropriate class to body
+      if (this.isMobile) {
+        document.body.classList.add('is-mobile');
+
+        // Add platform-specific class
+        if (this.isCapacitorApp()) {
+          if (window.Capacitor.getPlatform() === 'ios') {
+            document.body.classList.add('capacitor-ios');
+          } else if (window.Capacitor.getPlatform() === 'android') {
+            document.body.classList.add('capacitor-android');
+          }
+        }
+      } else {
+        document.body.classList.remove('is-mobile');
+        document.body.classList.remove('capacitor-ios');
+        document.body.classList.remove('capacitor-android');
+      }
+
+      // Only force hiding of sidebar when switching to mobile
+      if (!wasMobile && this.isMobile && this.sidebarVisible) {
+        console.log("Switching to mobile - hiding sidebar");
+        this.sidebarVisible = false;
+        localStorage.setItem('sidebarVisible', 'false');
+      }
+    },
+
     // API methods
     async fetchUserProfile() {
       try {
@@ -1578,6 +1831,8 @@ export default {
     },
 
     async fetchModules() {
+      if (this.isMobile) this.showLoading();
+
       try {
         this.loading = true;
         const response = await axios.get(`${API_URL}/modules`, { withCredentials: true });
@@ -1586,13 +1841,20 @@ export default {
         return response.data;
       } catch (error) {
         console.error("Error fetching modules:", error);
+        if (this.isCapacitorApp()) {
+          // Show native toast on mobile
+          this.showNativeToast("Failed to load modules");
+        }
         return [];
       } finally {
         this.loading = false;
+        if (this.isMobile) this.hideLoading();
       }
     },
 
     async fetchDashboardData() {
+      if (this.isMobile) this.showLoading();
+
       try {
         this.loading = true;
         const response = await axios.get(`${API_URL}/dashboard`, { withCredentials: true });
@@ -1615,9 +1877,13 @@ export default {
         return response.data;
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
+        if (this.isCapacitorApp()) {
+          this.showNativeToast("Failed to load dashboard data");
+        }
         return null;
       } finally {
         this.loading = false;
+        if (this.isMobile) this.hideLoading();
       }
     },
 
@@ -1626,6 +1892,8 @@ export default {
         notify({ type: "warning", message: "Please complete all required fields and ensure assessment weights total 100%." });
         return;
       }
+
+      if (this.isMobile) this.showLoading();
 
       try {
         this.loading = true;
@@ -1672,10 +1940,13 @@ export default {
         await this.fetchModules(); // Refresh module data
         await this.fetchDashboardData(); // Refresh dashboard stats
 
-        notify({
-          type: "success",
-          message: `Module ${this.editingModule ? 'updated' : 'added'} successfully!`
-        });
+        const message = `Module ${this.editingModule ? 'updated' : 'added'} successfully!`;
+
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(message);
+        } else {
+          notify({ type: "success", message: message });
+        }
 
         this.showModuleForm = false;
 
@@ -1688,17 +1959,38 @@ export default {
         });
       } catch (error) {
         console.error("Error saving module:", error);
-        notify({
-          type: "error",
-          message: `Failed to ${this.editingModule ? 'update' : 'add'} module: ${error.response?.data?.error || error.message}`
-        });
+        const errorMsg = `Failed to ${this.editingModule ? 'update' : 'add'} module: ${error.response?.data?.error || error.message}`;
+
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(errorMsg);
+        } else {
+          notify({ type: "error", message: errorMsg });
+        }
       } finally {
         this.loading = false;
+        if (this.isMobile) this.hideLoading();
       }
     },
 
     async deleteModule(module) {
-      if (confirm(`Are you sure you want to delete "${module.name}"?`)) {
+      // Use a confirm dialog appropriate for the platform
+      let confirmed = false;
+
+      if (this.isCapacitorApp() && window.Capacitor.Plugins.Dialog) {
+        const { value } = await window.Capacitor.Plugins.Dialog.confirm({
+          title: 'Confirm Deletion',
+          message: `Are you sure you want to delete "${module.name}"?`,
+          okButtonTitle: 'Delete',
+          cancelButtonTitle: 'Cancel'
+        });
+        confirmed = value;
+      } else {
+        confirmed = confirm(`Are you sure you want to delete "${module.name}"?`);
+      }
+
+      if (confirmed) {
+        if (this.isMobile) this.showLoading();
+
         try {
           this.loading = true;
           await axios.delete(`${API_URL}/modules/${module.id}`, { withCredentials: true });
@@ -1706,7 +1998,13 @@ export default {
           await this.fetchModules(); // Refresh module data
           await this.fetchDashboardData(); // Refresh dashboard stats
 
-          notify({ type: "success", message: "Module deleted successfully!" });
+          const message = "Module deleted successfully!";
+          if (this.isCapacitorApp()) {
+            this.showNativeToast(message);
+          } else {
+            notify({ type: "success", message: message });
+          }
+
           this.showModuleDetail = false;
 
           // Add activity to recent activities
@@ -1718,12 +2016,16 @@ export default {
           });
         } catch (error) {
           console.error("Error deleting module:", error);
-          notify({
-            type: "error",
-            message: `Failed to delete module: ${error.response?.data?.error || error.message}`
-          });
+          const errorMsg = `Failed to delete module: ${error.response?.data?.error || error.message}`;
+
+          if (this.isCapacitorApp()) {
+            this.showNativeToast(errorMsg);
+          } else {
+            notify({ type: "error", message: errorMsg });
+          }
         } finally {
           this.loading = false;
+          if (this.isMobile) this.hideLoading();
         }
       }
     },
@@ -1779,12 +2081,16 @@ export default {
     async completeSetup() {
       // Validate weights before proceeding
       if (this.totalWeight !== 100 && this.hasActiveYears) {
-        notify({
-          type: "warning",
-          message: "The total weight of active years should equal 100%.",
-        });
+        const message = "The total weight of active years should equal 100%.";
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(message);
+        } else {
+          notify({ type: "warning", message: message });
+        }
         return;
       }
+
+      if (this.isMobile) this.showLoading();
 
       try {
         this.loading = true;
@@ -1853,15 +2159,24 @@ export default {
         await this.fetchModules();
         await this.fetchDashboardData();
 
-        notify({ type: "success", message: "Setup completed successfully!" });
+        const message = "Setup completed successfully!";
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(message);
+        } else {
+          notify({ type: "success", message: message });
+        }
       } catch (error) {
         console.error("Error completing setup:", error);
-        notify({
-          type: "error",
-          message: `Setup failed: ${error.response?.data?.error || error.message}`
-        });
+        const errorMsg = `Setup failed: ${error.response?.data?.error || error.message}`;
+
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(errorMsg);
+        } else {
+          notify({ type: "error", message: errorMsg });
+        }
       } finally {
         this.loading = false;
+        if (this.isMobile) this.hideLoading();
       }
     },
 
@@ -1926,7 +2241,12 @@ export default {
     // Save user config from wizard step 1
     saveUserConfig() {
       if (!this.userConfig.academicLevel || !this.userConfig.enrollmentType || !this.userConfig.studyPreference) {
-        notify({ type: "warning", message: "Please complete all preference fields." });
+        const message = "Please complete all preference fields.";
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(message);
+        } else {
+          notify({ type: "warning", message: message });
+        }
         return;
       }
 
@@ -1953,10 +2273,12 @@ export default {
           this.nextConfig.credits === "other" ? this.nextConfig.customCredits : this.nextConfig.credits;
 
       if (!yearsCount || !semCount || !credCount) {
-        notify({
-          type: "warning",
-          message: "Please fill all degree details (years, semesters, credits).",
-        });
+        const message = "Please fill all degree details (years, semesters, credits).";
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(message);
+        } else {
+          notify({ type: "warning", message: message });
+        }
         return;
       }
 
@@ -1990,37 +2312,62 @@ export default {
 
       // Add debug logs
       console.log(`Sidebar toggled to: ${this.sidebarVisible}`);
+
+      // Add proper class for mobile
+      if (this.sidebarVisible && this.isMobile) {
+        document.querySelector('.dashboard-sidebar').classList.add('visible');
+      } else if (!this.sidebarVisible && this.isMobile) {
+        document.querySelector('.dashboard-sidebar').classList.remove('visible');
+      }
     },
 
     // Handle dark mode change
     onDarkModeChange(event) {
       this.darkMode = event.detail.isDark;
+
+      // Update status bar in Capacitor
+      if (this.isCapacitorApp() && window.Capacitor.Plugins.StatusBar) {
+        if (this.darkMode) {
+          window.Capacitor.Plugins.StatusBar.setBackgroundColor({ color: '#111827' });
+          window.Capacitor.Plugins.StatusBar.setStyle({ style: 'DARK' });
+        } else {
+          window.Capacitor.Plugins.StatusBar.setBackgroundColor({ color: '#f8f9fa' });
+          window.Capacitor.Plugins.StatusBar.setStyle({ style: 'LIGHT' });
+        }
+      }
     },
 
     // Handle logout event from navbar
     async handleLogout() {
+      if (this.isMobile) this.showLoading();
+
       try {
         await axios.post(`${API_URL}/logout`, {}, { withCredentials: true });
         this.notLoggedIn = true;
-        // Add the logout=true query parameter here
-        this.$router.push('/login?logout=true');
+
+        // Exit app if on Capacitor
+        if (this.isCapacitorApp()) {
+          this.showNativeToast("Logged out successfully");
+          // Give time for toast to show before exiting
+          setTimeout(() => {
+            window.Capacitor.Plugins.App.exitApp();
+          }, 1000);
+        } else {
+          // Add the logout=true query parameter here for web
+          this.$router.push('/login?logout=true');
+        }
       } catch (error) {
         console.error("Error during logout:", error);
-        // Also add it here in case of errors
-        this.$router.push('/login?logout=true');
-      }
-    },
 
-    // Check if device is mobile
-    checkMobile() {
-      const wasMobile = this.isMobile;
-      this.isMobile = window.innerWidth <= 768;
-
-      // Only force hiding of sidebar when switching to mobile
-      if (!wasMobile && this.isMobile && this.sidebarVisible) {
-        console.log("Switching to mobile - hiding sidebar");
-        this.sidebarVisible = false;
-        localStorage.setItem('sidebarVisible', 'false');
+        if (this.isCapacitorApp()) {
+          this.showNativeToast("Error during logout");
+          this.hideLoading();
+        } else {
+          // Also add it here in case of errors
+          this.$router.push('/login?logout=true');
+        }
+      } finally {
+        if (this.isMobile) this.hideLoading();
       }
     },
 
@@ -2097,10 +2444,11 @@ export default {
         ];
       } else if (this.moduleForm.isCurrentlyEnrolled) {
         // Make sure all assessments have the 'completed' property if the module is currently enrolled
-        this.moduleForm.assessments.forEach(assessment => {
+        this.moduleForm.assessments = this.moduleForm.assessments.map(assessment => {
           if (!assessment.hasOwnProperty('completed')) {
-            this.$set(assessment, 'completed', false);
+            return { ...assessment, completed: false };
           }
+          return assessment;
         });
       }
 
@@ -2134,18 +2482,48 @@ export default {
         csv += `${module.year},${module.name},${module.code || ''},${module.credits},${semesterText},${scoreText},${module.isCurrentlyEnrolled ? 'Yes' : 'No'}\n`;
       });
 
-      // Create download link
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', 'GradeGuard_Export.csv');
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Handle export based on platform
+      if (this.isCapacitorApp() && window.Capacitor.Plugins.Filesystem) {
+        // Save file using Capacitor
+        const fileName = `GradeGuard_Export_${new Date().toISOString().slice(0,10)}.csv`;
 
-      notify({ type: "success", message: "Grades exported successfully!" });
+        window.Capacitor.Plugins.Filesystem.writeFile({
+          path: fileName,
+          data: csv,
+          directory: window.Capacitor.FilesystemDirectory.Documents,
+          encoding: window.Capacitor.FilesystemEncoding.UTF8
+        }).then(() => {
+          this.showNativeToast("Grades exported successfully to Documents folder");
+
+          // Try to share the file
+          if (window.Capacitor.Plugins.Share) {
+            window.Capacitor.Plugins.Share.share({
+              title: 'GradeGuard Export',
+              text: 'Your exported grades',
+              url: fileName,
+              dialogTitle: 'Share your grades'
+            }).catch(err => {
+              console.error("Error sharing file:", err);
+            });
+          }
+        }).catch(err => {
+          console.error("Error saving file:", err);
+          this.showNativeToast("Error exporting grades");
+        });
+      } else {
+        // Web browser export
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'GradeGuard_Export.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        notify({ type: "success", message: "Grades exported successfully!" });
+      }
     },
 
     // Prepare data for charts
