@@ -138,6 +138,7 @@
                         type="radio"
                         v-model="settings.appearance.fontSize"
                         value="small"
+                        @change="applyFontSize(settings.appearance.fontSize)"
                     />
                     <span>Small</span>
                   </label>
@@ -146,6 +147,7 @@
                         type="radio"
                         v-model="settings.appearance.fontSize"
                         value="medium"
+                        @change="applyFontSize(settings.appearance.fontSize)"
                     />
                     <span>Medium</span>
                   </label>
@@ -154,6 +156,7 @@
                         type="radio"
                         v-model="settings.appearance.fontSize"
                         value="large"
+                        @change="applyFontSize(settings.appearance.fontSize)"
                     />
                     <span>Large</span>
                   </label>
@@ -168,6 +171,7 @@
                     <input
                         type="checkbox"
                         v-model="settings.appearance.highContrast"
+                        @change="toggleHighContrast"
                     />
                     <span class="toggle-slider"></span>
                   </label>
@@ -179,6 +183,222 @@
             <!-- Academic Settings -->
             <div v-if="activeSection === 'academic'" class="settings-section">
               <h2>Academic Settings</h2>
+
+              <!-- NEW: Academic Level and Enrollment Type Section -->
+              <div class="setting-group">
+                <h3>Academic Profile</h3>
+                <div class="academic-profile-section">
+                  <!-- Academic Level -->
+                  <div class="profile-item">
+                    <h4>Academic Level</h4>
+                    <div class="select-group">
+                      <button class="select-btn"
+                              :class="{ active: settings.academic.academicLevel === 'Undergraduate' }"
+                              @click="settings.academic.academicLevel = 'Undergraduate'">
+                        <span class="btn-icon">🎓</span>
+                        <span class="btn-text">Undergraduate</span>
+                      </button>
+                      <button class="select-btn"
+                              :class="{ active: settings.academic.academicLevel === 'Postgraduate (Masters)' }"
+                              @click="settings.academic.academicLevel = 'Postgraduate (Masters)'">
+                        <span class="btn-icon">🧑‍🎓</span>
+                        <span class="btn-text">Masters</span>
+                      </button>
+                      <button class="select-btn"
+                              :class="{ active: settings.academic.academicLevel === 'Postgraduate (PhD)' }"
+                              @click="settings.academic.academicLevel = 'Postgraduate (PhD)'">
+                        <span class="btn-icon">👨‍🎓</span>
+                        <span class="btn-text">PhD</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Enrollment Type -->
+                  <div class="profile-item">
+                    <h4>Enrollment Type</h4>
+                    <div class="select-group">
+                      <button class="select-btn"
+                              :class="{ active: settings.academic.enrollmentType === 'Full time' }"
+                              @click="settings.academic.enrollmentType = 'Full time'">
+                        <span class="btn-icon">✅</span>
+                        <span class="btn-text">Full time</span>
+                      </button>
+                      <button class="select-btn"
+                              :class="{ active: settings.academic.enrollmentType === 'Part time' }"
+                              @click="settings.academic.enrollmentType = 'Part time'">
+                        <span class="btn-icon">⏳</span>
+                        <span class="btn-text">Part time</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Study Preferences (MULTIPLE SELECTION ALLOWED) -->
+                  <div class="profile-item">
+                    <h4>Study Preferences</h4>
+                    <div class="select-group">
+                      <button class="select-btn"
+                              :class="{ active: settings.academic.studyPreferences.includes('Mornings') }"
+                              @click="toggleStudyPreference('Mornings')">
+                        <span class="btn-icon">🌅</span>
+                        <span class="btn-text">Mornings</span>
+                      </button>
+                      <button class="select-btn"
+                              :class="{ active: settings.academic.studyPreferences.includes('Afternoons') }"
+                              @click="toggleStudyPreference('Afternoons')">
+                        <span class="btn-icon">☀️</span>
+                        <span class="btn-text">Afternoons</span>
+                      </button>
+                      <button class="select-btn"
+                              :class="{ active: settings.academic.studyPreferences.includes('Evenings') }"
+                              @click="toggleStudyPreference('Evenings')">
+                        <span class="btn-icon">🌆</span>
+                        <span class="btn-text">Evenings</span>
+                      </button>
+                      <button class="select-btn"
+                              :class="{ active: settings.academic.studyPreferences.includes('Late Night') }"
+                              @click="toggleStudyPreference('Late Night')">
+                        <span class="btn-icon">🌙</span>
+                        <span class="btn-text">Late Night</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- NEW: Degree Configuration Section -->
+              <div class="setting-group">
+                <h3>Degree Configuration</h3>
+                <div class="degree-config-section">
+                  <!-- Current Year -->
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label for="currentYear">Current Year</label>
+                      <select id="currentYear" v-model="settings.academic.currentYear">
+                        <option v-for="n in 7" :key="`year-${n}`" :value="n">Year {{ n }}</option>
+                      </select>
+                    </div>
+
+                    <!-- Total Years in Program -->
+                    <div class="form-group">
+                      <label for="totalYears">Years in Program</label>
+                      <select id="totalYears" v-model="settings.academic.totalYears" @change="updateYearWeightsBasedOnTotalYears">
+                        <option v-for="n in 7" :key="`total-${n}`" :value="n">{{ n }} {{ n === 1 ? 'Year' : 'Years' }}</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="form-row">
+                    <!-- Semesters per Year -->
+                    <div class="form-group">
+                      <label for="semestersPerYear">Semesters per Year</label>
+                      <select id="semestersPerYear" v-model="settings.academic.semestersPerYear">
+                        <option value="1">1 Semester</option>
+                        <option value="2">2 Semesters</option>
+                        <option value="3">3 Semesters</option>
+                        <option value="4">4 Semesters</option>
+                      </select>
+                    </div>
+
+                    <!-- Credits per Year -->
+                    <div class="form-group">
+                      <label for="creditsPerYear">Credits per Year</label>
+                      <select id="creditsPerYear" v-model="settings.academic.creditsPerYear">
+                        <option value="30">30 Credits</option>
+                        <option value="60">60 Credits</option>
+                        <option value="90">90 Credits</option>
+                        <option value="120">120 Credits</option>
+                        <option value="180">180 Credits</option>
+                        <option value="custom">Custom</option>
+                      </select>
+                      <input
+                          v-if="settings.academic.creditsPerYear === 'custom'"
+                          type="number"
+                          v-model.number="settings.academic.customCreditsPerYear"
+                          class="custom-value-input"
+                          placeholder="Enter credits"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Target Grade -->
+                  <div class="form-group target-grade-section">
+                    <label>Target Grade</label>
+                    <div class="select-group">
+                      <button class="select-btn target-grade-btn"
+                              :class="{ active: settings.academic.targetGrade === 70 }"
+                              @click="settings.academic.targetGrade = 70; settings.academic.customTargetGrade = null">
+                        <span class="btn-text">First Class (70%+)</span>
+                      </button>
+                      <button class="select-btn target-grade-btn"
+                              :class="{ active: settings.academic.targetGrade === 60 }"
+                              @click="settings.academic.targetGrade = 60; settings.academic.customTargetGrade = null">
+                        <span class="btn-text">2:1 (60-69%)</span>
+                      </button>
+                      <button class="select-btn target-grade-btn"
+                              :class="{ active: settings.academic.targetGrade === 50 }"
+                              @click="settings.academic.targetGrade = 50; settings.academic.customTargetGrade = null">
+                        <span class="btn-text">2:2 (50-59%)</span>
+                      </button>
+                      <button class="select-btn target-grade-btn"
+                              :class="{ active: settings.academic.targetGrade === 40 }"
+                              @click="settings.academic.targetGrade = 40; settings.academic.customTargetGrade = null">
+                        <span class="btn-text">Third (40-49%)</span>
+                      </button>
+                      <button class="select-btn target-grade-btn"
+                              :class="{ active: settings.academic.targetGrade === 'custom' }"
+                              @click="settings.academic.targetGrade = 'custom'">
+                        <span class="btn-text">Custom</span>
+                      </button>
+                    </div>
+                    <input
+                        v-if="settings.academic.targetGrade === 'custom'"
+                        type="number"
+                        v-model.number="settings.academic.customTargetGrade"
+                        class="custom-value-input"
+                        placeholder="Enter target percentage"
+                        min="0"
+                        max="100"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Year Weights Configuration -->
+              <div class="setting-group">
+                <h3>Year Weightings</h3>
+                <p class="setting-description">Specify how much each year contributes to your final grade.</p>
+                <div class="year-weights-container">
+                  <div class="year-weights-header">
+                    <div class="year-column">Year</div>
+                    <div class="weight-column">Weight (%)</div>
+                    <div class="active-column">Active</div>
+                  </div>
+
+                  <div v-for="(year, index) in settings.academic.yearWeights" :key="index" class="year-weight-row">
+                    <div class="year-column">Year {{ index + 1 }}</div>
+                    <div class="weight-column">
+                      <input
+                          type="number"
+                          v-model.number="year.weight"
+                          min="0"
+                          max="100"
+                          @input="validateYearWeights"
+                          :disabled="!year.active"
+                      />
+                    </div>
+                    <div class="active-column">
+                      <label class="toggle-container">
+                        <input type="checkbox" v-model="year.active" @change="validateYearWeights">
+                        <span class="toggle-switch"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="total-weight" :class="{ 'weight-error': totalWeight !== 100 && hasActiveYears }">
+                    Total Weight: {{ totalWeight }}% {{ totalWeight !== 100 && hasActiveYears ? '(Should be 100%)' : '' }}
+                  </div>
+                </div>
+              </div>
 
               <!-- Grading Scale -->
               <div class="setting-group">
@@ -430,6 +650,7 @@
                     <input
                         type="checkbox"
                         v-model="settings.accessibility.screenReaderOptimized"
+                        @change="applyAccessibilitySettings"
                     />
                     <span class="toggle-slider"></span>
                   </label>
@@ -445,6 +666,7 @@
                     <input
                         type="checkbox"
                         v-model="settings.accessibility.keyboardShortcuts"
+                        @change="applyAccessibilitySettings"
                     />
                     <span class="toggle-slider"></span>
                   </label>
@@ -492,6 +714,7 @@
                     <input
                         type="checkbox"
                         v-model="settings.accessibility.focusMode"
+                        @change="applyAccessibilitySettings"
                     />
                     <span class="toggle-slider"></span>
                   </label>
@@ -513,6 +736,7 @@
                         type="radio"
                         v-model="settings.calendar.firstDayOfWeek"
                         value="sunday"
+                        @change="applyCalendarSettings"
                     />
                     <span>Sunday</span>
                   </label>
@@ -521,6 +745,7 @@
                         type="radio"
                         v-model="settings.calendar.firstDayOfWeek"
                         value="monday"
+                        @change="applyCalendarSettings"
                     />
                     <span>Monday</span>
                   </label>
@@ -531,7 +756,7 @@
               <div class="setting-group">
                 <h3>Default Event Duration</h3>
                 <div class="select-wrapper">
-                  <select v-model="settings.calendar.defaultEventDuration">
+                  <select v-model="settings.calendar.defaultEventDuration" @change="applyCalendarSettings">
                     <option value="30">30 minutes</option>
                     <option value="60">1 hour</option>
                     <option value="90">1.5 hours</option>
@@ -545,7 +770,7 @@
               <div class="setting-group">
                 <h3>Default Event Type</h3>
                 <div class="select-wrapper">
-                  <select v-model="settings.calendar.defaultEventType">
+                  <select v-model="settings.calendar.defaultEventType" @change="applyCalendarSettings">
                     <option value="general">General</option>
                     <option value="study">Study Session</option>
                     <option value="assignment">Assignment</option>
@@ -565,6 +790,7 @@
                         type="radio"
                         v-model="settings.calendar.timeFormat"
                         value="12h"
+                        @change="applyCalendarSettings"
                     />
                     <span>12-hour (1:00 PM)</span>
                   </label>
@@ -573,6 +799,7 @@
                         type="radio"
                         v-model="settings.calendar.timeFormat"
                         value="24h"
+                        @change="applyCalendarSettings"
                     />
                     <span>24-hour (13:00)</span>
                   </label>
@@ -588,6 +815,7 @@
                         type="radio"
                         v-model="settings.calendar.dateFormat"
                         value="MM/DD/YYYY"
+                        @change="applyCalendarSettings"
                     />
                     <span>MM/DD/YYYY</span>
                   </label>
@@ -596,6 +824,7 @@
                         type="radio"
                         v-model="settings.calendar.dateFormat"
                         value="DD/MM/YYYY"
+                        @change="applyCalendarSettings"
                     />
                     <span>DD/MM/YYYY</span>
                   </label>
@@ -604,6 +833,7 @@
                         type="radio"
                         v-model="settings.calendar.dateFormat"
                         value="YYYY-MM-DD"
+                        @change="applyCalendarSettings"
                     />
                     <span>YYYY-MM-DD</span>
                   </label>
@@ -734,7 +964,25 @@ export default {
           ],
           termStartDate: '',
           termEndDate: '',
-          holidays: []
+          holidays: [],
+          // New fields for academic profile
+          academicLevel: 'Undergraduate',
+          enrollmentType: 'Full time',
+          studyPreferences: ['Mornings'], // Allow multiple preferences
+          // New fields for degree configuration
+          currentYear: 1,
+          totalYears: 3,
+          semestersPerYear: 2,
+          creditsPerYear: 120,
+          customCreditsPerYear: null,
+          targetGrade: 70,
+          customTargetGrade: null,
+          // Year weights
+          yearWeights: [
+            { year: 1, weight: 33, active: true },
+            { year: 2, weight: 33, active: true },
+            { year: 3, weight: 34, active: true }
+          ]
         },
         accessibility: {
           screenReaderOptimized: false,
@@ -753,6 +1001,21 @@ export default {
       // Default settings for reset functionality
       defaultSettings: null
     };
+  },
+  computed: {
+    // Calculate total weight for year weights
+    totalWeight() {
+      if (!this.settings.academic.yearWeights?.length) return 0;
+
+      return this.settings.academic.yearWeights.reduce((sum, year) => {
+        return sum + (year.active ? year.weight : 0);
+      }, 0);
+    },
+
+    // Check if any years are active
+    hasActiveYears() {
+      return this.settings.academic.yearWeights?.some(year => year.active);
+    }
   },
   mounted() {
     // Initialize dark mode from localStorage
@@ -844,6 +1107,19 @@ export default {
           // Merge received settings with defaults to ensure all properties exist
           this.settings = this.mergeDeep(this.settings, userSettings);
 
+          // Make sure the year weights array is properly initialized
+          if (!this.settings.academic.yearWeights || !this.settings.academic.yearWeights.length) {
+            this.updateYearWeightsBasedOnTotalYears();
+          }
+
+          // Make sure study preferences is an array
+          if (!Array.isArray(this.settings.academic.studyPreferences)) {
+            this.settings.academic.studyPreferences =
+                this.settings.academic.studyPreference ?
+                    [this.settings.academic.studyPreference] :
+                    ['Mornings'];
+          }
+
           // Apply settings after they're loaded
           this.applySettings();
         }
@@ -857,6 +1133,7 @@ export default {
         } else if (error.response?.status === 404) {
           // First time user, using defaults is fine
           console.log("No settings found, using defaults");
+          this.updateYearWeightsBasedOnTotalYears();
         } else {
           notify({ type: "error", message: "Failed to load settings. Using defaults." });
         }
@@ -878,6 +1155,15 @@ export default {
 
         // Store accent color in localStorage for persistence
         localStorage.setItem('accentColor', this.settings.appearance.accentColor);
+
+        // Make sure we update the year-dependent components in the UI
+        window.dispatchEvent(new CustomEvent('yearSettingsUpdated', {
+          detail: {
+            yearWeights: this.settings.academic.yearWeights,
+            totalYears: this.settings.academic.totalYears,
+            creditsPerYear: this.getEffectiveCreditsPerYear()
+          }
+        }));
 
         notify({ type: "success", message: "Settings saved successfully!" });
       } catch (error) {
@@ -934,6 +1220,9 @@ export default {
       } else {
         document.documentElement.classList.remove('focus-mode');
       }
+
+      // Apply calendar settings
+      this.applyCalendarSettings();
     },
     resetSettings() {
       // Reset to default settings
@@ -1000,6 +1289,66 @@ export default {
       };
 
       document.documentElement.style.setProperty('--font-size-base', sizeMap[size] || '16px');
+
+      // Dispatch an event so other components can update if needed
+      window.dispatchEvent(new CustomEvent('fontSizeChanged', {
+        detail: { size: size }
+      }));
+    },
+    toggleHighContrast() {
+      if (this.settings.appearance.highContrast) {
+        document.documentElement.classList.add('high-contrast');
+      } else {
+        document.documentElement.classList.remove('high-contrast');
+      }
+
+      // Dispatch an event so other components can update if needed
+      window.dispatchEvent(new CustomEvent('highContrastChanged', {
+        detail: { enabled: this.settings.appearance.highContrast }
+      }));
+    },
+    applyAccessibilitySettings() {
+      // Apply keyboard shortcuts
+      window.dispatchEvent(new CustomEvent('settingsChange', {
+        detail: {
+          setting: 'keyboardShortcuts',
+          value: this.settings.accessibility.keyboardShortcuts
+        }
+      }));
+
+      // Apply screen reader optimization
+      window.dispatchEvent(new CustomEvent('settingsChange', {
+        detail: {
+          setting: 'screenReaderOptimized',
+          value: this.settings.accessibility.screenReaderOptimized
+        }
+      }));
+
+      // Apply focus mode
+      if (this.settings.accessibility.focusMode) {
+        document.documentElement.classList.add('focus-mode');
+      } else {
+        document.documentElement.classList.remove('focus-mode');
+      }
+
+      window.dispatchEvent(new CustomEvent('settingsChange', {
+        detail: {
+          setting: 'focusMode',
+          value: this.settings.accessibility.focusMode
+        }
+      }));
+    },
+    applyCalendarSettings() {
+      // Dispatch calendar settings event for the calendar component to pick up
+      window.dispatchEvent(new CustomEvent('calendarSettingsChanged', {
+        detail: {
+          firstDayOfWeek: this.settings.calendar.firstDayOfWeek,
+          defaultEventDuration: this.settings.calendar.defaultEventDuration,
+          defaultEventType: this.settings.calendar.defaultEventType,
+          timeFormat: this.settings.calendar.timeFormat,
+          dateFormat: this.settings.calendar.dateFormat
+        }
+      }));
     },
     adjustColor(hex, amount) {
       // Convert hex to RGB
@@ -1063,6 +1412,84 @@ export default {
         this.passwordForm.isSubmitting = false;
       }
     },
+    // Academic-specific methods
+    toggleStudyPreference(preference) {
+      // Initialize array if it doesn't exist
+      if (!Array.isArray(this.settings.academic.studyPreferences)) {
+        this.settings.academic.studyPreferences = [];
+      }
+
+      // Toggle (add/remove) the preference
+      const index = this.settings.academic.studyPreferences.indexOf(preference);
+      if (index === -1) {
+        // Add the preference
+        this.settings.academic.studyPreferences.push(preference);
+      } else {
+        // Remove the preference only if it's not the last one
+        if (this.settings.academic.studyPreferences.length > 1) {
+          this.settings.academic.studyPreferences.splice(index, 1);
+        } else {
+          notify({ type: "warning", message: "You must have at least one study preference selected." });
+        }
+      }
+    },
+    updateYearWeightsBasedOnTotalYears() {
+      const totalYears = typeof this.settings.academic.totalYears === 'number' ?
+          this.settings.academic.totalYears : 3;
+
+      // Create default year weights array if it doesn't exist
+      if (!this.settings.academic.yearWeights) {
+        this.settings.academic.yearWeights = [];
+      }
+
+      // Calculate default weight per year
+      const defaultWeight = Math.floor(100 / totalYears);
+      const remainder = 100 - (defaultWeight * totalYears);
+
+      // Create a new array with the correct number of years
+      const newYearWeights = [];
+
+      for (let i = 0; i < totalYears; i++) {
+        // If existing year weight is available, use it
+        if (i < this.settings.academic.yearWeights.length) {
+          newYearWeights.push(this.settings.academic.yearWeights[i]);
+        } else {
+          // Add new year weight with default values
+          newYearWeights.push({
+            year: i + 1,
+            weight: i === totalYears - 1 ? defaultWeight + remainder : defaultWeight,
+            active: true
+          });
+        }
+      }
+
+      // Update the settings object
+      this.settings.academic.yearWeights = newYearWeights;
+      this.validateYearWeights();
+    },
+    validateYearWeights() {
+      if (!this.settings.academic.yearWeights) return;
+
+      // Validate individual weights (cap at 100)
+      this.settings.academic.yearWeights.forEach(year => {
+        if (year.weight > 100) year.weight = 100;
+        if (year.weight < 0) year.weight = 0;
+      });
+
+      // If only one active year, force it to 100%
+      const activeYears = this.settings.academic.yearWeights.filter(y => y.active);
+      if (activeYears.length === 1) {
+        activeYears[0].weight = 100;
+      }
+    },
+    getEffectiveCreditsPerYear() {
+      // Return the numeric value of credits per year, handling the custom option
+      if (this.settings.academic.creditsPerYear === 'custom') {
+        return this.settings.academic.customCreditsPerYear || 120;
+      } else {
+        return parseInt(this.settings.academic.creditsPerYear, 10) || 120;
+      }
+    },
     addGrade() {
       this.settings.academic.gradingScale.push({
         letter: '',
@@ -1082,20 +1509,6 @@ export default {
     },
     removeHoliday(index) {
       this.settings.academic.holidays.splice(index, 1);
-    },
-    // Debug helper method if needed
-    debugColors() {
-      console.log('Current settings:', {
-        darkMode: this.darkMode,
-        accentColor: this.settings.appearance.accentColor,
-        accentColorValue: this.accentColors.find(c => c.id === this.settings.appearance.accentColor)?.value
-      });
-
-      console.log('CSS Variables:', {
-        primaryColor: getComputedStyle(document.documentElement).getPropertyValue('--primary-color'),
-        primaryDark: getComputedStyle(document.documentElement).getPropertyValue('--primary-dark'),
-        primaryLight: getComputedStyle(document.documentElement).getPropertyValue('--primary-light')
-      });
     },
     // Deep merge utility for merging settings objects
     mergeDeep(target, source) {
@@ -1124,6 +1537,7 @@ export default {
 
 <style scoped>
 /* Basic variables - Update to include RGB versions for transparency */
+/* Base variables - Update to include RGB versions for transparency */
 :root {
   --primary-color: #7b49ff;
   --primary-color-rgb: 123, 73, 255;
@@ -1183,6 +1597,7 @@ export default {
   min-height: calc(100vh - 70px);
 }
 
+/* Main Content Styles */
 .dashboard-main-content {
   flex: 1;
   padding: 2rem;
@@ -1491,6 +1906,12 @@ export default {
   color: var(--text-primary);
 }
 
+.setting-description {
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
 /* Theme selection */
 .theme-selector {
   display: flex;
@@ -1698,11 +2119,83 @@ input:checked + .toggle-slider:before {
   font-size: 0.95rem;
 }
 
-/* Form elements */
+/* Academic Profile Styles */
+.academic-profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.profile-item {
+  background-color: var(--bg-card);
+  padding: 1.25rem;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+}
+
+.profile-item h4 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--primary-color);
+}
+
+.select-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  justify-content: flex-start;
+}
+
+.select-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 2px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  padding: 0.85rem 1.35rem;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.select-btn:hover {
+  border-color: var(--primary-color);
+  background: rgba(123, 73, 255, 0.05);
+  color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.select-btn.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 3px 10px rgba(123, 73, 255, 0.2);
+}
+
+.btn-icon {
+  font-size: 1.15rem;
+}
+
+.btn-text {
+  font-weight: 500;
+}
+
+/* Degree Config Styles */
+.degree-config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
 .form-row {
   display: flex;
   gap: 1rem;
-  margin-bottom: 1rem;
 }
 
 .form-group {
@@ -1715,32 +2208,36 @@ input:checked + .toggle-slider:before {
   margin-bottom: 0.5rem;
   font-weight: 500;
   color: var(--text-primary);
+  font-size: 0.95rem;
 }
 
-.form-group input,
 .form-group select,
-.form-group textarea {
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group input[type="date"] {
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  background-color: var(--bg-card);
+  background-color: var(--bg-input);
   color: var(--text-primary);
   font-size: 1rem;
   transition: all 0.2s ease;
 }
 
-.form-group input:focus,
 .form-group select:focus,
-.form-group textarea:focus {
+.form-group input[type="text"]:focus,
+.form-group input[type="number"]:focus,
+.form-group input[type="date"]:focus {
   border-color: var(--primary-color);
   outline: none;
   box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.2);
 }
 
-.dark-mode .form-group input:focus,
 .dark-mode .form-group select:focus,
-.dark-mode .form-group textarea:focus {
+.dark-mode .form-group input[type="text"]:focus,
+.dark-mode .form-group input[type="number"]:focus,
+.dark-mode .form-group input[type="date"]:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.3);
 }
@@ -1750,6 +2247,169 @@ input:checked + .toggle-slider:before {
   margin-top: 0.25rem;
   font-size: 0.75rem;
   color: var(--text-secondary);
+}
+
+/* Custom Value Inputs */
+.custom-value-input {
+  margin-top: 0.85rem;
+  background-color: var(--bg-input);
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+  width: 100%;
+  font-size: 0.95rem;
+}
+
+.custom-value-input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.2);
+}
+
+/* Target Grade Section */
+.target-grade-section {
+  margin-top: 0.5rem;
+}
+
+.target-grade-btn {
+  padding: 0.75rem 1rem;
+  flex: 1;
+  min-width: 150px;
+}
+
+/* Year Weights styles */
+.year-weights-container {
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  background-color: var(--bg-card);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.year-weights-header {
+  display: flex;
+  background-color: var(--bg-input);
+  padding: 0.85rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.year-weight-row {
+  display: flex;
+  padding: 0.85rem;
+  border-bottom: 1px solid var(--border-color-light);
+  transition: background-color 0.2s ease;
+}
+
+.year-weight-row:hover {
+  background-color: rgba(123, 73, 255, 0.03);
+}
+
+.year-weight-row:last-child {
+  border-bottom: none;
+}
+
+.year-column {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.weight-column {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.weight-column input {
+  width: 80px;
+  padding: 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--bg-input);
+  font-size: 0.95rem;
+}
+
+.weight-column input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(123, 73, 255, 0.15);
+}
+
+.weight-column input:disabled {
+  background-color: var(--bg-light);
+  color: var(--text-tertiary);
+  cursor: not-allowed;
+}
+
+.active-column {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toggle-container {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 26px;
+  cursor: pointer;
+}
+
+.toggle-container input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-switch {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  border-radius: 26px;
+  transition: .4s;
+}
+
+.toggle-switch:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  border-radius: 50%;
+  transition: .4s;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+input:checked + .toggle-switch {
+  background-color: var(--primary-color);
+}
+
+input:checked + .toggle-switch:before {
+  transform: translateX(24px);
+}
+
+.total-weight {
+  padding: 0.85rem;
+  text-align: right;
+  font-weight: 600;
+  background-color: var(--bg-input);
+  border-top: 1px solid var(--border-color);
+  color: var(--success-color);
+}
+
+.weight-error {
+  color: var(--warning-color);
 }
 
 /* Password input */
@@ -2057,6 +2717,60 @@ input:checked + .toggle-slider:before {
   transform: none;
 }
 
+/* Center content for auth prompt */
+.center-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+/* High contrast mode styles */
+:root.high-contrast {
+  --primary-color: #0050c8;
+  --primary-dark: #003b94;
+  --primary-light: #4d89f0;
+  --error-color: #d50000;
+  --success-color: #008a00;
+  --warning-color: #e65100;
+  --text-primary: #000000;
+  --text-secondary: #333333;
+  --bg-light: #ffffff;
+  --bg-card: #f8f8f8;
+  --bg-input: #ffffff;
+  --bg-hover: #e6e6e6;
+  --border-color: #000000;
+}
+
+:root.high-contrast.dark-mode {
+  --primary-color: #82b1ff;
+  --primary-dark: #448aff;
+  --primary-light: #bbdefb;
+  --text-primary: #ffffff;
+  --text-secondary: #dddddd;
+  --bg-light: #000000;
+  --bg-card: #121212;
+  --bg-input: #1e1e1e;
+  --bg-hover: #2a2a2a;
+  --border-color: #ffffff;
+}
+
+/* Focus mode styles */
+:root.focus-mode .settings-navigation,
+:root.focus-mode .mobile-settings-dropdown {
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+:root.focus-mode .settings-navigation:hover,
+:root.focus-mode .mobile-settings-dropdown:hover {
+  opacity: 1;
+}
+
+:root.focus-mode .settings-panel {
+  box-shadow: 0 0 0 4px rgba(var(--primary-color-rgb), 0.2);
+}
+
 /* Responsive styles */
 @media (max-width: 768px) {
   .dashboard-main-content {
@@ -2089,6 +2803,15 @@ input:checked + .toggle-slider:before {
 
   .form-row {
     flex-direction: column;
+  }
+
+  /* Adjust profile section for mobile */
+  .select-group {
+    flex-direction: column;
+  }
+
+  .select-btn {
+    width: 100%;
   }
 
   /* Adjust grading scale for mobile */

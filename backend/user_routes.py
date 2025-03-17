@@ -24,9 +24,10 @@ SESSION_COOKIE_NAME = "session_id"
 SESSION_TIMEOUT_SECONDS = 2592000  # 30 days
 
 def get_session(session_id: str) -> dict:
-    """Get session from database instead of memory."""
+    """Get session from database with proper error handling"""
     try:
         session_key = f"session:{session_id}"
+        # Direct item read is more efficient than query when you know the ID
         session_doc = _container.read_item(item=session_key, partition_key=session_key)
         return session_doc
     except Exception:
