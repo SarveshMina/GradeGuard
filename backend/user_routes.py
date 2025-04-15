@@ -297,7 +297,7 @@ def update_calculator_config(req: HttpRequest) -> HttpResponse:
         for i in range(num_years):
             new_years.append({
                 "year": f"Year {i+1}",
-                "active": False,
+                "active": True,
                 "credits": cred,
                 "weight": 0,
                 # If you want to store 'semesters' for each year
