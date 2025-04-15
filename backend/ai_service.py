@@ -15,9 +15,6 @@ from models import (
 
 # Configure OpenAI API
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-OPENAI_API_BASE = os.environ.get("OPENAI_API_BASE")  # For Azure OpenAI
-OPENAI_API_VERSION = os.environ.get("OPENAI_API_VERSION", "2023-05-15")  # Azure API version
-OPENAI_DEPLOYMENT_NAME = os.environ.get("OPENAI_DEPLOYMENT_NAME", "gpt-4")  # Or your deployment name
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,14 +23,7 @@ logger = logging.getLogger(__name__)
 def initialize_openai():
     """Initialize the OpenAI API connection"""
     try:
-        if OPENAI_API_BASE:  # If using Azure OpenAI
-            openai.api_type = "azure"
-            openai.api_version = OPENAI_API_VERSION
-            openai.api_base = OPENAI_API_BASE
-            openai.api_key = OPENAI_API_KEY
-        else:  # If using standard OpenAI
-            openai.api_key = OPENAI_API_KEY
-            
+        openai.api_key = OPENAI_API_KEY
         logger.info("OpenAI API initialized successfully")
         return True
     except Exception as e:
@@ -132,29 +122,18 @@ def generate_study_schedule(request: OpenAIScheduleRequest) -> ScheduleGeneratio
         Also include a "recommendations" array with study tips specific to this schedule and modules.
         """
         
-        # Call OpenAI API
-        if OPENAI_API_BASE:  # If using Azure OpenAI
-            response = openai.ChatCompletion.create(
-                deployment_id=OPENAI_DEPLOYMENT_NAME,
-                messages=[
-                    {"role": "system", "content": "You are an AI assistant that creates optimized study schedules for students."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.2,
-                max_tokens=4000
-            )
-            generated_text = response.choices[0].message.content
-        else:  # If using standard OpenAI
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": "You are an AI assistant that creates optimized study schedules for students."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.2,
-                max_tokens=4000
-            )
-            generated_text = response.choices[0].message.content
+        # Call OpenAI API with standard API
+        response = openai.ChatCompletion.create(
+            model="gpt-4",  # Use gpt-4 or gpt-3.5-turbo
+            messages=[
+                {"role": "system", "content": "You are an AI assistant that creates optimized study schedules for students."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.2,
+            max_tokens=4000
+        )
+        
+        generated_text = response.choices[0].message.content
             
         # Parse the response
         # First, find the JSON part of the response
@@ -274,29 +253,18 @@ def suggest_study_topics(module_id: str, topics: List[str], assessment_date: Opt
         Return only the list of topics, one per line.
         """
         
-        # Call OpenAI API
-        if OPENAI_API_BASE:  # If using Azure OpenAI
-            response = openai.ChatCompletion.create(
-                deployment_id=OPENAI_DEPLOYMENT_NAME,
-                messages=[
-                    {"role": "system", "content": "You are a helpful study advisor."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,
-                max_tokens=300
-            )
-            generated_text = response.choices[0].message.content
-        else:  # If using standard OpenAI
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": "You are a helpful study advisor."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,
-                max_tokens=300
-            )
-            generated_text = response.choices[0].message.content
+        # Call OpenAI API with standard API
+        response = openai.ChatCompletion.create(
+            model="gpt-4",  # Use gpt-4 or gpt-3.5-turbo
+            messages=[
+                {"role": "system", "content": "You are a helpful study advisor."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=300
+        )
+        
+        generated_text = response.choices[0].message.content
         
         # Parse response into list of topics
         suggested_topics = [line.strip() for line in generated_text.strip().split('\n') if line.strip()]

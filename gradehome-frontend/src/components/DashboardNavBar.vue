@@ -26,7 +26,7 @@
               <line x1="16" y1="17" x2="8" y2="17"></line>
               <polyline points="10 9 9 9 8 9"></polyline>
             </svg>
-            <span>Grades</span>
+            <span>Study Hub</span>
           </router-link>
 
           <router-link to="/calendar" class="nav-link" active-class="active">
@@ -226,7 +226,7 @@
                 <line x1="16" y1="17" x2="8" y2="17"></line>
                 <polyline points="10 9 9 9 8 9"></polyline>
               </svg>
-              <span>Grades</span>
+              <span>Study Hub</span>
             </router-link>
           </div>
 
