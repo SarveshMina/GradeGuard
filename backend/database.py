@@ -31,27 +31,20 @@ def get_user_by_email(email: str):
         return None
 
 def get_user_modules(email: str) -> List[Dict[str, Any]]:
-    """Retrieve modules for a user with optimized query"""
-    query = "SELECT * FROM c WHERE c.type = 'module' AND c.user_email = @email"
-    parameters = [{"name": "@email", "value": email}]
-    modules = list(_container.query_items(
-        query=query, 
-        parameters=parameters,
-        enable_cross_partition_query=True
-    ))
+    """Retrieve modules for a user"""
+    query = f"SELECT * FROM c WHERE c.type = 'module' AND c.user_email = '{email}'"
+    modules = list(_container.query_items(query=query, enable_cross_partition_query=True))
     return modules
 
 def increment_university_and_major_counter(university_name: str, major_name: str):
-    """Increments counters for university and major with parameterized query"""
+    """
+    Increments counters for university and major, handling the case when the university
+    already exists in a different document.
+    """
     try:
-        # Use parameterized query to prevent SQL injection
-        query = "SELECT * FROM c WHERE c.name = @university_name"
-        parameters = [{"name": "@university_name", "value": university_name}]
-        items = list(_uni_container.query_items(
-            query=query, 
-            parameters=parameters, 
-            enable_cross_partition_query=True
-        ))
+        # First, query for the university by name (instead of trying to read directly)
+        query = f"SELECT * FROM c WHERE c.name = '{university_name}'"
+        items = list(_uni_container.query_items(query=query, enable_cross_partition_query=True))
         
         # If we found items, use the first one
         if items:
@@ -115,21 +108,11 @@ def update_user_calculator(email: str, calculator_config: dict):
     _container.upsert_item(user_doc)
 
 def search_universities(query: str, limit: int = 10, offset: int = 0):
-    """Search universities with optimized query and pagination"""
     query_lower = query.lower()
-    # Use CONTAINS with parameterized query
-    query_str = "SELECT * FROM c WHERE CONTAINS(LOWER(c.name), @query) ORDER BY c.counter DESC OFFSET @offset LIMIT @limit"
-    parameters = [
-        {"name": "@query", "value": query_lower},
-        {"name": "@offset", "value": offset},
-        {"name": "@limit", "value": limit}
-    ]
-    items = list(_uni_container.query_items(
-        query=query_str, 
-        parameters=parameters, 
-        enable_cross_partition_query=True
-    ))
-    return items
+    query_str = "SELECT * FROM c WHERE CONTAINS(LOWER(c.name), @query)"
+    parameters = [{"name": "@query", "value": query_lower}]
+    items = list(_uni_container.query_items(query=query_str, parameters=parameters, enable_cross_partition_query=True))
+    return items[offset:offset+limit]
 
 
 def create_calendar_event(user_email: str, event_data: dict):
@@ -148,15 +131,9 @@ def create_calendar_event(user_email: str, event_data: dict):
     created_item = _events_container.create_item(body=event_data)
     return created_item  # Return the actual created item from the database
 
+
 def get_user_events(user_email: str, start_date: str = None, end_date: str = None):
-    """Get user events with optimized query and selective field projection"""
-    # Only select fields we need to reduce data transfer
-    query = """
-    SELECT c.id, c.user_email, c.title, c.description, c.date, 
-           c.start_time, c.end_time, c.all_day, c.type, c.color, c.completed, c.pk
-    FROM c 
-    WHERE c.user_email = @email
-    """
+    query = "SELECT * FROM c WHERE c.user_email = @email"
     params = [{"name": "@email", "value": user_email}]
     
     if start_date and end_date:
@@ -291,30 +268,23 @@ def delete_calendar_event(user_email: str, event_id: str):
         print(traceback.format_exc())
         return False
 
-# Add this helper function to get modules with statistics
 def get_modules_with_stats(university: str, degree: str):
-    """Get modules with statistics using parameterized query"""
+    """Get modules with statistics for a specific university and degree"""
     try:
-        # Use parameterized query for security and performance
-        query = """
+        # Query for modules of this university and degree
+        query = f"""
         SELECT c.name, c.code, c.credits, c.year, c.semester,
                AVG(c.score) as average_score,
                COUNT(c.id) as student_count
         FROM c
         WHERE c.type = 'module'
-          AND c.university = @university
-          AND c.degree = @degree
+          AND c.university = '{university}'
+          AND c.degree = '{degree}'
         GROUP BY c.name, c.code, c.credits, c.year, c.semester
         """
         
-        parameters = [
-            {"name": "@university", "value": university},
-            {"name": "@degree", "value": degree}
-        ]
-        
         modules = list(_container.query_items(
             query=query,
-            parameters=parameters,
             enable_cross_partition_query=True
         ))
         

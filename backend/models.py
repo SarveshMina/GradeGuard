@@ -2,8 +2,9 @@
 
 import re
 from pydantic import BaseModel, EmailStr, field_validator, constr, conint, confloat, Field
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from datetime import time, date, datetime
+from enum import Enum
 
 class YearSetting(BaseModel):
     year: str
@@ -192,85 +193,149 @@ class OnboardingQuestionnaire(BaseModel):
     educationDetails: Optional[EducationDetails] = None
     degreeStructure: Optional[DegreeStructure] = None
 
+class TimeOfDay(str, Enum):
+    MORNING = "morning"
+    AFTERNOON = "afternoon"
+    EVENING = "evening"
+    NIGHT = "night"
 
+class DayOfWeek(str, Enum):
+    MONDAY = "monday"
+    TUESDAY = "tuesday"
+    WEDNESDAY = "wednesday"
+    THURSDAY = "thursday"
+    FRIDAY = "friday"
+    SATURDAY = "saturday"
+    SUNDAY = "sunday"
 
-# Add these classes to your existing models.py file
+class LearningEnvironment(str, Enum):
+    SILENT = "silent"
+    QUIET = "quiet"
+    AMBIENT = "ambient"
+    MODERATE_NOISE = "moderate_noise"
+    BUSY = "busy"
 
-from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional, Dict, Any
-from datetime import time, date, datetime
-
-class StudyPreference(BaseModel):
+class StudyPreferences(BaseModel):
     user_email: str
-    preferred_times: List[str] = ["morning", "afternoon", "evening"]  # Options: morning, afternoon, evening, night
-    preferred_days: List[str] = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-    study_session_duration: int = 60  # minutes
-    breaks_between_sessions: int = 15  # minutes
+    preferred_times: List[TimeOfDay] = Field(default_factory=list)
+    available_days: List[DayOfWeek] = Field(default_factory=list)
+    session_duration: int = 60  # minutes
+    break_duration: int = 15    # minutes
     max_sessions_per_day: int = 3
-    min_sessions_per_week: int = 10
-    focus_areas: List[Dict[str, Any]] = []  # List of modules to focus on with relative importance
-    excluded_times: List[Dict[str, Any]] = []  # Times user doesn't want to study (social events, etc.)
+    environment_preference: LearningEnvironment = LearningEnvironment.QUIET
+    focus_levels: Dict[TimeOfDay, int] = Field(default_factory=dict)  # 1-10 rating
+    specific_time_ranges: Optional[Dict[DayOfWeek, List[Dict[str, str]]]] = None  # {"monday": [{"start": "09:00", "end": "11:00"}]}
     
-    @field_validator('preferred_times')
-    @classmethod
-    def validate_preferred_times(cls, v):
-        valid_times = ["morning", "afternoon", "evening", "night"]
-        for time in v:
-            if time.lower() not in valid_times:
-                raise ValueError(f"Invalid preferred time: {time}. Must be one of {valid_times}")
-        return v
+    class Config:
+        extra = "allow"
+
+class ModuleStudyPreference(BaseModel):
+    module_id: str
+    priority: int = 3  # 1-5 scale where 5 is highest priority
+    weekly_hours_goal: float = 3.0
+    assessment_dates: Optional[List[str]] = None  # ISO format dates
+    difficulty_rating: int = 3  # 1-5 scale
+    topics: Optional[List[str]] = None
     
-    @field_validator('preferred_days')
-    @classmethod
-    def validate_preferred_days(cls, v):
-        valid_days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-        for day in v:
-            if day.lower() not in valid_days:
-                raise ValueError(f"Invalid preferred day: {day}. Must be one of {valid_days}")
-        return v
+    class Config:
+        extra = "allow"
+
+class StudySessionStatus(str, Enum):
+    PLANNED = "planned"
+    STARTED = "started"
+    COMPLETED = "completed"
+    MISSED = "missed"
+    RESCHEDULED = "rescheduled"
 
 class StudySession(BaseModel):
     id: Optional[str] = None
     user_email: str
-    title: str
     module_id: str
     module_name: str
-    date: str  # ISO format date
-    start_time: str
-    end_time: str
-    description: Optional[str] = None
-    status: str = "scheduled"  # scheduled, completed, missed, rescheduled
-    feedback: Optional[Dict[str, Any]] = None
-    is_ai_generated: bool = True
-    calendar_event_id: Optional[str] = None  # Link to the actual calendar event
-    batch_id: Optional[str] = None  # For grouping sessions generated together
-
-class SessionFeedback(BaseModel):
-    session_id: str
-    completed: bool
-    productivity_rating: int = Field(ge=1, le=5)  # 1-5 scale
-    difficulty_rating: int = Field(ge=1, le=5)  # 1-5 scale
+    start_time: str  # ISO format datetime
+    end_time: str    # ISO format datetime
+    status: StudySessionStatus = StudySessionStatus.PLANNED
+    topics: Optional[List[str]] = None
+    location: Optional[str] = None
+    productivity_rating: Optional[int] = None  # 1-5 scale
+    difficulty_rating: Optional[int] = None    # 1-5 scale
     notes: Optional[str] = None
-    mood: Optional[str] = None
+    calendar_event_id: Optional[str] = None
+    points_earned: Optional[int] = None
 
-class ImportedCalendar(BaseModel):
-    id: Optional[str] = None
+    class Config:
+        extra = "allow"
+
+class StudyStreak(BaseModel):
+    user_email: str
+    current_streak: int = 0
+    longest_streak: int = 0
+    last_study_date: Optional[str] = None  # ISO format date
+    history: Dict[str, bool] = Field(default_factory=dict)  # Date -> completed any session
+    
+    class Config:
+        extra = "allow"
+
+class AchievementStatus(str, Enum):
+    LOCKED = "locked"
+    UNLOCKED = "unlocked"
+    COMPLETED = "completed"
+
+class Achievement(BaseModel):
+    id: str
     user_email: str
     name: str
-    url: str
-    last_sync: Optional[str] = None  # ISO timestamp
-    sync_frequency: str = "daily"  # daily, weekly
-    enabled: bool = True
+    description: str
+    status: AchievementStatus = AchievementStatus.LOCKED
+    progress: int = 0  # Current progress
+    target: int = 100  # Target for completion (percentage)
+    unlocked_date: Optional[str] = None  # ISO format date
+    completed_date: Optional[str] = None  # ISO format date
+    badge_icon: Optional[str] = None  # Icon reference
+    category: str  # e.g., "time", "consistency", "subject"
+    
+    class Config:
+        extra = "allow"
 
-class SchedulerSettings(BaseModel):
+class StudyStats(BaseModel):
     user_email: str
-    auto_schedule_enabled: bool = True
-    weekly_suggestions_enabled: bool = True
-    auto_adjust_based_on_feedback: bool = True
-    ical_export_enabled: bool = True
-    ical_export_url: Optional[str] = None
-    notification_preferences: Dict[str, bool] = {
-        "before_study_session": True,
-        "missed_session_reminder": True,
-        "weekly_performance_report": True
-    }
+    total_sessions_planned: int = 0
+    total_sessions_completed: int = 0
+    total_study_time_minutes: int = 0
+    avg_productivity_rating: float = 0.0
+    most_studied_module: Optional[str] = None
+    level: int = 1
+    total_xp: int = 0
+    modules_stats: Dict[str, Dict[str, Any]] = Field(default_factory=dict)  # module_id -> stats
+    last_updated: str  # ISO format datetime
+    
+    class Config:
+        extra = "allow"
+
+class LevelProgressionConfig(BaseModel):
+    level: int
+    xp_required: int
+    unlocks: Optional[List[str]] = None
+    
+    class Config:
+        extra = "allow"
+
+class OpenAIScheduleRequest(BaseModel):
+    user_email: str
+    study_preferences: StudyPreferences
+    module_preferences: List[ModuleStudyPreference]
+    existing_events: List[Dict[str, Any]]  # Calendar events
+    start_date: str  # ISO format date
+    end_date: str    # ISO format date
+    
+    class Config:
+        extra = "allow"
+
+class ScheduleGenerationResponse(BaseModel):
+    study_sessions: List[StudySession]
+    total_study_hours: float
+    module_distribution: Dict[str, float]  # module_id -> hours
+    recommendations: Optional[List[str]] = None
+    
+    class Config:
+        extra = "allow"

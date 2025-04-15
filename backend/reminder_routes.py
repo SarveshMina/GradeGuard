@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # reminder_routes.py
 import azure.functions as func
 import json
@@ -15,7 +16,6 @@ def create_reminder(req: func.HttpRequest) -> func.HttpResponse:
     try:
         # Get reminder data from request
         reminder_data = req.get_json()
-        
         # Validate required fields
         required_fields = ['event_id', 'event_title', 'reminder_date', 'event_date']
         for field in required_fields:

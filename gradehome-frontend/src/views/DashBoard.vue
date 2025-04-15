@@ -9,6 +9,17 @@
         @logout="handleLogout"
     />
 
+    <!-- Global Add Module Button -->
+    <div class="global-module-button">
+      <button @click="showGlobalAddModule" class="floating-add-button">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>Add Module</span>
+      </button>
+    </div>
+
     <!-- Layout container: main content and sidebar -->
     <div class="dashboard-layout">
       <!-- Floating collapse button that appears when sidebar is hidden -->
@@ -28,6 +39,16 @@
       <div class="dashboard-main-content" :class="{ 'expanded': !sidebarVisible }">
         <div class="dashboard-header">
           <h1>My Dashboard</h1>
+          <!-- Prominent Add Module Button -->
+          <div class="dashboard-actions">
+            <button @click="showGlobalAddModule" class="primary-action-button">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Add Module
+            </button>
+          </div>
           <div class="view-controls">
             <button :class="{ active: activeView === 'overview' }" @click="activeView = 'overview'">Overview</button>
             <button :class="{ active: activeView === 'yearly' }" @click="activeView = 'yearly'">Yearly View</button>
@@ -1361,17 +1382,32 @@ export default {
 
     // Filtered years for the yearly view
     filteredYears() {
-      if (!this.calculatorConfig.years.length) return [];
+      if (!this.calculatorConfig || !this.calculatorConfig.years || !this.calculatorConfig.years.length) {
+        console.log("No years configured in calculator config");
+        return [];
+      }
+
+      console.log("Calculator config years:", this.calculatorConfig.years);
+      console.log("Selected year:", this.selectedYear);
+      console.log("Module data count:", this.moduleData?.length || 0);
 
       let years = [];
 
       this.calculatorConfig.years.forEach(yearConfig => {
-        if (!yearConfig.active) return;
+        if (!yearConfig.active) {
+          console.log(`Skipping inactive year: ${yearConfig.year}`);
+          return;
+        }
 
-        if (this.selectedYear !== 'all' && yearConfig.year !== this.selectedYear) return;
+        if (this.selectedYear !== 'all' && yearConfig.year !== this.selectedYear) {
+          console.log(`Skipping year ${yearConfig.year} - not matching selected year ${this.selectedYear}`);
+          return;
+        }
 
         const yearModules = this.moduleData.filter(m => m.year === yearConfig.year);
         const completedYearModules = yearModules.filter(m => !m.isCurrentlyEnrolled);
+
+        console.log(`Found ${yearModules.length} modules for ${yearConfig.year}, ${completedYearModules.length} completed`);
 
         // Sort modules based on selected sort method
         let sortedModules = [...yearModules];
@@ -1430,6 +1466,13 @@ export default {
           modules: sortedModules
         });
       });
+
+      console.log(`Filtered to ${years.length} visible years`);
+      if (years.length === 0 && this.moduleData.length > 0) {
+        console.log("WARNING: No years are visible even though modules exist!");
+        console.log("Module years:", [...new Set(this.moduleData.map(m => m.year))]);
+        console.log("Active years in config:", this.calculatorConfig.years.filter(y => y.active).map(y => y.year));
+      }
 
       return years;
     },
@@ -1563,6 +1606,57 @@ export default {
     // Capacitor detection and mobile methods
     isCapacitorApp() {
       return window.Capacitor !== undefined && window.Capacitor.isNative === true;
+    },
+
+    showGlobalAddModule() {
+      // Create default years if none exist
+      if (!this.calculatorConfig.years || this.calculatorConfig.years.length === 0) {
+        // Create default years configuration
+        this.calculatorConfig.years = [
+          {
+            year: 'Year 1',
+            active: true,
+            credits: 120,
+            weight: 33,
+            semesters: 2
+          },
+          {
+            year: 'Year 2',
+            active: true,
+            credits: 120,
+            weight: 33,
+            semesters: 2
+          },
+          {
+            year: 'Year 3',
+            active: true,
+            credits: 120,
+            weight: 34,
+            semesters: 2
+          }
+        ];
+      }
+
+      // Set up the module form
+      this.editingModule = false;
+      this.moduleForm = {
+        name: '',
+        code: '',
+        credits: 15,
+        // Use the first year if available, or 'Year 1' as fallback
+        year: this.calculatorConfig.years && this.calculatorConfig.years.length > 0
+            ? this.calculatorConfig.years[0].year
+            : 'Year 1',
+        semester: 1,
+        score: 0,
+        isCurrentlyEnrolled: true,
+        assessments: [
+          { name: 'Exam', weight: 100, score: 0, completed: false }
+        ]
+      };
+
+      // Show the form
+      this.showModuleForm = true;
     },
 
     // Method to handle hardware back button
@@ -1835,14 +1929,50 @@ export default {
 
       try {
         this.loading = true;
+        console.log("Fetching modules from API...");
         const response = await axios.get(`${API_URL}/modules`, { withCredentials: true });
+        console.log("Modules from API:", response.data);
         this.moduleData = response.data;
+        console.log("Current moduleData after assignment:", this.moduleData);
+        console.log("Number of modules loaded:", this.moduleData.length);
+
+        // Log module details for debugging
+        if (this.moduleData.length > 0) {
+          console.log("First module details:", {
+            name: this.moduleData[0].name,
+            year: this.moduleData[0].year,
+            isCurrentlyEnrolled: this.moduleData[0].isCurrentlyEnrolled
+          });
+        }
+
         this.prepareChartData();
+
+        // Check filtered years for debugging
+        const yearsWithModules = [...new Set(this.moduleData.map(m => m.year))];
+        console.log("Years containing modules:", yearsWithModules);
+        console.log("Calculator config years:", this.calculatorConfig.years?.map(y => y.year) || []);
+
         return response.data;
       } catch (error) {
         console.error("Error fetching modules:", error);
+        if (error.response) {
+          console.error("Response status:", error.response.status);
+          console.error("Response data:", error.response.data);
+        }
+
+        // Try to load from local storage as fallback
+        try {
+          const localModules = JSON.parse(localStorage.getItem('gradeGuardModules') || '[]');
+          console.log("Loaded modules from local storage:", localModules);
+          if (localModules.length > 0) {
+            this.moduleData = localModules;
+            console.log("Using local storage modules as fallback");
+          }
+        } catch (localError) {
+          console.error("Error loading from local storage:", localError);
+        }
+
         if (this.isCapacitorApp()) {
-          // Show native toast on mobile
           this.showNativeToast("Failed to load modules");
         }
         return [];
@@ -1897,6 +2027,7 @@ export default {
 
       try {
         this.loading = true;
+        console.log("Saving module:", this.moduleForm);
 
         // Calculate overall score based on completed assessments
         if (this.moduleForm.isCurrentlyEnrolled) {
@@ -1920,25 +2051,246 @@ export default {
           this.moduleForm.score = Math.round(totalScore * 10) / 10;
         }
 
+        // Try to save to API first
         let response;
-        if (this.editingModule) {
-          // Update existing module
-          response = await axios.put(
-              `${API_URL}/modules/${this.moduleForm.id}`,
-              this.moduleForm,
-              { withCredentials: true }
-          );
-        } else {
-          // Create new module
-          response = await axios.post(
-              `${API_URL}/modules`,
-              this.moduleForm,
-              { withCredentials: true }
-          );
+        let apiSuccess = false;
+
+        try {
+          if (this.editingModule) {
+            // Update existing module
+            console.log("Updating existing module with ID:", this.moduleForm.id);
+            response = await axios.put(
+                `${API_URL}/modules/${this.moduleForm.id}`,
+                this.moduleForm,
+                { withCredentials: true }
+            );
+            apiSuccess = true;
+            console.log("Module updated successfully via API");
+          } else {
+            // Create new module
+            console.log("Creating new module");
+            response = await axios.post(
+                `${API_URL}/modules`,
+                this.moduleForm,
+                { withCredentials: true }
+            );
+            apiSuccess = true;
+            console.log("Module created successfully via API");
+          }
+
+          if (response && response.data) {
+            console.log("API response after save:", response.data);
+          }
+        } catch (apiError) {
+          console.warn("API save failed, will use local storage instead:", apiError);
+          if (apiError.response) {
+            console.error("Response status:", apiError.response.status);
+            console.error("Response data:", apiError.response.data);
+          }
+          // We'll continue with local storage backup below
         }
 
-        await this.fetchModules(); // Refresh module data
-        await this.fetchDashboardData(); // Refresh dashboard stats
+        // If API call was successful, refresh data and ensure the year is active
+        if (apiSuccess) {
+          try {
+            console.log("API save successful, updating calculator config if needed...");
+
+            // Get the year of the module we just saved
+            const moduleYear = this.moduleForm.year;
+
+            // Fetch the latest calculator config
+            const calcResponse = await axios.get(`${API_URL}/calculator`, { withCredentials: true });
+            let calculatorConfig = calcResponse.data;
+
+            // Initialize years array if it doesn't exist
+            if (!calculatorConfig.years) {
+              calculatorConfig.years = [];
+            }
+
+            // Check if the year exists in the calculator config
+            let yearConfig = calculatorConfig.years.find(y => y.year === moduleYear);
+            let configUpdated = false;
+
+            if (yearConfig) {
+              // Year exists but might not be active - ensure it's active
+              if (!yearConfig.active) {
+                console.log(`Activating existing year ${moduleYear} in calculator config`);
+                yearConfig.active = true;
+                configUpdated = true;
+              }
+            } else {
+              // Year doesn't exist - create it with reasonable defaults
+              console.log(`Adding new year ${moduleYear} to calculator config`);
+
+              // Calculate default weight (distribute evenly or use a fixed percentage)
+              const newWeight = calculatorConfig.years.length > 0 ?
+                  Math.floor(100 / (calculatorConfig.years.length + 1)) : 100;
+
+              calculatorConfig.years.push({
+                year: moduleYear,
+                active: true,
+                credits: 120, // Standard UK credits per year
+                weight: newWeight,
+                semesters: 2 // Standard semesters per year
+              });
+
+              // Adjust weights of other years if needed
+              if (calculatorConfig.years.length > 1) {
+                const totalWeight = calculatorConfig.years.reduce((sum, year) => sum + year.weight, 0);
+                if (totalWeight > 100) {
+                  // Normalize weights to sum to 100
+                  const factor = 100 / totalWeight;
+                  calculatorConfig.years.forEach(year => {
+                    year.weight = Math.floor(year.weight * factor);
+                  });
+
+                  // Ensure they sum to exactly 100 by adjusting the last year
+                  const sumAfterNormalization = calculatorConfig.years.reduce((sum, year) => sum + year.weight, 0);
+                  if (sumAfterNormalization !== 100) {
+                    const diff = 100 - sumAfterNormalization;
+                    calculatorConfig.years[calculatorConfig.years.length - 1].weight += diff;
+                  }
+                }
+              }
+
+              configUpdated = true;
+            }
+
+            // Save updated config if changes were made
+            if (configUpdated) {
+              await axios.put(
+                  `${API_URL}/calculator`,
+                  calculatorConfig,
+                  { withCredentials: true }
+              );
+              console.log("Calculator config updated with active year:", moduleYear);
+
+              // Update local calculator config to match
+              this.calculatorConfig = calculatorConfig;
+            }
+
+            // Now refresh all data to ensure consistent state
+            console.log("Refreshing modules and dashboard data...");
+            await this.fetchCalculatorConfig();
+            await this.fetchModules();
+            await this.fetchDashboardData();
+
+            // Ensure we're on yearly view and showing all years
+            this.activeView = 'yearly';
+            this.selectedYear = 'all';
+
+            // Force UI update after a short delay to ensure data is processed
+            setTimeout(() => {
+              this.$forceUpdate();
+              console.log("UI forcefully updated");
+            }, 100);
+
+          } catch (configError) {
+            console.error("Error updating calculator config:", configError);
+            // Still fetch modules even if config update failed
+            await this.fetchModules();
+            await this.fetchDashboardData();
+          }
+        } else {
+          // If API failed, add the module to the local moduleData array directly
+          console.log("Using local storage fallback for module save");
+          const moduleToAdd = {...this.moduleForm};
+
+          if (!this.editingModule) {
+            // Generate a local ID for new modules
+            moduleToAdd.id = 'local-' + Date.now();
+            console.log("Generated local ID for new module:", moduleToAdd.id);
+          }
+
+          // Update or add to moduleData
+          if (this.editingModule) {
+            const index = this.moduleData.findIndex(m => m.id === moduleToAdd.id);
+            if (index >= 0) {
+              console.log("Updating module at index:", index);
+              this.moduleData[index] = moduleToAdd;
+            } else {
+              console.log("Module ID not found, adding as new");
+              this.moduleData.push(moduleToAdd);
+            }
+          } else {
+            console.log("Adding new module to moduleData");
+            this.moduleData.push(moduleToAdd);
+          }
+
+          console.log("Current moduleData after local update:", this.moduleData.length);
+
+          // Check and update calculator config for local storage case too
+          try {
+            const moduleYear = this.moduleForm.year;
+            let yearExists = false;
+            let yearActive = false;
+
+            // Check if year exists and is active
+            if (this.calculatorConfig && this.calculatorConfig.years) {
+              const yearConfig = this.calculatorConfig.years.find(y => y.year === moduleYear);
+              if (yearConfig) {
+                yearExists = true;
+                yearActive = yearConfig.active;
+
+                // Activate the year if it exists but isn't active
+                if (!yearActive) {
+                  yearConfig.active = true;
+                  // No need to update API here as we're in local storage mode
+                  console.log(`Activated year ${moduleYear} in local calculator config`);
+                }
+              }
+            }
+
+            // If year doesn't exist, add it
+            if (!yearExists && this.calculatorConfig) {
+              if (!this.calculatorConfig.years) {
+                this.calculatorConfig.years = [];
+              }
+
+              this.calculatorConfig.years.push({
+                year: moduleYear,
+                active: true,
+                credits: 120,
+                weight: 100 / (this.calculatorConfig.years.length + 1),
+                semesters: 2
+              });
+
+              console.log(`Added new year ${moduleYear} to local calculator config`);
+            }
+          } catch (localConfigError) {
+            console.error("Error updating local calculator config:", localConfigError);
+          }
+
+          // Update the UI
+          this.$nextTick(() => {
+            this.activeView = 'yearly';
+            this.selectedYear = 'all';
+            this.$forceUpdate();
+            console.log("UI updated after local update");
+          });
+        }
+
+        // Create or update local storage backup of modules
+        try {
+          const modules = JSON.parse(localStorage.getItem('gradeGuardModules') || '[]');
+          // Add ID if this is a new module
+          if (!this.editingModule) {
+            this.moduleForm.id = this.moduleForm.id || 'local-' + Date.now();
+          }
+          // Update or add the module
+          const existingIndex = modules.findIndex(m => m.id === this.moduleForm.id);
+          if (existingIndex >= 0) {
+            modules[existingIndex] = {...this.moduleForm};
+            console.log("Updated module in local storage");
+          } else {
+            modules.push({...this.moduleForm});
+            console.log("Added module to local storage");
+          }
+          localStorage.setItem('gradeGuardModules', JSON.stringify(modules));
+          console.log("Local storage updated with modules");
+        } catch (storageError) {
+          console.error("Error saving to local storage:", storageError);
+        }
 
         const message = `Module ${this.editingModule ? 'updated' : 'added'} successfully!`;
 
@@ -1957,8 +2309,11 @@ export default {
           description: `${this.moduleForm.name}: ${this.moduleForm.isCurrentlyEnrolled ? 'In Progress' : `${this.moduleForm.score}%`}`,
           time: 'Just now'
         });
+
+        console.log("Module save completed successfully");
+
       } catch (error) {
-        console.error("Error saving module:", error);
+        console.error("Unhandled error saving module:", error);
         const errorMsg = `Failed to ${this.editingModule ? 'update' : 'add'} module: ${error.response?.data?.error || error.message}`;
 
         if (this.isCapacitorApp()) {

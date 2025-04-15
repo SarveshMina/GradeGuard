@@ -9,13 +9,6 @@
           @logout="handleLogout"
       />
 
-      <!-- AI Study Scheduler component integration (hidden) -->
-      <AIStudyScheduler
-          ref="aiScheduler"
-          :events="events"
-          :userProfile="userProfile"
-      />
-
       <!-- Layout container: main content and sidebar -->
       <div
           class="dashboard-layout"
@@ -88,18 +81,6 @@
                     <line x1="12" y1="12" x2="12" y2="16"></line>
                   </svg>
                   <span>Day</span>
-                </button>
-                <button
-                    class="view-btn ai-btn"
-                    @click="openSchedulerModal"
-                    v-tippy="{ content: 'Generate AI Study Plan', placement: 'bottom' }"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                    <path d="M2 17l10 5 10-5"></path>
-                    <path d="M2 12l10 5 10-5"></path>
-                  </svg>
-                  <span>AI Study</span>
                 </button>
               </div>
               <button
@@ -1426,7 +1407,6 @@ import DashboardNavBar from "@/components/DashboardNavBar.vue";
 import CalendarSidebar from "@/components/CalendarSideBar.vue";
 import { getDarkModePreference } from "@/services/darkModeService.js";
 import { API_URL } from "@/config.js";
-import AIStudyScheduler from "@/components/AIStudyScheduler.vue";
 import { useSwipe, useDraggable } from '@vueuse/core';
 import { gsap } from 'gsap';
 import ConfettiExplosion from 'vue-confetti-explosion';
@@ -1437,7 +1417,6 @@ export default {
   components: {
     DashboardNavBar,
     CalendarSidebar,
-    AIStudyScheduler,
     ConfettiExplosion
   },
   provide() {
@@ -3329,13 +3308,6 @@ export default {
       }
     },
 
-    // AI Scheduler integration
-    openSchedulerModal() {
-      if (this.$refs.aiScheduler) {
-        this.$refs.aiScheduler.openSchedulerModal();
-      }
-    },
-
     // Event position calculation (week and day views)
     calculateEventPosition(event) {
       if (event.all_day) {
@@ -4021,18 +3993,6 @@ export default {
     color: white;
     font-weight: 600;
     box-shadow: 0 0 0 2px rgba(123, 73, 255, 0.2);
-  }
-
-  /* Special styling for the AI Study button */
-  .view-btn.ai-btn {
-    background-color: var(--primary-color);
-    color: white;
-    font-weight: 500;
-    box-shadow: 0 2px 8px rgba(123, 73, 255, 0.3);
-    padding-right: 1.5rem;
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-    overflow: hidden;
-    position: relative;
   }
 
   .view-btn.ai-btn::after {

@@ -24,10 +24,9 @@ SESSION_COOKIE_NAME = "session_id"
 SESSION_TIMEOUT_SECONDS = 2592000  # 30 days
 
 def get_session(session_id: str) -> dict:
-    """Get session from database with proper error handling"""
+    """Get session from database instead of memory."""
     try:
         session_key = f"session:{session_id}"
-        # Direct item read is more efficient than query when you know the ID
         session_doc = _container.read_item(item=session_key, partition_key=session_key)
         return session_doc
     except Exception:
@@ -65,7 +64,7 @@ def verify_session(req: HttpRequest) -> (bool, str):
     session_id = cookies.get(SESSION_COOKIE_NAME)
     if not session_id:
         return False, "Missing session_id cookie"
-    
+
     session = get_session(session_id)
     if not session:
         return False, "Invalid session"
@@ -142,18 +141,21 @@ def register_user(req: HttpRequest) -> HttpResponse:
         status_code=201,
         mimetype="application/json"
     )
+
     expire_time = (datetime.datetime.utcnow() + datetime.timedelta(seconds=SESSION_TIMEOUT_SECONDS)) \
                   .strftime("%a, %d-%b-%Y %H:%M:%S GMT")
+
+    # Set cookie without Domain attribute
     response.headers["Set-Cookie"] = (
         f"{SESSION_COOKIE_NAME}={session_id}; "
         f"Expires={expire_time}; "
         "HttpOnly; Path=/; "
         "SameSite=None; Secure"
     )
+    
     return response
 
 def login_user(req: HttpRequest) -> HttpResponse:
-    # (unchanged from your code)
     try:
         body = req.get_json()
     except Exception:
@@ -183,25 +185,36 @@ def login_user(req: HttpRequest) -> HttpResponse:
             mimetype="application/json"
         )
 
+    # Create a new session
     session_id = create_session(user_doc["email"])
+
+    # Prepare the response
     response = HttpResponse(
         json.dumps({"message": "Login successful."}),
         status_code=200,
         mimetype="application/json"
     )
+
+    # Set cookie expiration
     expire_time = (datetime.datetime.utcnow() + datetime.timedelta(seconds=SESSION_TIMEOUT_SECONDS)) \
                   .strftime("%a, %d-%b-%Y %H:%M:%S GMT")
+
+    # Set cookie without Domain attribute
     response.headers["Set-Cookie"] = (
         f"{SESSION_COOKIE_NAME}={session_id}; "
         f"Expires={expire_time}; "
         "HttpOnly; Path=/; "
         "SameSite=None; Secure"
     )
+
+    # Add verbose logging to help debug
+    print(f"Login successful for {user_doc['email']}")
+    print(f"Set-Cookie header: {response.headers['Set-Cookie']}")
+
     return response
 
 
 def protected_resource(req: HttpRequest) -> HttpResponse:
-    # (unchanged)
     is_valid, result = verify_session(req)
     if not is_valid:
         return HttpResponse(
@@ -218,7 +231,6 @@ def protected_resource(req: HttpRequest) -> HttpResponse:
 
 
 def get_universities_endpoint(req: HttpRequest) -> HttpResponse:
-    # (unchanged)
     try:
         from database import get_all_universities_docs
         docs = get_all_universities_docs()
@@ -230,7 +242,6 @@ def get_universities_endpoint(req: HttpRequest) -> HttpResponse:
 
 
 def get_university_endpoint(req: HttpRequest) -> HttpResponse:
-    # (unchanged)
     name = req.params.get("name")
     if not name:
         return HttpResponse(
@@ -335,7 +346,6 @@ def update_calculator_config(req: HttpRequest) -> HttpResponse:
 
 
 def get_calculator_config(req: HttpRequest) -> HttpResponse:
-    # (unchanged)
     is_valid, result = verify_session(req)
     if not is_valid:
         return HttpResponse(json.dumps({"error": result}),
@@ -352,7 +362,6 @@ def get_calculator_config(req: HttpRequest) -> HttpResponse:
 
 
 def search_universities_endpoint(req: HttpRequest) -> HttpResponse:
-    # (unchanged)
     query = req.params.get("query")
     if not query:
         return HttpResponse(json.dumps({"error": "Missing 'query' parameter"}),
@@ -372,35 +381,35 @@ def search_universities_endpoint(req: HttpRequest) -> HttpResponse:
         return HttpResponse(json.dumps({"error": str(e)}),
                             status_code=500,
                             mimetype="application/json")
-    
+
 
 def logout_user(req: HttpRequest) -> HttpResponse:
     """Invalidate user session and clear cookie."""
     cookies = parse_cookies(req)
     session_id = cookies.get(SESSION_COOKIE_NAME)
-    
+
     if session_id:
         try:
             # Delete session from database
             _container.delete_item(
-                item=f"session:{session_id}", 
+                item=f"session:{session_id}",
                 partition_key=f"session:{session_id}"
             )
         except Exception as e:
             print(f"Error deleting session: {e}")
-    
+
     # Create response that will clear the cookie
     response = HttpResponse(
         json.dumps({"message": "Logged out successfully."}),
         status_code=200,
         mimetype="application/json"
     )
-    
-    # Set the cookie with an expired date to clear it
+
+    # Set the cookie with an expired date to clear it - without Domain attribute
     expired_date = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime("%a, %d-%b-%Y %H:%M:%S GMT")
     response.headers["Set-Cookie"] = (
         f"{SESSION_COOKIE_NAME}=; Expires={expired_date}; "
         "HttpOnly; Path=/; SameSite=None; Secure"
     )
-    
+
     return response

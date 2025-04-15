@@ -748,7 +748,7 @@
 import axios from 'axios'
 import { notify } from '@/services/toastService.js'
 import { getDarkModePreference, setDarkModePreference } from '@/services/darkModeService.js'
-import { userSettingsService } from '@/services/userSettingsService.js';
+import { userSettingsService } from '@/services/userSettingsService.js'
 import { API_URL } from '/src/config.js'
 
 export default {
@@ -851,6 +851,18 @@ export default {
     console.log('Query params:', this.$route.query);
     console.log('Token:', this.$route.query.token);
 
+    // Check cookie settings - debugging
+    console.log('Document cookies:', document.cookie);
+
+    // Debug network requests
+    const originalOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function() {
+      this.addEventListener('load', function() {
+        console.log('XHR Request:', this.responseURL, 'Status:', this.status);
+      });
+      originalOpen.apply(this, arguments);
+    };
+
     // Check for reset token in URL
     const token = this.$route.query.token;
     if (token) {
@@ -916,13 +928,29 @@ export default {
     document.body.style.overflow = '';
   },
   methods: {
+    async testSessionHandling() {
+      try {
+        console.log('Testing protected endpoint...');
+        const response = await axios.get(`${API_URL}/protected`, {
+          withCredentials: true
+        });
+        console.log('Protected response:', response.data);
+        return true;
+      } catch(error) {
+        console.error('Protected error:', error.response?.data || error.message);
+        // Check if cookies are being sent
+        console.log('Request headers:', error.request?._header);
+        return false;
+      }
+    },
     async verifyResetToken() {
       try {
         this.isVerifyingToken = true;
         this.isCheckingSession = false; // Prevent session check during token verification
 
         const response = await axios.get(`${API_URL}/password/verify-token`, {
-          params: { token: this.resetToken }
+          params: { token: this.resetToken },
+          withCredentials: true
         });
 
         if (response.data.valid) {
@@ -958,6 +986,8 @@ export default {
         await axios.post(`${API_URL}/password/reset`, {
           token: this.resetToken,
           password: this.newPassword
+        }, {
+          withCredentials: true
         });
 
         // Show success message
@@ -991,7 +1021,8 @@ export default {
 
       console.log('Testing token verification with token:', token);
       axios.get(`${API_URL}/password/verify-token`, {
-        params: { token: token }
+        params: { token: token },
+        withCredentials: true
       })
           .then(response => {
             console.log('Token verification response:', response.data);
@@ -1035,6 +1066,9 @@ export default {
         }
       } catch (error) {
         console.log('No active session found');
+        // Additional debugging
+        console.log('Session check error:', error.response?.data || error.message);
+        console.log('Request headers:', error.request?._header);
       } finally {
         this.isCheckingSession = false;
       }
@@ -1254,9 +1288,17 @@ export default {
           calcType: this.calcType
         }
 
+        console.log('Signup payload:', payload);
+
         const response = await axios.post(`${API_URL}/register`, payload, {
           withCredentials: true
         });
+
+        console.log('Signup response:', response.data);
+
+        // Test if session was established
+        const sessionTest = await this.testSessionHandling();
+        console.log('Session test after signup:', sessionTest);
 
         // Show success message before redirect
         this.successMessage = {
@@ -1275,12 +1317,14 @@ export default {
 
         if (this.selectedUniversityDoc) {
           const updatedResponse = await axios.get(`${API_URL}/stats/university`, {
-            params: { name: this.selectedUniversityDoc.name }
+            params: { name: this.selectedUniversityDoc.name },
+            withCredentials: true
           })
           this.selectedUniversityDoc = updatedResponse.data
         }
       } catch (error) {
-        console.error(error);
+        console.error('Signup error:', error);
+        console.error('Response:', error.response?.data);
         const errMsg = error.response?.data?.error || error.message;
 
         // Check for specific error messages and set appropriate field errors
@@ -1311,13 +1355,20 @@ export default {
         this.isLoggingIn = true;
 
         // Login request
-        await axios.post(`${API_URL}/login`, {
+        const response = await axios.post(`${API_URL}/login`, {
           email: this.loginEmail,
           password: this.loginPassword,
           rememberMe: this.rememberMe
         }, {
           withCredentials: true
         });
+
+        console.log('Login response:', response.data);
+        console.log('Login cookies:', document.cookie);
+
+        // Test if session was established
+        const sessionTest = await this.testSessionHandling();
+        console.log('Session test after login:', sessionTest);
 
         // Show success message
         this.successMessage = {
@@ -1343,6 +1394,8 @@ export default {
           this.$router.push('/dashboard');
         }, 1500);
       } catch (error) {
+        console.error('Login error:', error);
+        console.error('Response:', error.response?.data);
         const errMsg = error.response?.data?.error || error.message;
 
         // Check for specific error types
@@ -1371,6 +1424,8 @@ export default {
         // Update this endpoint to use the new password reset endpoint
         await axios.post(`${API_URL}/password/forgot`, {
           email: this.forgotEmail
+        }, {
+          withCredentials: true
         });
 
         // Show success message
@@ -1439,7 +1494,8 @@ export default {
             query,
             limit: this.searchLimit,
             offset: this.searchOffset
-          }
+          },
+          withCredentials: true
         })
 
         const results = response.data;
@@ -1461,6 +1517,14 @@ export default {
     },
     loadMoreUniversities() {
       this.searchUniversities(this.universitySearch, true);
+    },
+    clearExistingCookies() {
+      // Helper method to clear all cookies
+      document.cookie.split(';').forEach(cookie => {
+        const [name] = cookie.trim().split('=');
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;`;
+      });
+      console.log('Cleared all cookies');
     }
   },
   watch: {
