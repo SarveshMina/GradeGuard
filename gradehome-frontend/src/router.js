@@ -8,6 +8,7 @@ import { Capacitor } from '@capacitor/core'
 import UserProfile from "@/views/UserProfile.vue";
 import Calendar from "@/views/Calendar.vue";
 import SettingsPage from "@/views/SettingsPage.vue";
+import StudyHub from "@/views/StudyHub.vue";
 
 // Detect mobile via Capacitor or screen width
 // We'll keep this for other potential uses in the app
@@ -31,6 +32,14 @@ const routes = [
         path: '/profile',
         name: 'Profile',
         component: UserProfile,
+        meta: {
+            requiresAuth: true
+        }
+    },
+    {
+        path: '/study',
+        name: 'StudyHub',
+        component: StudyHub,
         meta: {
             requiresAuth: true
         }
