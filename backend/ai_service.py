@@ -23,12 +23,13 @@ logger = logging.getLogger(__name__)
 def initialize_openai():
     """Initialize the OpenAI API connection"""
     try:
-        openai.api_key = OPENAI_API_KEY
+        # Create a client instance instead of setting api_key directly
+        client = openai.OpenAI(api_key=OPENAI_API_KEY)
         logger.info("OpenAI API initialized successfully")
-        return True
+        return client
     except Exception as e:
         logger.error(f"Error initializing OpenAI API: {str(e)}")
-        return False
+        return None
 
 def format_calendar_events(events: List[Dict[str, Any]]) -> str:
     """Format calendar events into a readable string for the AI"""
@@ -51,7 +52,8 @@ def format_calendar_events(events: List[Dict[str, Any]]) -> str:
 def generate_study_schedule(request: OpenAIScheduleRequest) -> ScheduleGenerationResponse:
     """Generate an optimized study schedule using OpenAI"""
     try:
-        if not initialize_openai():
+        client = initialize_openai()
+        if not client:
             raise Exception("Failed to initialize OpenAI API")
         
         # Prepare data for the prompt
@@ -122,8 +124,8 @@ def generate_study_schedule(request: OpenAIScheduleRequest) -> ScheduleGeneratio
         Also include a "recommendations" array with study tips specific to this schedule and modules.
         """
         
-        # Call OpenAI API with standard API
-        response = openai.ChatCompletion.create(
+        # Call OpenAI API with updated client API
+        response = client.chat.completions.create(
             model="gpt-4",  # Use gpt-4 or gpt-3.5-turbo
             messages=[
                 {"role": "system", "content": "You are an AI assistant that creates optimized study schedules for students."},
@@ -133,6 +135,7 @@ def generate_study_schedule(request: OpenAIScheduleRequest) -> ScheduleGeneratio
             max_tokens=4000
         )
         
+        # Extract the generated text (updated for new API)
         generated_text = response.choices[0].message.content
             
         # Parse the response
@@ -227,7 +230,8 @@ def generate_study_schedule(request: OpenAIScheduleRequest) -> ScheduleGeneratio
 def suggest_study_topics(module_id: str, topics: List[str], assessment_date: Optional[str] = None) -> List[str]:
     """Suggest specific topics to focus on for a study session"""
     try:
-        if not initialize_openai():
+        client = initialize_openai()
+        if not client:
             raise Exception("Failed to initialize OpenAI API")
         
         assessment_context = ""
@@ -253,8 +257,8 @@ def suggest_study_topics(module_id: str, topics: List[str], assessment_date: Opt
         Return only the list of topics, one per line.
         """
         
-        # Call OpenAI API with standard API
-        response = openai.ChatCompletion.create(
+        # Call OpenAI API with updated client API
+        response = client.chat.completions.create(
             model="gpt-4",  # Use gpt-4 or gpt-3.5-turbo
             messages=[
                 {"role": "system", "content": "You are a helpful study advisor."},
@@ -264,6 +268,7 @@ def suggest_study_topics(module_id: str, topics: List[str], assessment_date: Opt
             max_tokens=300
         )
         
+        # Extract the generated text (updated for new API)
         generated_text = response.choices[0].message.content
         
         # Parse response into list of topics
