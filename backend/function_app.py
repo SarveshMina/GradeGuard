@@ -45,24 +45,11 @@ from university_routes import (
 )
 
 from study_routes import (
-    get_user_study_preferences,
-    update_study_preferences,
-    get_module_preferences,
-    update_module_preference,
-    get_user_study_sessions,
-    create_study_session,
-    update_study_session,
-    update_session_status_route,
-    generate_schedule,
-    import_ical_calendar,
-    get_ical_subscriptions,
-    sync_ical_subscription_route,
-    delete_ical_subscription_route,
-    get_user_streak,
-    get_user_achievements,
-    get_user_study_stats_route,
-    refresh_study_stats,
-    get_study_topic_suggestions
+    get_schedules, create_schedule_manual, create_schedule_ai, update_schedule_route, delete_schedule_route,
+    get_sessions, start_session, complete_session, reschedule_session,
+    get_achievements, get_streak,
+    get_analytics,
+    get_tips, accept_tip, reject_tip
 )
 
 from user_routes import verify_session, logout_user
@@ -561,234 +548,111 @@ def create_event_reminder_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     return add_cors_headers(response, req)
 
 
-@app.route(route="study/preferences", methods=["GET", "PUT", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def study_preferences_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+@app.route(route="study/schedules", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def study_schedules_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
-
-    if req.method == "GET":
-        response = get_user_study_preferences(req)
-    elif req.method == "PUT":
-        response = update_study_preferences(req)
-    else:
-        response = func.HttpResponse(
-            json.dumps({"error": f"Method {req.method} not allowed"}),
-            status_code=405,
-            mimetype="application/json"
-        )
-
+    response = get_schedules(req)
     return add_cors_headers(response, req)
 
-@app.route(route="study/module-preferences", methods=["GET", "POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def module_preferences_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+@app.route(route="study/schedules/create", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def create_schedule_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
-
-    if req.method == "GET":
-        response = get_module_preferences(req)
-    elif req.method == "POST":
-        response = update_module_preference(req)
-    else:
-        response = func.HttpResponse(
-            json.dumps({"error": f"Method {req.method} not allowed"}),
-            status_code=405,
-            mimetype="application/json"
-        )
-
+    response = create_schedule_manual(req)
     return add_cors_headers(response, req)
 
-@app.route(route="study/sessions", methods=["GET", "POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def study_sessions_endpoint(req: func.HttpRequest) -> func.HttpResponse:
-    if req.method == "OPTIONS":
-        return cors_preflight_response(req)
-
-    if req.method == "GET":
-        response = get_user_study_sessions(req)
-    elif req.method == "POST":
-        response = create_study_session(req)
-    else:
-        response = func.HttpResponse(
-            json.dumps({"error": f"Method {req.method} not allowed"}),
-            status_code=405,
-            mimetype="application/json"
-        )
-
-    return add_cors_headers(response, req)
-
-@app.route(route="study/sessions/{id}", methods=["PUT", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def study_session_endpoint(req: func.HttpRequest) -> func.HttpResponse:
-    if req.method == "OPTIONS":
-        return cors_preflight_response(req)
-
-    if req.method == "PUT":
-        response = update_study_session(req)
-    else:
-        response = func.HttpResponse(
-            json.dumps({"error": f"Method {req.method} not allowed"}),
-            status_code=405,
-            mimetype="application/json"
-        )
-
-    return add_cors_headers(response, req)
-
-@app.route(route="study/sessions/{id}/status", methods=["PUT", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def session_status_endpoint(req: func.HttpRequest) -> func.HttpResponse:
-    if req.method == "OPTIONS":
-        return cors_preflight_response(req)
-
-    if req.method == "PUT":
-        response = update_session_status_route(req)
-    else:
-        response = func.HttpResponse(
-            json.dumps({"error": f"Method {req.method} not allowed"}),
-            status_code=405,
-            mimetype="application/json"
-        )
-
-    return add_cors_headers(response, req)
-
-@app.route(route="study/generate-schedule", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+@app.route(route="study/schedules/generate", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def generate_schedule_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
-
-    if req.method == "POST":
-        response = generate_schedule(req)
-    else:
-        response = func.HttpResponse(
-            json.dumps({"error": f"Method {req.method} not allowed"}),
-            status_code=405,
-            mimetype="application/json"
-        )
-
+    response = create_schedule_ai(req)
     return add_cors_headers(response, req)
 
-@app.route(route="study/calendar/import", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def import_calendar_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+@app.route(route="study/schedules/{id}", methods=["PUT", "DELETE", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def schedule_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
-
-    if req.method == "POST":
-        response = import_ical_calendar(req)
+    
+    if req.method == "PUT":
+        response = update_schedule_route(req)
+    elif req.method == "DELETE":
+        response = delete_schedule_route(req)
     else:
         response = func.HttpResponse(
             json.dumps({"error": f"Method {req.method} not allowed"}),
             status_code=405,
             mimetype="application/json"
         )
-
+        
     return add_cors_headers(response, req)
 
-@app.route(route="study/calendar/subscriptions", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def get_calendar_subscriptions_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+@app.route(route="study/sessions", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def study_sessions_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
-
-    if req.method == "GET":
-        response = get_ical_subscriptions(req)
-    else:
-        response = func.HttpResponse(
-            json.dumps({"error": f"Method {req.method} not allowed"}),
-            status_code=405,
-            mimetype="application/json"
-        )
-
+    response = get_sessions(req)
     return add_cors_headers(response, req)
 
-@app.route(route="study/calendar/subscriptions/{id}/sync", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def sync_subscription_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+@app.route(route="study/sessions/{id}/start", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def start_session_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
-
-    if req.method == "POST":
-        response = sync_ical_subscription_route(req)
-    else:
-        response = func.HttpResponse(
-            json.dumps({"error": f"Method {req.method} not allowed"}),
-            status_code=405,
-            mimetype="application/json"
-        )
-
+    response = start_session(req)
     return add_cors_headers(response, req)
 
-@app.route(route="study/calendar/subscriptions/{id}", methods=["DELETE", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def delete_subscription_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+@app.route(route="study/sessions/{id}/complete", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def complete_session_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
-
-    if req.method == "DELETE":
-        response = delete_ical_subscription_route(req)
-    else:
-        response = func.HttpResponse(
-            json.dumps({"error": f"Method {req.method} not allowed"}),
-            status_code=405,
-            mimetype="application/json"
-        )
-
+    response = complete_session(req)
     return add_cors_headers(response, req)
 
-@app.route(route="study/streak", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def get_streak_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+@app.route(route="study/sessions/{id}/reschedule", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def reschedule_session_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
-
-    if req.method == "GET":
-        response = get_user_streak(req)
-    else:
-        response = func.HttpResponse(
-            json.dumps({"error": f"Method {req.method} not allowed"}),
-            status_code=405,
-            mimetype="application/json"
-        )
-
+    response = reschedule_session(req)
     return add_cors_headers(response, req)
 
 @app.route(route="study/achievements", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def get_achievements_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+def achievements_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
-
-    if req.method == "GET":
-        response = get_user_achievements(req)
-    else:
-        response = func.HttpResponse(
-            json.dumps({"error": f"Method {req.method} not allowed"}),
-            status_code=405,
-            mimetype="application/json"
-        )
-
+    response = get_achievements(req)
     return add_cors_headers(response, req)
 
-@app.route(route="study/stats", methods=["GET", "POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def study_stats_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+@app.route(route="study/streak", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def streak_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
-
-    if req.method == "GET":
-        response = get_user_study_stats_route(req)
-    elif req.method == "POST":
-        response = refresh_study_stats(req)
-    else:
-        response = func.HttpResponse(
-            json.dumps({"error": f"Method {req.method} not allowed"}),
-            status_code=405,
-            mimetype="application/json"
-        )
-
+    response = get_streak(req)
     return add_cors_headers(response, req)
 
-@app.route(route="study/topic-suggestions", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
-def topic_suggestions_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+@app.route(route="study/analytics", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def analytics_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
+    response = get_analytics(req)
+    return add_cors_headers(response, req)
 
-    if req.method == "GET":
-        response = get_study_topic_suggestions(req)
-    else:
-        response = func.HttpResponse(
-            json.dumps({"error": f"Method {req.method} not allowed"}),
-            status_code=405,
-            mimetype="application/json"
-        )
+@app.route(route="study/tips", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def tips_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = get_tips(req)
+    return add_cors_headers(response, req)
 
+@app.route(route="study/tips/{id}/accept", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def accept_tip_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = accept_tip(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="study/tips/{id}/reject", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def reject_tip_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = reject_tip(req)
     return add_cors_headers(response, req)

@@ -2042,6 +2042,9 @@ export default {
           } else {
             this.moduleForm.score = 0; // No completed assessments yet
           }
+
+          // Set the status property to 'in_progress' to align with your requirement
+          this.moduleForm.status = 'in_progress';
         } else {
           // For completed modules, calculate normally
           const totalScore = this.moduleForm.assessments.reduce((sum, assessment) => {
@@ -2049,6 +2052,7 @@ export default {
           }, 0);
 
           this.moduleForm.score = Math.round(totalScore * 10) / 10;
+          this.moduleForm.status = 'completed';
         }
 
         // Try to save to API first

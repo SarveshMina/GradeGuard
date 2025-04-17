@@ -1,723 +1,806 @@
 # study_routes.py
+import azure.functions as func
 import json
 import traceback
-import azure.functions as func
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+import datetime
+import uuid
+from typing import List, Dict, Any, Optional  # Added missing imports
 from user_routes import verify_session
-from database import get_user_by_email
+from models import ScheduleRequest, FeedbackForm, StudySessionStatus
 from study_database import (
-    get_study_preferences,
-    save_study_preferences,
-    get_module_study_preferences,
-    save_module_study_preference,
-    get_study_sessions,
-    save_study_session,
-    update_session_status,
-    get_study_streak,
-    get_achievements,
-    create_default_achievements,
-    get_study_stats,
-    update_study_stats
+    create_study_schedule, get_user_schedules, get_schedule, update_schedule, delete_schedule,
+    create_study_session, get_user_sessions, get_session, update_session, delete_session,
+    get_study_streak, update_study_streak,
+    get_user_achievements, check_and_update_achievements,
+    get_study_stats, update_study_stats,
+    create_ai_tip, get_user_ai_tips, update_ai_tip_status,
+    get_module_study_stats, get_module_time_distribution, get_sessions_timeline, get_productivity_patterns,
+    get_grade_distribution_data
 )
-from ai_service import (
-    generate_study_schedule,
-    suggest_study_topics
-)
-from calendar_integration import (
-    parse_ical_url,
-    import_ical_events,
-    store_ical_subscription,
-    get_user_ical_subscriptions,
-    sync_ical_subscription,
-    delete_ical_subscription
-)
-from models import (
-    StudyPreferences,
-    ModuleStudyPreference,
-    StudySession,
-    StudySessionStatus,
-    OpenAIScheduleRequest
-)
+from ai_scheduler import generate_study_schedule, generate_ai_tips
+from calendar_routes import create_event
+from database import get_user_modules
 
-# Study Preferences Routes
-def get_user_study_preferences(req: func.HttpRequest) -> func.HttpResponse:
-    """Get study preferences for the authenticated user"""
+# === Schedule Routes ===
+
+def get_schedules(req: func.HttpRequest) -> func.HttpResponse:
+    """Get all study schedules for the current user"""
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
+
     try:
-        # Get preferences from database
-        preferences = get_study_preferences(identity)
-        
-        if not preferences:
-            # Return default preferences if none exist
-            default_prefs = {
-                "preferred_times": ["morning", "afternoon"],
-                "available_days": ["monday", "tuesday", "wednesday", "thursday", "friday"],
-                "session_duration": 60,
-                "break_duration": 15,
-                "max_sessions_per_day": 3,
-                "environment_preference": "quiet",
-                "focus_levels": {
-                    "morning": 8,
-                    "afternoon": 6,
-                    "evening": 7,
-                    "night": 4
-                }
-            }
-            return func.HttpResponse(json.dumps(default_prefs), status_code=200)
-        
-        # Return preferences without metadata fields
-        cleaned_prefs = {k: v for k, v in preferences.items() if k not in ["id", "type", "user_email"]}
-        return func.HttpResponse(json.dumps(cleaned_prefs), status_code=200)
-    
+        schedules = get_user_schedules(identity)
+        return func.HttpResponse(json.dumps(schedules), status_code=200)
     except Exception as e:
-        print(f"Error getting study preferences: {str(e)}")
+        print(f"Error getting schedules: {str(e)}")
         print(traceback.format_exc())
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
-def update_study_preferences(req: func.HttpRequest) -> func.HttpResponse:
-    """Update study preferences for the authenticated user"""
+def create_schedule_manual(req: func.HttpRequest) -> func.HttpResponse:
+    """Create a new study schedule manually"""
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
-    try:
-        # Get the request data
-        req_body = req.get_json()
-        
-        # Add user email to the data
-        req_body["user_email"] = identity
-        
-        # Validate with Pydantic model
-        preferences = StudyPreferences(**req_body)
-        
-        # Save to database
-        result = save_study_preferences(preferences)
-        
-        # Return success response
-        return func.HttpResponse(json.dumps({"message": "Study preferences updated successfully"}), status_code=200)
-    
-    except Exception as e:
-        print(f"Error updating study preferences: {str(e)}")
-        print(traceback.format_exc())
-        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=400)
 
-# Module Preferences Routes
-def get_module_preferences(req: func.HttpRequest) -> func.HttpResponse:
-    """Get module study preferences for the authenticated user"""
-    is_valid, identity = verify_session(req)
-    if not is_valid:
-        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
     try:
-        # Check for module_id in query parameters
-        module_id = req.params.get('module_id')
-        
-        # Get preferences from database
-        preferences = get_module_study_preferences(identity, module_id)
-        
-        # Return an empty list if no preferences exist
-        if not preferences:
-            if module_id:
-                # Return default for specific module
-                return func.HttpResponse(json.dumps({
-                    "module_id": module_id,
-                    "priority": 3,
-                    "weekly_hours_goal": 3.0,
-                    "difficulty_rating": 3
-                }), status_code=200)
-            else:
-                # Return empty list
-                return func.HttpResponse(json.dumps([]), status_code=200)
-        
-        # Return single preference or list depending on the request
-        if module_id:
-            # Return single preference without metadata fields
-            cleaned_pref = {k: v for k, v in preferences[0].items() if k not in ["id", "type", "user_email"]}
-            return func.HttpResponse(json.dumps(cleaned_pref), status_code=200)
-        else:
-            # Return list of preferences without metadata fields
-            cleaned_prefs = [{k: v for k, v in pref.items() if k not in ["id", "type", "user_email"]} for pref in preferences]
-            return func.HttpResponse(json.dumps(cleaned_prefs), status_code=200)
-    
+        # Parse request
+        schedule_data = req.get_json()
+
+        # Validate with model
+        try:
+            schedule_request = ScheduleRequest(**schedule_data)
+        except Exception as e:
+            return func.HttpResponse(
+                json.dumps({"error": f"Validation error: {str(e)}"}),
+                status_code=400
+            )
+
+        # Create schedule document
+        schedule_doc = {
+            "name": schedule_request.name,
+            "start_date": schedule_request.start_date,
+            "end_date": schedule_request.end_date,
+            "preferred_times": schedule_request.preferred_times,
+            "available_days": schedule_request.available_days,
+            "session_duration": schedule_request.session_duration,
+            "break_duration": schedule_request.break_duration,
+            "max_sessions_per_day": schedule_request.max_sessions_per_day,
+            "modules": schedule_request.modules,
+            "is_ai_generated": False
+        }
+
+        # Save schedule to database
+        created_schedule = create_study_schedule(identity, schedule_doc)
+
+        # Generate study sessions from the schedule
+        sessions = create_sessions_from_schedule(identity, created_schedule)
+
+        return func.HttpResponse(
+            json.dumps({
+                "schedule": created_schedule,
+                "sessions": sessions
+            }),
+            status_code=201
+        )
     except Exception as e:
-        print(f"Error getting module preferences: {str(e)}")
+        print(f"Error creating schedule: {str(e)}")
         print(traceback.format_exc())
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
-def update_module_preference(req: func.HttpRequest) -> func.HttpResponse:
-    """Update module study preference for the authenticated user"""
+def create_schedule_ai(req: func.HttpRequest) -> func.HttpResponse:
+    """Create a new study schedule using AI"""
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
-    try:
-        # Get the request data
-        req_body = req.get_json()
-        
-        # Validate with Pydantic model
-        preference = ModuleStudyPreference(**req_body)
-        
-        # Save to database
-        result = save_module_study_preference(preference, identity)
-        
-        # Return success response
-        return func.HttpResponse(json.dumps({"message": "Module preference updated successfully"}), status_code=200)
-    
-    except Exception as e:
-        print(f"Error updating module preference: {str(e)}")
-        print(traceback.format_exc())
-        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=400)
 
-# Study Sessions Routes
-def get_user_study_sessions(req: func.HttpRequest) -> func.HttpResponse:
-    """Get study sessions for the authenticated user with optional filters"""
+    try:
+        # Parse request
+        schedule_data = req.get_json()
+
+        # Validate with model
+        try:
+            schedule_request = ScheduleRequest(**schedule_data)
+        except Exception as e:
+            return func.HttpResponse(
+                json.dumps({"error": f"Validation error: {str(e)}"}),
+                status_code=400
+            )
+
+        # Get module details for AI
+        modules_info = []
+        for module_id in schedule_request.modules:
+            # Get module info from your modules database
+            module = get_module_by_id(identity, module_id)
+            if module:
+                modules_info.append(module)
+
+        # Generate AI-powered schedule
+        ai_schedule, study_sessions = generate_study_schedule(
+            identity,
+            schedule_request.dict(),
+            modules_info
+        )
+
+        # Save AI-generated schedule
+        ai_schedule["is_ai_generated"] = True
+        created_schedule = create_study_schedule(identity, ai_schedule)
+
+        # Save generated sessions
+        sessions = []
+        for session_data in study_sessions:
+            created_session = create_study_session(identity, session_data)
+            sessions.append(created_session)
+
+        # Create calendar events for the sessions
+        for session in sessions:
+            create_calendar_event_for_session(req, identity, session)
+
+        return func.HttpResponse(
+            json.dumps({
+                "schedule": created_schedule,
+                "sessions": sessions
+            }),
+            status_code=201
+        )
+    except Exception as e:
+        print(f"Error creating AI schedule: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def update_schedule_route(req: func.HttpRequest) -> func.HttpResponse:
+    """Update an existing schedule"""
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
+
+    schedule_id = req.route_params.get('id')
+    if not schedule_id:
+        return func.HttpResponse(json.dumps({"error": "Schedule ID is required"}), status_code=400)
+
     try:
-        # Get query parameters
+        update_data = req.get_json()
+        updated_schedule = update_schedule(identity, schedule_id, update_data)
+
+        if not updated_schedule:
+            return func.HttpResponse(
+                json.dumps({"error": "Schedule not found or access denied"}),
+                status_code=404
+            )
+
+        return func.HttpResponse(json.dumps(updated_schedule), status_code=200)
+    except Exception as e:
+        print(f"Error updating schedule: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def delete_schedule_route(req: func.HttpRequest) -> func.HttpResponse:
+    """Delete a schedule"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    schedule_id = req.route_params.get('id')
+    if not schedule_id:
+        return func.HttpResponse(json.dumps({"error": "Schedule ID is required"}), status_code=400)
+
+    try:
+        success = delete_schedule(identity, schedule_id)
+
+        if not success:
+            return func.HttpResponse(
+                json.dumps({"error": "Schedule not found or access denied"}),
+                status_code=404
+            )
+
+        # Also delete associated sessions
+        delete_sessions_for_schedule(identity, schedule_id)
+
+        return func.HttpResponse(
+            json.dumps({"message": "Schedule and associated sessions deleted"}),
+            status_code=200
+        )
+    except Exception as e:
+        print(f"Error deleting schedule: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+# === Study Session Routes ===
+
+def get_sessions(req: func.HttpRequest) -> func.HttpResponse:
+    """Get all study sessions for the current user"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    try:
+        # Get optional date range filters
         start_date = req.params.get('start_date')
         end_date = req.params.get('end_date')
-        status = req.params.get('status')
-        module_id = req.params.get('module_id')
-        
-        # If no start date provided, default to today
-        if not start_date:
-            start_date = datetime.utcnow().date().isoformat()
-        
-        # If no end date provided, default to 7 days from start
-        if not end_date:
-            start_date_obj = datetime.fromisoformat(start_date)
-            end_date = (start_date_obj + timedelta(days=7)).isoformat()
-        
-        # Get sessions from database
-        sessions = get_study_sessions(identity, start_date, end_date, status, module_id)
-        
-        # Return sessions without sensitive fields
-        cleaned_sessions = [{k: v for k, v in session.items() if k not in ["type", "user_email"]} for session in sessions]
-        return func.HttpResponse(json.dumps(cleaned_sessions), status_code=200)
-    
+
+        sessions = get_user_sessions(identity, start_date, end_date)
+        return func.HttpResponse(json.dumps(sessions), status_code=200)
     except Exception as e:
-        print(f"Error getting study sessions: {str(e)}")
+        print(f"Error getting sessions: {str(e)}")
         print(traceback.format_exc())
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
-def create_study_session(req: func.HttpRequest) -> func.HttpResponse:
-    """Create a new study session"""
+def start_session(req: func.HttpRequest) -> func.HttpResponse:
+    """Start a study session"""
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
-    try:
-        # Get the request data
-        req_body = req.get_json()
-        
-        # Add user email to the data
-        req_body["user_email"] = identity
-        
-        # Validate with Pydantic model
-        session = StudySession(**req_body)
-        
-        # Save to database
-        result = save_study_session(session)
-        
-        # Return the created session without sensitive fields
-        cleaned_result = {k: v for k, v in result.items() if k not in ["type", "user_email"]}
-        return func.HttpResponse(json.dumps(cleaned_result), status_code=201)
-    
-    except Exception as e:
-        print(f"Error creating study session: {str(e)}")
-        print(traceback.format_exc())
-        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=400)
 
-def update_study_session(req: func.HttpRequest) -> func.HttpResponse:
-    """Update an existing study session"""
-    is_valid, identity = verify_session(req)
-    if not is_valid:
-        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
-    try:
-        # Get session ID from route
-        session_id = req.route_params.get('id')
-        if not session_id:
-            return func.HttpResponse(json.dumps({"error": "Session ID is required"}), status_code=400)
-        
-        # Get the request data
-        req_body = req.get_json()
-        
-        # Add required fields
-        req_body["id"] = session_id
-        req_body["user_email"] = identity
-        
-        # Validate with Pydantic model
-        session = StudySession(**req_body)
-        
-        # Save to database
-        result = save_study_session(session)
-        
-        # Return the updated session without sensitive fields
-        cleaned_result = {k: v for k, v in result.items() if k not in ["type", "user_email"]}
-        return func.HttpResponse(json.dumps(cleaned_result), status_code=200)
-    
-    except Exception as e:
-        print(f"Error updating study session: {str(e)}")
-        print(traceback.format_exc())
-        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=400)
+    session_id = req.route_params.get('id')
+    if not session_id:
+        return func.HttpResponse(json.dumps({"error": "Session ID is required"}), status_code=400)
 
-def update_session_status_route(req: func.HttpRequest) -> func.HttpResponse:
-    """Update a study session's status with optional feedback"""
-    is_valid, identity = verify_session(req)
-    if not is_valid:
-        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
     try:
-        # Get session ID from route
-        session_id = req.route_params.get('id')
-        if not session_id:
-            return func.HttpResponse(json.dumps({"error": "Session ID is required"}), status_code=400)
-        
-        # Get the request data
-        req_body = req.get_json()
-        
-        # Extract fields
-        status = req_body.get("status")
-        if not status:
-            return func.HttpResponse(json.dumps({"error": "Status is required"}), status_code=400)
-        
-        productivity_rating = req_body.get("productivity_rating")
-        difficulty_rating = req_body.get("difficulty_rating")
-        notes = req_body.get("notes")
-        
-        # Update in database
-        result = update_session_status(
-            session_id, 
-            status,
-            productivity_rating,
-            difficulty_rating,
-            notes
-        )
-        
-        # Return success with points earned if completed
-        response = {"message": f"Session status updated to {status}"}
-        if status == "completed" and "points_earned" in result:
-            response["points_earned"] = result["points_earned"]
-        
-        return func.HttpResponse(json.dumps(response), status_code=200)
-    
-    except Exception as e:
-        print(f"Error updating session status: {str(e)}")
-        print(traceback.format_exc())
-        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=400)
+        # Get the session
+        session = get_session(identity, session_id)
+        if not session:
+            return func.HttpResponse(
+                json.dumps({"error": "Session not found or access denied"}),
+                status_code=404
+            )
 
-# Schedule Generation Route
-def generate_schedule(req: func.HttpRequest) -> func.HttpResponse:
-    """Generate an AI-powered study schedule"""
+        # Update status to in_progress
+        updates = {
+            "status": "in_progress",
+            "started_at": datetime.datetime.utcnow().isoformat()
+        }
+
+        updated_session = update_session(identity, session_id, updates)
+
+        return func.HttpResponse(json.dumps(updated_session), status_code=200)
+    except Exception as e:
+        print(f"Error starting session: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def complete_session(req: func.HttpRequest) -> func.HttpResponse:
+    """Complete a study session with feedback"""
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
+
+    session_id = req.route_params.get('id')
+    if not session_id:
+        return func.HttpResponse(json.dumps({"error": "Session ID is required"}), status_code=400)
+
     try:
-        # Get the request data
-        req_body = req.get_json()
-        
-        # Extract schedule parameters
-        start_date = req_body.get("start_date")
-        if not start_date:
-            # Default to today
-            start_date = datetime.utcnow().date().isoformat()
+        # Get feedback data
+        feedback_data = req.get_json()
+
+        # Validate with model
+        try:
+            feedback = FeedbackForm(**feedback_data)
+        except Exception as e:
+            return func.HttpResponse(
+                json.dumps({"error": f"Validation error: {str(e)}"}),
+                status_code=400
+            )
+
+        # Get the session
+        session = get_session(identity, session_id)
+        if not session:
+            return func.HttpResponse(
+                json.dumps({"error": "Session not found or access denied"}),
+                status_code=404
+            )
+
+        # Calculate XP based on productivity and session duration
+        productivity = feedback.productivity
+        xp_earned = calculate_xp(session, productivity)
+
+        # Update session with completion data
+        updates = {
+            "status": "completed",
+            "completed": True,
+            "completed_at": datetime.datetime.utcnow().isoformat(),
+            "productivity": productivity,
+            "difficulty": feedback.difficulty,
+            "notes": feedback.notes,
+            "topics": feedback.topics,
+            "xpEarned": xp_earned
+        }
+
+        updated_session = update_session(identity, session_id, updates)
+
+        # Update study streak
+        current_date = datetime.datetime.utcnow().date().isoformat()
+        update_study_streak(identity, current_date, True)
+
+        # Update achievements
+        check_and_update_achievements(identity)
+
+        # Update study stats
+        update_study_stats(identity)
+
+        # Generate AI tips based on new data
+        generate_user_tips(identity)
+
+        return func.HttpResponse(json.dumps(updated_session), status_code=200)
+    except Exception as e:
+        print(f"Error completing session: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def reschedule_session(req: func.HttpRequest) -> func.HttpResponse:
+    """Reschedule a study session"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    session_id = req.route_params.get('id')
+    if not session_id:
+        return func.HttpResponse(json.dumps({"error": "Session ID is required"}), status_code=400)
+
+    try:
+        # Get reschedule data
+        reschedule_data = req.get_json()
+        required_fields = ['date', 'startTime', 'endTime']
+
+        for field in required_fields:
+            if field not in reschedule_data:
+                return func.HttpResponse(
+                    json.dumps({"error": f"Missing required field: {field}"}),
+                    status_code=400
+                )
+
+        # Get the session
+        session = get_session(identity, session_id)
+        if not session:
+            return func.HttpResponse(
+                json.dumps({"error": "Session not found or access denied"}),
+                status_code=404
+            )
+
+        # Update session with new schedule
+        updates = {
+            "date": reschedule_data["date"],
+            "startTime": reschedule_data["startTime"],
+            "endTime": reschedule_data["endTime"],
+            "rescheduled": True,
+            "rescheduled_at": datetime.datetime.utcnow().isoformat()
+        }
+
+        updated_session = update_session(identity, session_id, updates)
+
+        # Update calendar event if one exists - FIXED
+        if session is not None:
+            # Get the event_id safely
+            event_id = None
+            try:
+                if isinstance(session, dict):
+                    event_id = session.get("event_id")
+                elif hasattr(session, "get"):
+                    event_id = session.get("event_id")
+                elif hasattr(session, "__getitem__"):
+                    try:
+                        event_id = session["event_id"]
+                    except (KeyError, TypeError):
+                        pass
+            except Exception as e:
+                print(f"Error accessing event_id: {str(e)}")
             
-        end_date = req_body.get("end_date")
-        if not end_date:
-            # Default to 7 days from start
-            start_date_obj = datetime.fromisoformat(start_date)
-            end_date = (start_date_obj + timedelta(days=7)).isoformat()
-        
-        module_ids = req_body.get("module_ids", [])
-        if not module_ids:
-            return func.HttpResponse(json.dumps({"error": "At least one module ID is required"}), status_code=400)
-        
-        # Get study preferences
-        preferences = get_study_preferences(identity)
-        if not preferences:
-            return func.HttpResponse(json.dumps({"error": "Study preferences must be set before generating a schedule"}), status_code=400)
-        
-        # Get module preferences
-        module_preferences = []
-        for module_id in module_ids:
-            module_prefs = get_module_study_preferences(identity, module_id)
-            if module_prefs:
-                module_preferences.append(module_prefs[0])
-            else:
-                # Create default preference
-                default_pref = {
-                    "module_id": module_id,
-                    "priority": 3,
-                    "weekly_hours_goal": 3.0,
-                    "difficulty_rating": 3
-                }
-                module_preferences.append(default_pref)
-        
-        # Get existing calendar events
-        from calendar_routes import get_events
-        
-        # Create mock request for get_events
-        class MockHttpRequest:
-            def __init__(self, params):
-                self.params = params
-                
-            def get_json(self):
-                return {}
-        
-        mock_params = {
-            "start_date": start_date,
-            "end_date": end_date
-        }
-        
-        mock_req = MockHttpRequest(mock_params)
-        calendar_response = get_events(mock_req)
-        calendar_events = json.loads(calendar_response.get_body().decode('utf-8'))
-        
-        # Create request object for AI service
-        schedule_request = OpenAIScheduleRequest(
-            user_email=identity,
-            study_preferences=StudyPreferences(**preferences),
-            module_preferences=[ModuleStudyPreference(**pref) for pref in module_preferences],
-            existing_events=calendar_events,
-            start_date=start_date,
-            end_date=end_date
-        )
-        
-        # Call AI service to generate schedule
-        schedule_response = generate_study_schedule(schedule_request)
-        
-        # Save the generated study sessions
-        saved_sessions = []
-        for session in schedule_response.study_sessions:
-            result = save_study_session(session)
-            saved_sessions.append(result)
-        
-        # Return the generated schedule
-        response = {
-            "sessions": saved_sessions,
-            "total_study_hours": schedule_response.total_study_hours,
-            "module_distribution": schedule_response.module_distribution,
-            "recommendations": schedule_response.recommendations
-        }
-        
-        return func.HttpResponse(json.dumps(response), status_code=200)
-    
+            # Only call update_calendar_event if we got an event_id
+            if event_id:
+                update_calendar_event(req, identity, event_id, updates)
+
+        return func.HttpResponse(json.dumps(updated_session), status_code=200)
     except Exception as e:
-        print(f"Error generating study schedule: {str(e)}")
+        print(f"Error rescheduling session: {str(e)}")
         print(traceback.format_exc())
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
-# Calendar Integration Routes
-def import_ical_calendar(req: func.HttpRequest) -> func.HttpResponse:
-    """Import events from an iCal feed"""
-    is_valid, identity = verify_session(req)
-    if not is_valid:
-        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
-    try:
-        # Get the request data
-        req_body = req.get_json()
-        
-        # Extract iCal URL
-        ical_url = req_body.get("ical_url")
-        if not ical_url:
-            return func.HttpResponse(json.dumps({"error": "iCal URL is required"}), status_code=400)
-        
-        # Extract optional name for the subscription
-        name = req_body.get("name", "Calendar Subscription")
-        
-        # Extract save option
-        save_subscription = req_body.get("save_subscription", True)
-        
-        # Import events
-        results = import_ical_events(ical_url, identity)
-        
-        # Save subscription if requested
-        if save_subscription:
-            subscription = store_ical_subscription(identity, ical_url, name)
-            results["subscription"] = subscription
-        
-        return func.HttpResponse(json.dumps(results), status_code=200)
-    
-    except Exception as e:
-        print(f"Error importing iCal calendar: {str(e)}")
-        print(traceback.format_exc())
-        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+# === Achievements Routes ===
 
-def get_ical_subscriptions(req: func.HttpRequest) -> func.HttpResponse:
-    """Get all iCal subscriptions for the user"""
+def get_achievements(req: func.HttpRequest) -> func.HttpResponse:
+    """Get achievements for the current user"""
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
-    try:
-        # Get subscriptions
-        subscriptions = get_user_ical_subscriptions(identity)
-        
-        # Clean the output
-        cleaned_subs = []
-        for sub in subscriptions:
-            cleaned_sub = {
-                "id": sub["id"],
-                "name": sub["name"],
-                "ical_url": sub["ical_url"],
-                "last_sync": sub["last_sync"],
-                "created_at": sub["created_at"],
-                "auto_sync": sub.get("auto_sync", True)
-            }
-            cleaned_subs.append(cleaned_sub)
-        
-        return func.HttpResponse(json.dumps(cleaned_subs), status_code=200)
-    
-    except Exception as e:
-        print(f"Error getting iCal subscriptions: {str(e)}")
-        print(traceback.format_exc())
-        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
-def sync_ical_subscription_route(req: func.HttpRequest) -> func.HttpResponse:
-    """Sync events from an iCal subscription"""
-    is_valid, identity = verify_session(req)
-    if not is_valid:
-        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
     try:
-        # Get subscription ID from route
-        subscription_id = req.route_params.get('id')
-        if not subscription_id:
-            return func.HttpResponse(json.dumps({"error": "Subscription ID is required"}), status_code=400)
-        
-        # Sync the subscription
-        results = sync_ical_subscription(subscription_id)
-        
-        return func.HttpResponse(json.dumps(results), status_code=200)
-    
-    except Exception as e:
-        print(f"Error syncing iCal subscription: {str(e)}")
-        print(traceback.format_exc())
-        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+        achievements = get_user_achievements(identity)
 
-def delete_ical_subscription_route(req: func.HttpRequest) -> func.HttpResponse:
-    """Delete an iCal subscription"""
-    is_valid, identity = verify_session(req)
-    if not is_valid:
-        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
-    try:
-        # Get subscription ID from route
-        subscription_id = req.route_params.get('id')
-        if not subscription_id:
-            return func.HttpResponse(json.dumps({"error": "Subscription ID is required"}), status_code=400)
-        
-        # Check if events should be deleted
-        delete_events = req.params.get('delete_events', 'false').lower() == 'true'
-        
-        # Delete the subscription
-        results = delete_ical_subscription(subscription_id, identity, delete_events)
-        
-        return func.HttpResponse(json.dumps(results), status_code=200)
-    
-    except Exception as e:
-        print(f"Error deleting iCal subscription: {str(e)}")
-        print(traceback.format_exc())
-        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
-
-# Achievements and Gamification Routes
-def get_user_streak(req: func.HttpRequest) -> func.HttpResponse:
-    """Get the user's current study streak"""
-    is_valid, identity = verify_session(req)
-    if not is_valid:
-        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
-    try:
-        # Get streak information
-        streak = get_study_streak(identity)
-        
-        # Clean the output
-        cleaned_streak = {
-            "current_streak": streak["current_streak"],
-            "longest_streak": streak["longest_streak"],
-            "last_study_date": streak["last_study_date"]
-        }
-        
-        return func.HttpResponse(json.dumps(cleaned_streak), status_code=200)
-    
-    except Exception as e:
-        print(f"Error getting user streak: {str(e)}")
-        print(traceback.format_exc())
-        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
-
-def get_user_achievements(req: func.HttpRequest) -> func.HttpResponse:
-    """Get all achievements for the user"""
-    is_valid, identity = verify_session(req)
-    if not is_valid:
-        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
-    try:
-        # Check for category filter
-        category = req.params.get('category')
-        
-        # Get achievements
-        achievements = get_achievements(identity, category)
-        
-        # If no achievements, create defaults
-        if not achievements:
-            create_default_achievements(identity)
-            # Get the newly created achievements
-            achievements = get_achievements(identity, category)
-        
-        # Clean the output
-        cleaned_achievements = []
-        for ach in achievements:
-            cleaned_ach = {
-                "id": ach["id"],
-                "name": ach["name"],
-                "description": ach["description"],
-                "status": ach["status"],
-                "progress": ach["progress"],
-                "target": ach["target"],
-                "progress_percent": ach.get("progress_percent", int((ach["progress"] / ach["target"]) * 100)),
-                "unlocked_date": ach.get("unlocked_date"),
-                "completed_date": ach.get("completed_date"),
-                "badge_icon": ach.get("badge_icon"),
-                "category": ach["category"]
-            }
-            cleaned_achievements.append(cleaned_ach)
-        
-        # Group by category if no specific category was requested
-        if not category:
-            by_category = {}
-            for ach in cleaned_achievements:
-                cat = ach["category"]
-                if cat not in by_category:
-                    by_category[cat] = []
-                by_category[cat].append(ach)
-            
-            return func.HttpResponse(json.dumps(by_category), status_code=200)
-        
-        return func.HttpResponse(json.dumps(cleaned_achievements), status_code=200)
-    
-    except Exception as e:
-        print(f"Error getting user achievements: {str(e)}")
-        print(traceback.format_exc())
-        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
-
-def get_user_study_stats_route(req: func.HttpRequest) -> func.HttpResponse:
-    """Get study statistics for the user"""
-    is_valid, identity = verify_session(req)
-    if not is_valid:
-        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
-    try:
-        # Get stats
-        stats = get_study_stats(identity)
-        
-        # Clean the output
-        cleaned_stats = {
-            "total_sessions_planned": stats["total_sessions_planned"],
-            "total_sessions_completed": stats["total_sessions_completed"],
-            "completion_rate": round(stats["total_sessions_completed"] / max(1, stats["total_sessions_planned"]) * 100, 1),
-            "total_study_time_minutes": stats["total_study_time_minutes"],
-            "total_study_hours": round(stats["total_study_time_minutes"] / 60, 1),
-            "avg_productivity_rating": stats["avg_productivity_rating"],
-            "most_studied_module": stats["most_studied_module"],
-            "level": stats["level"],
-            "total_xp": stats["total_xp"],
-            "modules_stats": stats.get("modules_stats", {})
-        }
-        
-        # Calculate XP required for next level
-        level_thresholds = [
-            0, 1000, 2500, 5000, 10000, 17500, 27500, 40000, 55000, 75000, 
-            100000, 130000, 165000, 205000, 250000, 300000, 355000, 415000, 480000, 550000
+        # Get achievement categories for the frontend
+        categories = [
+            { "value": "all", "label": "All" },
+            { "value": "consistency", "label": "Consistency" },
+            { "value": "time", "label": "Time Management" },
+            { "value": "mastery", "label": "Mastery" }
         ]
-        
-        current_level = stats["level"]
-        if current_level < len(level_thresholds):
-            next_level_xp = level_thresholds[current_level]
-            cleaned_stats["next_level_xp"] = next_level_xp
-            cleaned_stats["xp_for_next_level"] = next_level_xp - stats["total_xp"]
-            cleaned_stats["level_progress_percent"] = min(100, int((stats["total_xp"] / next_level_xp) * 100))
-        
-        return func.HttpResponse(json.dumps(cleaned_stats), status_code=200)
-    
+
+        return func.HttpResponse(
+            json.dumps({
+                "achievements": achievements,
+                "categories": categories
+            }),
+            status_code=200
+        )
     except Exception as e:
-        print(f"Error getting user study stats: {str(e)}")
+        print(f"Error getting achievements: {str(e)}")
         print(traceback.format_exc())
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
-def refresh_study_stats(req: func.HttpRequest) -> func.HttpResponse:
-    """Manually refresh study statistics"""
+def get_streak(req: func.HttpRequest) -> func.HttpResponse:
+    """Get study streak data for the current user"""
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
+
     try:
-        # Update stats
-        stats = update_study_stats(identity)
-        
-        return func.HttpResponse(json.dumps({"message": "Study statistics updated successfully"}), status_code=200)
-    
+        streak_data = get_study_streak(identity)
+
+        # Generate recent days for streak calendar
+        recent_days = generate_recent_days(streak_data)
+
+        return func.HttpResponse(
+            json.dumps({
+                "streakData": streak_data,
+                "recentDays": recent_days
+            }),
+            status_code=200
+        )
     except Exception as e:
-        print(f"Error refreshing study stats: {str(e)}")
+        print(f"Error getting streak data: {str(e)}")
         print(traceback.format_exc())
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
-# Topic Suggestions
-def get_study_topic_suggestions(req: func.HttpRequest) -> func.HttpResponse:
-    """Get AI-suggested topics for a study session"""
+# === Analytics Routes ===
+
+def get_analytics(req: func.HttpRequest) -> func.HttpResponse:
+    """Get study analytics data for the current user"""
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
-    
+
     try:
-        # Get query parameters
-        module_id = req.params.get('module_id')
-        if not module_id:
-            return func.HttpResponse(json.dumps({"error": "Module ID is required"}), status_code=400)
-        
-        # Get module preferences for topics
-        module_prefs = get_module_study_preferences(identity, module_id)
-        if not module_prefs:
-            return func.HttpResponse(json.dumps({"error": "Module preferences not found"}), status_code=404)
-        
-        # Get topics from preferences
-        topics = module_prefs[0].get("topics", [])
-        if not topics:
-            return func.HttpResponse(json.dumps({"error": "Module has no topics defined"}), status_code=400)
-        
-        # Get assessment date if available
-        assessment_date = None
-        assessment_dates = module_prefs[0].get("assessment_dates", [])
-        if assessment_dates:
-            # Use nearest assessment date
-            today = datetime.utcnow()
-            nearest_date = None
-            nearest_diff = float('inf')
-            
-            for date_str in assessment_dates:
-                date = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                diff = (date - today).total_seconds()
-                if diff > 0 and diff < nearest_diff:
-                    nearest_diff = diff
-                    nearest_date = date_str
-            
-            assessment_date = nearest_date
-        
-        # Get suggestions
-        suggestions = suggest_study_topics(module_id, topics, assessment_date)
-        
-        return func.HttpResponse(json.dumps(suggestions), status_code=200)
-    
+        # Get study stats
+        stats = get_study_stats(identity)
+
+        # Get module stats
+        module_stats = get_module_study_stats(identity)
+
+        # Get chart data
+        module_time_distribution = get_module_time_distribution(identity)
+        sessions_timeline = get_sessions_timeline(identity)
+        productivity_patterns = get_productivity_patterns(identity)
+        grade_distribution = get_grade_distribution_data(identity)
+
+        return func.HttpResponse(
+            json.dumps({
+                "studyStats": stats,
+                "moduleStudyStats": module_stats,
+                "moduleTimeDistribution": module_time_distribution,
+                "sessionsTimeline": sessions_timeline,
+                "productivityPatterns": productivity_patterns,
+                "gradeDistribution": grade_distribution
+            }),
+            status_code=200
+        )
     except Exception as e:
-        print(f"Error getting study topic suggestions: {str(e)}")
+        print(f"Error getting analytics data: {str(e)}")
         print(traceback.format_exc())
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+# === AI Tips Routes ===
+
+def get_tips(req: func.HttpRequest) -> func.HttpResponse:
+    """Get active AI tips for the current user"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    try:
+        tips = get_user_ai_tips(identity)
+        return func.HttpResponse(json.dumps(tips), status_code=200)
+    except Exception as e:
+        print(f"Error getting AI tips: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def accept_tip(req: func.HttpRequest) -> func.HttpResponse:
+    """Accept and apply an AI tip"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    tip_id = req.route_params.get('id')
+    if not tip_id:
+        return func.HttpResponse(json.dumps({"error": "Tip ID is required"}), status_code=400)
+
+    try:
+        updated_tip = update_ai_tip_status(identity, tip_id, True, False)
+
+        if not updated_tip:
+            return func.HttpResponse(
+                json.dumps({"error": "Tip not found or access denied"}),
+                status_code=404
+            )
+
+        # In a real app, would apply the tip's recommendation here
+
+        return func.HttpResponse(json.dumps(updated_tip), status_code=200)
+    except Exception as e:
+        print(f"Error accepting tip: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def reject_tip(req: func.HttpRequest) -> func.HttpResponse:
+    """Reject an AI tip"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    tip_id = req.route_params.get('id')
+    if not tip_id:
+        return func.HttpResponse(json.dumps({"error": "Tip ID is required"}), status_code=400)
+
+    try:
+        updated_tip = update_ai_tip_status(identity, tip_id, False, True)
+
+        if not updated_tip:
+            return func.HttpResponse(
+                json.dumps({"error": "Tip not found or access denied"}),
+                status_code=404
+            )
+
+        return func.HttpResponse(json.dumps(updated_tip), status_code=200)
+    except Exception as e:
+        print(f"Error rejecting tip: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+# === Helper Functions ===
+
+def get_module_by_id(user_email: str, module_id: str):
+    """Get a module by ID from the user's modules"""
+    modules = get_user_modules(user_email)
+    for module in modules:
+        if module.get("id") == module_id:
+            return module
+    return None
+
+def create_sessions_from_schedule(user_email: str, schedule: dict) -> list:
+    """Create study sessions from a schedule"""
+    sessions = []
+
+    # Get modules
+    modules = []
+    for module_id in schedule["modules"]:
+        module = get_module_by_id(user_email, module_id)
+        if module:
+            modules.append(module)
+
+    if not modules:
+        return []
+
+    # Parse date range
+    start_date = datetime.datetime.fromisoformat(schedule["start_date"].replace('Z', '+00:00')).date()
+    end_date = datetime.datetime.fromisoformat(schedule["end_date"].replace('Z', '+00:00')).date()
+
+    # Get available days
+    available_days = schedule["available_days"]
+    day_mapping = {
+        "monday": 0, "tuesday": 1, "wednesday": 2,
+        "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6
+    }
+
+    available_day_indices = [day_mapping[day.lower()] for day in available_days if day.lower() in day_mapping]
+
+    # Generate sessions for each available day in the date range
+    current_date = start_date
+    while current_date <= end_date:
+        # Check if current day is in available days
+        if current_date.weekday() in available_day_indices:
+            # Determine how many sessions to create for this day
+            sessions_for_day = min(len(modules), schedule["max_sessions_per_day"])
+
+            # Select modules for today (simple round-robin)
+            day_modules = modules[:sessions_for_day]
+
+            # Create sessions at preferred times
+            for i, module in enumerate(day_modules):
+                # Simple time assignment based on preferences
+                # In a real app, would have more sophisticated scheduling
+                preferred_times = schedule["preferred_times"]
+                if not preferred_times:
+                    preferred_times = ["morning", "afternoon", "evening"]
+
+                # Use preference index or default to morning
+                time_preference = preferred_times[i % len(preferred_times)]
+
+                # Map preference to time
+                start_time = "09:00"  # Default morning
+                if time_preference == "afternoon":
+                    start_time = "14:00"
+                elif time_preference == "evening":
+                    start_time = "18:00"
+                elif time_preference == "night":
+                    start_time = "20:00"
+
+                # Calculate end time based on session duration
+                start_dt = datetime.datetime.strptime(start_time, "%H:%M")
+                end_dt = start_dt + datetime.timedelta(minutes=schedule["session_duration"])
+                end_time = end_dt.strftime("%H:%M")
+
+                # Create session
+                session_data = {
+                    "title": f"{module.get('name')} Study Session",
+                    "module": module.get("id"),
+                    "date": current_date.isoformat(),
+                    "startTime": start_time,
+                    "endTime": end_time,
+                    "description": f"Study session for {module.get('name')}",
+                    "status": "planned",
+                    "completed": False,
+                    "schedule_id": schedule["id"]
+                }
+
+                created_session = create_study_session(user_email, session_data)
+
+                # Create calendar event for the session
+                event_id = create_calendar_event_for_session(None, user_email, created_session)
+
+                # Update session with event_id if created
+                if event_id:
+                    update_session(user_email, created_session["id"], {"event_id": event_id})
+                    created_session["event_id"] = event_id
+
+                sessions.append(created_session)
+
+        # Move to next day
+        current_date += datetime.timedelta(days=1)
+
+    return sessions
+
+def create_calendar_event_for_session(req, user_email: str, session: dict):
+    """Create a calendar event for a study session"""
+    try:
+        # Ensure session is a dictionary and has the required fields
+        if not isinstance(session, dict):
+            print(f"Session is not a dictionary: {type(session)}")
+            return None
+            
+        # Prepare calendar event data
+        event_data = {
+            "title": session.get("title", "Study Session"),
+            "description": session.get("description", f"Study session"),
+            "date": session.get("date", ""),
+            "start_time": session.get("startTime", ""),
+            "end_time": session.get("endTime", ""),
+            "all_day": False,
+            "type": "study_session",
+            "color": "#9e78ff",  # Use purple for study sessions
+            "user_email": user_email
+        }
+
+        # Call create_event function
+        if req:
+            # If called from an HTTP request context
+            try:
+                # Pass the event data directly to create_event
+                from calendar_routes import create_calendar_event
+                event_result = create_calendar_event(user_email, event_data)
+                return event_result.get("id") if event_result else None
+            except Exception as e:
+                print(f"Error creating event from request: {str(e)}")
+                return None
+        else:
+            # Create event directly
+            from calendar_routes import create_calendar_event
+            event_result = create_calendar_event(user_email, event_data)
+            return event_result.get("id") if event_result else None
+    except Exception as e:
+        print(f"Error creating calendar event: {str(e)}")
+        return None
+
+def update_calendar_event(req, user_email: str, event_id: str, updates: dict):
+    """Update an existing calendar event"""
+    try:
+        # This would call your calendar update endpoint
+        # Implementation depends on your calendar_routes.py
+        return None
+    except Exception as e:
+        print(f"Error updating calendar event: {str(e)}")
+        return None
+
+def delete_sessions_for_schedule(user_email: str, schedule_id: str):
+    """Delete all study sessions associated with a schedule"""
+    try:
+        # Query for sessions with this schedule_id
+        query = """
+        SELECT * FROM c
+        WHERE c.type = 'study_session'
+        AND c.user_email = @email
+        AND c.schedule_id = @schedule_id
+        """
+        parameters = [
+            {"name": "@email", "value": user_email},
+            {"name": "@schedule_id", "value": schedule_id}
+        ]
+
+        from database import _container
+        sessions = list(_container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+
+        # Delete each session
+        for session in sessions:
+            delete_session(user_email, session["id"])
+    except Exception as e:
+        print(f"Error deleting sessions for schedule: {str(e)}")
+
+def calculate_xp(session: dict, productivity: int) -> int:
+    """Calculate XP earned for a completed session"""
+    # Base XP for completing a session
+    base_xp = 50
+
+    # Bonus XP based on productivity rating
+    productivity_bonus = productivity * 10
+
+    # Time bonus (longer sessions earn more)
+    duration_minutes = 0
+    if isinstance(session, dict) and "startTime" in session and "endTime" in session:
+        start = datetime.datetime.strptime(session["startTime"], "%H:%M")
+        end = datetime.datetime.strptime(session["endTime"], "%H:%M")
+        duration_minutes = (end - start).total_seconds() / 60
+
+    time_bonus = int(duration_minutes / 30) * 10  # 10 XP per 30 minutes
+
+    total_xp = base_xp + productivity_bonus + time_bonus
+    return total_xp
+
+def generate_recent_days(streak_data: dict) -> list:
+    """Generate recent days data for the streak calendar"""
+    recent_days = []
+    today = datetime.datetime.utcnow().date()
+
+    # Generate data for the last 14 days
+    for i in range(13, -1, -1):
+        day = today - datetime.timedelta(days=i)
+        day_str = day.isoformat()
+
+        # Check if studied on this day - ensure streak_data is a dict with history
+        studied = False
+        if isinstance(streak_data, dict) and "history" in streak_data:
+            studied = streak_data["history"].get(day_str, False)
+
+        recent_days.append({
+            "date": day_str,
+            "studied": studied
+        })
+
+    return recent_days
+
+def generate_user_tips(user_email: str):
+    """Generate AI tips for the user based on their study data"""
+    try:
+        # Get user's sessions
+        sessions = get_user_sessions(user_email)
+
+        # Get user's modules
+        modules = get_user_modules(user_email)
+
+        # Get user's study stats
+        stats = get_study_stats(user_email)
+
+        # Analyze productivity patterns
+        productivity_data = get_productivity_patterns(user_email)
+
+        # Generate tips using AI
+        tips = generate_ai_tips(user_email, sessions, modules, stats, productivity_data)
+
+        # Save tips to database
+        for tip in tips:
+            create_ai_tip(user_email, tip)
+
+        return tips
+    except Exception as e:
+        print(f"Error generating AI tips: {str(e)}")
+        return []
