@@ -4,12 +4,14 @@ import json
 import traceback
 import datetime
 import uuid
-from typing import List, Dict, Any, Optional  # Added missing imports
+from typing import List, Dict, Any, Optional
 from user_routes import verify_session
 from models import ScheduleRequest, FeedbackForm, StudySessionStatus
 from study_database import (
     create_study_schedule, get_user_schedules, get_schedule, update_schedule, delete_schedule,
     create_study_session, get_user_sessions, get_session, update_session, delete_session,
+    delete_sessions_for_schedule, get_active_schedule, activate_schedule, mark_schedule_events_created,
+    get_active_schedule_sessions, deactivate_all_schedules,
     get_study_streak, update_study_streak,
     get_user_achievements, check_and_update_achievements,
     get_study_stats, update_study_stats,
@@ -34,6 +36,23 @@ def get_schedules(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(json.dumps(schedules), status_code=200)
     except Exception as e:
         print(f"Error getting schedules: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def get_active_schedule_route(req: func.HttpRequest) -> func.HttpResponse:
+    """Get the currently active study schedule for the user"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    try:
+        active_schedule = get_active_schedule(identity)
+        if not active_schedule:
+            return func.HttpResponse(json.dumps({"message": "No active schedule found"}), status_code=404)
+            
+        return func.HttpResponse(json.dumps(active_schedule), status_code=200)
+    except Exception as e:
+        print(f"Error getting active schedule: {str(e)}")
         print(traceback.format_exc())
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
@@ -67,19 +86,22 @@ def create_schedule_manual(req: func.HttpRequest) -> func.HttpResponse:
             "break_duration": schedule_request.break_duration,
             "max_sessions_per_day": schedule_request.max_sessions_per_day,
             "modules": schedule_request.modules,
-            "is_ai_generated": False
+            "is_ai_generated": False,
+            "is_active": schedule_data.get("is_active", True),  # Default to active if not specified
+            "events_created": False  # Flag to track if events have been created
         }
 
         # Save schedule to database
         created_schedule = create_study_schedule(identity, schedule_doc)
 
-        # Generate study sessions from the schedule
-        sessions = create_sessions_from_schedule(identity, created_schedule)
+        # Generate study sessions from the schedule, but don't create calendar events yet
+        sessions = create_sessions_from_schedule(identity, created_schedule, create_calendar_events=False)
 
         return func.HttpResponse(
             json.dumps({
                 "schedule": created_schedule,
-                "sessions": sessions
+                "sessions": sessions,
+                "message": "Schedule created successfully. Confirm to add events to calendar."
             }),
             status_code=201
         )
@@ -124,22 +146,22 @@ def create_schedule_ai(req: func.HttpRequest) -> func.HttpResponse:
 
         # Save AI-generated schedule
         ai_schedule["is_ai_generated"] = True
+        ai_schedule["is_active"] = schedule_data.get("is_active", True)  # Default to active if not specified
+        ai_schedule["events_created"] = False  # Flag to track if events have been created
         created_schedule = create_study_schedule(identity, ai_schedule)
 
-        # Save generated sessions
+        # Save generated sessions without creating calendar events yet
         sessions = []
         for session_data in study_sessions:
+            session_data["schedule_id"] = created_schedule["id"]
             created_session = create_study_session(identity, session_data)
             sessions.append(created_session)
-
-        # Create calendar events for the sessions
-        for session in sessions:
-            create_calendar_event_for_session(req, identity, session)
 
         return func.HttpResponse(
             json.dumps({
                 "schedule": created_schedule,
-                "sessions": sessions
+                "sessions": sessions,
+                "message": "AI schedule generated successfully. Confirm to add events to calendar."
             }),
             status_code=201
         )
@@ -175,7 +197,7 @@ def update_schedule_route(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
 def delete_schedule_route(req: func.HttpRequest) -> func.HttpResponse:
-    """Delete a schedule"""
+    """Delete a schedule and all its associated sessions"""
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
@@ -185,19 +207,34 @@ def delete_schedule_route(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(json.dumps({"error": "Schedule ID is required"}), status_code=400)
 
     try:
-        success = delete_schedule(identity, schedule_id)
-
-        if not success:
+        # Get the schedule first to check if it exists
+        schedule = get_schedule(identity, schedule_id)
+        if not schedule:
             return func.HttpResponse(
                 json.dumps({"error": "Schedule not found or access denied"}),
                 status_code=404
             )
+            
+        # Delete associated sessions first
+        deleted_session_count = delete_sessions_for_schedule(identity, schedule_id)
+        
+        # Delete calendar events if they exist (based on session event_id references)
+        # This functionality would depend on your calendar_routes implementation
+        
+        # Then delete the schedule
+        success = delete_schedule(identity, schedule_id)
 
-        # Also delete associated sessions
-        delete_sessions_for_schedule(identity, schedule_id)
+        if not success:
+            return func.HttpResponse(
+                json.dumps({"error": "Failed to delete schedule"}),
+                status_code=500
+            )
 
         return func.HttpResponse(
-            json.dumps({"message": "Schedule and associated sessions deleted"}),
+            json.dumps({
+                "message": "Schedule and associated sessions deleted", 
+                "deleted_sessions": deleted_session_count
+            }),
             status_code=200
         )
     except Exception as e:
@@ -205,10 +242,95 @@ def delete_schedule_route(req: func.HttpRequest) -> func.HttpResponse:
         print(traceback.format_exc())
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
+def activate_schedule_route(req: func.HttpRequest) -> func.HttpResponse:
+    """Activate a specific schedule and deactivate all others"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    schedule_id = req.route_params.get('id')
+    if not schedule_id:
+        return func.HttpResponse(json.dumps({"error": "Schedule ID is required"}), status_code=400)
+
+    try:
+        # Activate the schedule
+        updated_schedule = activate_schedule(identity, schedule_id)
+
+        if not updated_schedule:
+            return func.HttpResponse(
+                json.dumps({"error": "Schedule not found or access denied"}),
+                status_code=404
+            )
+
+        return func.HttpResponse(
+            json.dumps({
+                "message": "Schedule activated successfully",
+                "schedule": updated_schedule
+            }),
+            status_code=200
+        )
+    except Exception as e:
+        print(f"Error activating schedule: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def create_calendar_events_route(req: func.HttpRequest) -> func.HttpResponse:
+    """Create calendar events for a schedule after user confirmation"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    schedule_id = req.route_params.get('id')
+    if not schedule_id:
+        return func.HttpResponse(json.dumps({"error": "Schedule ID is required"}), status_code=400)
+
+    try:
+        # Get the schedule
+        schedule = get_schedule(identity, schedule_id)
+        if not schedule:
+            return func.HttpResponse(
+                json.dumps({"error": "Schedule not found or access denied"}),
+                status_code=404
+            )
+            
+        # Check if events are already created
+        if schedule.get("events_created", False):
+            return func.HttpResponse(
+                json.dumps({"message": "Calendar events already created for this schedule"}),
+                status_code=200
+            )
+            
+        # Get all sessions for this schedule
+        sessions = get_user_sessions(identity, schedule_id=schedule_id)
+        
+        # Create calendar events for each session
+        created_events = []
+        for session in sessions:
+            event_id = create_calendar_event_for_session(req, identity, session)
+            if event_id:
+                # Update session with event_id
+                update_session(identity, session["id"], {"event_id": event_id})
+                created_events.append(event_id)
+                
+        # Mark schedule as having events created
+        mark_schedule_events_created(identity, schedule_id)
+        
+        return func.HttpResponse(
+            json.dumps({
+                "message": f"Successfully created {len(created_events)} calendar events",
+                "created_events": len(created_events)
+            }),
+            status_code=200
+        )
+    except Exception as e:
+        print(f"Error creating calendar events: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
 # === Study Session Routes ===
 
 def get_sessions(req: func.HttpRequest) -> func.HttpResponse:
-    """Get all study sessions for the current user"""
+    """Get study sessions for the current user, filtered by active schedule if requested"""
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
@@ -217,8 +339,20 @@ def get_sessions(req: func.HttpRequest) -> func.HttpResponse:
         # Get optional date range filters
         start_date = req.params.get('start_date')
         end_date = req.params.get('end_date')
-
-        sessions = get_user_sessions(identity, start_date, end_date)
+        
+        # Check if we should filter by active schedule only
+        active_only = req.params.get('active_only', 'false').lower() == 'true'
+        
+        if active_only:
+            # Get sessions only from active schedule
+            sessions = get_active_schedule_sessions(identity, start_date, end_date)
+        else:
+            # Get optional schedule_id filter
+            schedule_id = req.params.get('schedule_id')
+            
+            # Get all sessions (potentially filtered by schedule_id)
+            sessions = get_user_sessions(identity, start_date, end_date, schedule_id)
+            
         return func.HttpResponse(json.dumps(sessions), status_code=200)
     except Exception as e:
         print(f"Error getting sessions: {str(e)}")
@@ -383,7 +517,7 @@ def reschedule_session(req: func.HttpRequest) -> func.HttpResponse:
                         pass
             except Exception as e:
                 print(f"Error accessing event_id: {str(e)}")
-            
+
             # Only call update_calendar_event if we got an event_id
             if event_id:
                 update_calendar_event(req, identity, event_id, updates)
@@ -564,8 +698,8 @@ def get_module_by_id(user_email: str, module_id: str):
             return module
     return None
 
-def create_sessions_from_schedule(user_email: str, schedule: dict) -> list:
-    """Create study sessions from a schedule"""
+def create_sessions_from_schedule(user_email: str, schedule: dict, create_calendar_events: bool = False) -> list:
+    """Create study sessions from a schedule, optionally creating calendar events"""
     sessions = []
 
     # Get modules
@@ -642,13 +776,14 @@ def create_sessions_from_schedule(user_email: str, schedule: dict) -> list:
 
                 created_session = create_study_session(user_email, session_data)
 
-                # Create calendar event for the session
-                event_id = create_calendar_event_for_session(None, user_email, created_session)
+                # Create calendar event for the session if requested
+                if create_calendar_events:
+                    event_id = create_calendar_event_for_session(None, user_email, created_session)
 
-                # Update session with event_id if created
-                if event_id:
-                    update_session(user_email, created_session["id"], {"event_id": event_id})
-                    created_session["event_id"] = event_id
+                    # Update session with event_id if created
+                    if event_id:
+                        update_session(user_email, created_session["id"], {"event_id": event_id})
+                        created_session["event_id"] = event_id
 
                 sessions.append(created_session)
 
@@ -664,7 +799,7 @@ def create_calendar_event_for_session(req, user_email: str, session: dict):
         if not isinstance(session, dict):
             print(f"Session is not a dictionary: {type(session)}")
             return None
-            
+
         # Prepare calendar event data
         event_data = {
             "title": session.get("title", "Study Session"),
@@ -673,9 +808,10 @@ def create_calendar_event_for_session(req, user_email: str, session: dict):
             "start_time": session.get("startTime", ""),
             "end_time": session.get("endTime", ""),
             "all_day": False,
-            "type": "study_session",
+            "type": "study_session",  # Mark specifically as study_session type
             "color": "#9e78ff",  # Use purple for study sessions
-            "user_email": user_email
+            "user_email": user_email,
+            "schedule_id": session.get("schedule_id", "")  # Include reference to the schedule
         }
 
         # Call create_event function
@@ -707,34 +843,6 @@ def update_calendar_event(req, user_email: str, event_id: str, updates: dict):
     except Exception as e:
         print(f"Error updating calendar event: {str(e)}")
         return None
-
-def delete_sessions_for_schedule(user_email: str, schedule_id: str):
-    """Delete all study sessions associated with a schedule"""
-    try:
-        # Query for sessions with this schedule_id
-        query = """
-        SELECT * FROM c
-        WHERE c.type = 'study_session'
-        AND c.user_email = @email
-        AND c.schedule_id = @schedule_id
-        """
-        parameters = [
-            {"name": "@email", "value": user_email},
-            {"name": "@schedule_id", "value": schedule_id}
-        ]
-
-        from database import _container
-        sessions = list(_container.query_items(
-            query=query,
-            parameters=parameters,
-            enable_cross_partition_query=True
-        ))
-
-        # Delete each session
-        for session in sessions:
-            delete_session(user_email, session["id"])
-    except Exception as e:
-        print(f"Error deleting sessions for schedule: {str(e)}")
 
 def calculate_xp(session: dict, productivity: int) -> int:
     """Calculate XP earned for a completed session"""

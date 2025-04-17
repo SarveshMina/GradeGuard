@@ -46,6 +46,7 @@ from university_routes import (
 
 from study_routes import (
     get_schedules, create_schedule_manual, create_schedule_ai, update_schedule_route, delete_schedule_route,
+    get_active_schedule_route, activate_schedule_route, create_calendar_events_route,
     get_sessions, start_session, complete_session, reschedule_session,
     get_achievements, get_streak,
     get_analytics,
@@ -555,6 +556,13 @@ def study_schedules_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     response = get_schedules(req)
     return add_cors_headers(response, req)
 
+@app.route(route="study/schedules/active", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def active_schedule_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = get_active_schedule_route(req)
+    return add_cors_headers(response, req)
+
 @app.route(route="study/schedules/create", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
 def create_schedule_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
@@ -573,7 +581,7 @@ def generate_schedule_endpoint(req: func.HttpRequest) -> func.HttpResponse:
 def schedule_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
-    
+
     if req.method == "PUT":
         response = update_schedule_route(req)
     elif req.method == "DELETE":
@@ -584,7 +592,21 @@ def schedule_by_id_endpoint(req: func.HttpRequest) -> func.HttpResponse:
             status_code=405,
             mimetype="application/json"
         )
-        
+
+    return add_cors_headers(response, req)
+
+@app.route(route="study/schedules/{id}/activate", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def activate_schedule_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = activate_schedule_route(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="study/schedules/{id}/create-events", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def create_events_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = create_calendar_events_route(req)
     return add_cors_headers(response, req)
 
 @app.route(route="study/sessions", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)

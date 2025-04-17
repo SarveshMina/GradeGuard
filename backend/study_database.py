@@ -1,7 +1,7 @@
 # study_database.py
 import uuid
 import datetime
-from typing import List, Dict, Any, Optional  # Added missing imports
+from typing import List, Dict, Any, Optional
 from database import _container  # Import the CosmosDB container from your existing database.py
 
 def create_study_schedule(user_email: str, schedule_data: dict) -> dict:
@@ -16,6 +16,13 @@ def create_study_schedule(user_email: str, schedule_data: dict) -> dict:
     now = datetime.datetime.utcnow().isoformat()
     schedule_data['created_at'] = now
     schedule_data['updated_at'] = now
+    
+    # Initialize events_created flag to track if calendar events have been created
+    schedule_data['events_created'] = False
+    
+    # Handle is_active status (deactivate other schedules if this one is active)
+    if schedule_data.get('is_active', False):
+        deactivate_all_schedules(user_email)
 
     # Create in database
     result = _container.create_item(body=schedule_data)
@@ -32,6 +39,19 @@ def get_user_schedules(user_email: str) -> List[dict]:
         enable_cross_partition_query=True
     ))
     return schedules
+
+def get_active_schedule(user_email: str) -> Optional[dict]:
+    """Get the active study schedule for a user"""
+    query = "SELECT * FROM c WHERE c.type = 'study_schedule' AND c.user_email = @email AND c.is_active = true"
+    parameters = [{"name": "@email", "value": user_email}]
+
+    schedules = list(_container.query_items(
+        query=query,
+        parameters=parameters,
+        enable_cross_partition_query=True
+    ))
+    
+    return schedules[0] if schedules else None
 
 def get_schedule(user_email: str, schedule_id: str) -> Optional[dict]:
     """Get a specific study schedule"""
@@ -61,6 +81,10 @@ def update_schedule(user_email: str, schedule_id: str, updates: dict) -> Optiona
     else:
         schedule_dict = schedule
 
+    # Handle is_active status (deactivate other schedules if this one is being activated)
+    if updates.get('is_active', False) and not schedule_dict.get('is_active', False):
+        deactivate_all_schedules(user_email)
+
     # Update fields
     for key, value in updates.items():
         if key not in ['id', 'user_email', 'type', 'created_at']:
@@ -68,6 +92,62 @@ def update_schedule(user_email: str, schedule_id: str, updates: dict) -> Optiona
 
     schedule_dict['updated_at'] = datetime.datetime.utcnow().isoformat()
 
+    # Update in database
+    result = _container.replace_item(item=schedule_id, body=schedule_dict)
+    return result
+
+def deactivate_all_schedules(user_email: str) -> bool:
+    """Deactivate all schedules for a user"""
+    query = "SELECT * FROM c WHERE c.type = 'study_schedule' AND c.user_email = @email AND c.is_active = true"
+    parameters = [{"name": "@email", "value": user_email}]
+
+    schedules = list(_container.query_items(
+        query=query,
+        parameters=parameters,
+        enable_cross_partition_query=True
+    ))
+
+    for schedule in schedules:
+        schedule['is_active'] = False
+        schedule['updated_at'] = datetime.datetime.utcnow().isoformat()
+        _container.replace_item(item=schedule['id'], body=schedule)
+
+    return True
+
+def activate_schedule(user_email: str, schedule_id: str) -> Optional[dict]:
+    """Activate a specific schedule and deactivate all others"""
+    # First deactivate all schedules
+    deactivate_all_schedules(user_email)
+    
+    # Then activate the requested schedule
+    schedule = get_schedule(user_email, schedule_id)
+    if not schedule:
+        return None
+    
+    # Create a mutable dictionary to modify
+    schedule_dict = dict(schedule)
+    
+    # Update fields
+    schedule_dict['is_active'] = True
+    schedule_dict['updated_at'] = datetime.datetime.utcnow().isoformat()
+    
+    # Update in database
+    result = _container.replace_item(item=schedule_id, body=schedule_dict)
+    return result
+
+def mark_schedule_events_created(user_email: str, schedule_id: str) -> Optional[dict]:
+    """Mark that calendar events have been created for this schedule"""
+    schedule = get_schedule(user_email, schedule_id)
+    if not schedule:
+        return None
+    
+    # Create a mutable dictionary to modify
+    schedule_dict = dict(schedule)
+    
+    # Update fields
+    schedule_dict['events_created'] = True
+    schedule_dict['updated_at'] = datetime.datetime.utcnow().isoformat()
+    
     # Update in database
     result = _container.replace_item(item=schedule_id, body=schedule_dict)
     return result
@@ -98,8 +178,8 @@ def create_study_session(user_email: str, session_data: dict) -> dict:
     result = _container.create_item(body=session_data)
     return result
 
-def get_user_sessions(user_email: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[dict]:
-    """Get study sessions for a user with optional date range filtering"""
+def get_user_sessions(user_email: str, start_date: Optional[str] = None, end_date: Optional[str] = None, schedule_id: Optional[str] = None) -> List[dict]:
+    """Get study sessions for a user with optional date range filtering and schedule filtering"""
     query = "SELECT * FROM c WHERE c.type = 'study_session' AND c.user_email = @email"
     parameters = [{"name": "@email", "value": user_email}]
 
@@ -109,6 +189,10 @@ def get_user_sessions(user_email: str, start_date: Optional[str] = None, end_dat
             {"name": "@start", "value": start_date},
             {"name": "@end", "value": end_date}
         ])
+        
+    if schedule_id:
+        query += " AND c.schedule_id = @scheduleId"
+        parameters.append({"name": "@scheduleId", "value": schedule_id})
 
     sessions = list(_container.query_items(
         query=query,
@@ -116,6 +200,20 @@ def get_user_sessions(user_email: str, start_date: Optional[str] = None, end_dat
         enable_cross_partition_query=True
     ))
     return sessions
+
+def get_active_schedule_sessions(user_email: str, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[dict]:
+    """Get study sessions for a user's active schedule with optional date range filtering"""
+    # First get the active schedule
+    active_schedule = get_active_schedule(user_email)
+    
+    if not active_schedule:
+        return []
+    
+    # Convert to dictionary if needed
+    active_schedule_dict = dict(active_schedule)
+    
+    # Then get sessions for that schedule
+    return get_user_sessions(user_email, start_date, end_date, active_schedule_dict.get('id'))
 
 def get_session(user_email: str, session_id: str) -> Optional[dict]:
     """Get a specific study session"""
@@ -163,6 +261,39 @@ def delete_session(user_email: str, session_id: str) -> bool:
     # Delete from database
     _container.delete_item(item=session_id, partition_key=session_id)
     return True
+
+def delete_sessions_for_schedule(user_email: str, schedule_id: str) -> int:
+    """Delete all study sessions associated with a schedule. Returns count of deleted sessions."""
+    try:
+        # Query for sessions with this schedule_id
+        query = """
+        SELECT * FROM c
+        WHERE c.type = 'study_session'
+        AND c.user_email = @email
+        AND c.schedule_id = @schedule_id
+        """
+        parameters = [
+            {"name": "@email", "value": user_email},
+            {"name": "@schedule_id", "value": schedule_id}
+        ]
+
+        sessions = list(_container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+
+        # Delete each session
+        deleted_count = 0
+        for session in sessions:
+            _container.delete_item(item=session["id"], partition_key=session["id"])
+            deleted_count += 1
+            
+        return deleted_count
+        
+    except Exception as e:
+        print(f"Error deleting sessions for schedule: {str(e)}")
+        return 0
 
 # Study Streak Operations
 
@@ -733,7 +864,7 @@ def get_module_time_distribution(user_email: str) -> dict:
     # Make sure we have enough colors
     while len(colors) < len(labels):
         colors.extend(colors[:len(labels)-len(colors)])
-    
+
     background_colors = colors[:len(labels)]
 
     chart_data = {

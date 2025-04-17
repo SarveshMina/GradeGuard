@@ -215,6 +215,7 @@ class DayOfWeek(str, Enum):
     SUNDAY = "sunday"
 
 
+
 class StudySchedule(BaseModel):
     id: str
     user_email: str
@@ -230,7 +231,9 @@ class StudySchedule(BaseModel):
     created_at: str       # ISO format datetime
     updated_at: str       # ISO format datetime
     is_ai_generated: bool = False
-    
+    is_active: bool = False
+    events_created: bool = False
+
     class Config:
         extra = "allow"
 
@@ -240,7 +243,6 @@ class StudySessionStatus(str, Enum):
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     MISSED = "missed"
-
 
 class StudySession(BaseModel):
     id: str
@@ -259,6 +261,7 @@ class StudySession(BaseModel):
     xpEarned: Optional[int] = None
     notes: Optional[str] = None
     event_id: Optional[str] = None  # Reference to calendar event
+    schedule_id: Optional[str] = None  # Reference to parent schedule
 
     class Config:
         extra = "allow"
@@ -334,6 +337,7 @@ class ScheduleRequest(BaseModel):
     break_duration: int
     max_sessions_per_day: int
     modules: List[str]
+    is_active: Optional[bool] = True
 
     class Config:
         extra = "allow"
@@ -344,6 +348,13 @@ class FeedbackForm(BaseModel):
     difficulty: int
     notes: Optional[str] = None
     topics: List[str] = []
+
+    class Config:
+        extra = "allow"
+
+
+class ScheduleActivationRequest(BaseModel):
+    schedule_id: str
 
     class Config:
         extra = "allow"

@@ -207,67 +207,67 @@ def delete_calendar_event(user_email: str, event_id: str):
             {"name": "@event_id", "value": event_id},
             {"name": "@user_email", "value": user_email}
         ]
-        
+
         items = list(_events_container.query_items(
             query=query,
             parameters=params,
             enable_cross_partition_query=True
         ))
-        
+
         if not items:
             print(f"Event with ID {event_id} not found for user {user_email}")
             return False
-            
+
         # Get the event and inspect its structure
         event = items[0]
         print(f"Found event to delete: {event}")
-        
+
         # Try different partition key strategies
-        
+
         # 1. Try using event ID as partition key (common pattern)
         try:
             print(f"Attempting to delete with event ID as partition key")
-            _container.delete_item(item=event_id, partition_key=event_id)
+            _events_container.delete_item(item=event_id, partition_key=event_id)
             return True
         except Exception as e:
             print(f"Failed with event ID as partition key: {str(e)}")
-        
+
         # 2. Try user_email as partition key
         try:
             print(f"Attempting to delete with user_email as partition key")
-            _container.delete_item(item=event_id, partition_key=user_email)
+            _events_container.delete_item(item=event_id, partition_key=user_email)
             return True
         except Exception as e:
             print(f"Failed with user_email as partition key: {str(e)}")
-        
+
         # 3. Try composite key if it exists in the event
         if "pk" in event:
             try:
                 print(f"Attempting to delete with pk={event['pk']} from event")
-                _container.delete_item(item=event_id, partition_key=event["pk"])
+                _events_container.delete_item(item=event_id, partition_key=event["pk"])
                 return True
             except Exception as e:
                 print(f"Failed with pk from event: {str(e)}")
-        
+
         # 4. Try the composite key format
         composite_key = f"{user_email}:{event_id}"
         try:
             print(f"Attempting to delete with composite key: {composite_key}")
-            _container.delete_item(item=event_id, partition_key=composite_key)
+            _events_container.delete_item(item=event_id, partition_key=composite_key)
             return True
         except Exception as e:
             print(f"Failed with composite key: {str(e)}")
-        
+
         # If we got here, all delete attempts failed
         print("All deletion methods failed. Check Cosmos DB configuration.")
         return False
-        
+
     except Exception as e:
         print(f"Error in delete_calendar_event: {str(e)}")
         import traceback
         print(traceback.format_exc())
         return False
-
+    
 def get_modules_with_stats(university: str, degree: str):
     """Get modules with statistics for a specific university and degree"""
     try:
