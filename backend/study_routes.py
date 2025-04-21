@@ -6,7 +6,7 @@ import datetime
 import uuid
 from typing import List, Dict, Any, Optional
 from user_routes import verify_session
-from models import ScheduleRequest, FeedbackForm, StudySessionStatus
+from models import ScheduleRequest, FeedbackForm, StudySessionStatus, SessionFeedback
 from study_database import (
     create_study_schedule, get_user_schedules, get_schedule, update_schedule, delete_schedule,
     create_study_session, get_user_sessions, get_session, update_session, delete_session,
@@ -17,11 +17,24 @@ from study_database import (
     get_study_stats, update_study_stats,
     create_ai_tip, get_user_ai_tips, update_ai_tip_status,
     get_module_study_stats, get_module_time_distribution, get_sessions_timeline, get_productivity_patterns,
-    get_grade_distribution_data
+    get_grade_distribution_data, get_current_and_upcoming_sessions, get_sidebar_data, mark_session_as_completed, mark_session_as_missed,
+    update_session_statuses_automatically,
+    # New analytics functions
+    get_completion_analytics, generate_completion_insights
 )
 from ai_scheduler import generate_study_schedule, generate_ai_tips
 from calendar_routes import create_event
 from database import get_user_modules
+import logging
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
+from azure.storage.blob import BlobServiceClient
+import os
+
+
+
+logger = logging.getLogger(__name__)
+
 
 # === Schedule Routes ===
 
@@ -111,7 +124,7 @@ def create_schedule_manual(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
 def create_schedule_ai(req: func.HttpRequest) -> func.HttpResponse:
-    """Create a new study schedule using AI"""
+    """Create a new study schedule using enhanced AI"""
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
@@ -137,7 +150,14 @@ def create_schedule_ai(req: func.HttpRequest) -> func.HttpResponse:
             if module:
                 modules_info.append(module)
 
-        # Generate AI-powered schedule
+        # Get user's learning preferences from past schedule modifications
+        from study_database import get_user_learning_preferences
+        learning_preferences = get_user_learning_preferences(identity)
+        
+        # Log the request for analysis
+        logger.info(f"AI Schedule request for user {identity}: {len(modules_info)} modules, date range: {schedule_request.start_date} to {schedule_request.end_date}")
+
+        # Generate AI-powered schedule with enhanced algorithm
         ai_schedule, study_sessions = generate_study_schedule(
             identity,
             schedule_request.dict(),
@@ -150,24 +170,38 @@ def create_schedule_ai(req: func.HttpRequest) -> func.HttpResponse:
         ai_schedule["events_created"] = False  # Flag to track if events have been created
         created_schedule = create_study_schedule(identity, ai_schedule)
 
-        # Save generated sessions without creating calendar events yet
+        # Save generated sessions with reference to the schedule
         sessions = []
         for session_data in study_sessions:
             session_data["schedule_id"] = created_schedule["id"]
             created_session = create_study_session(identity, session_data)
             sessions.append(created_session)
 
+        # Save analytics about the generated schedule
+        from study_database import save_ai_schedule_analytics
+        analytics_data = {
+            "schedule_id": created_schedule["id"],
+            "module_count": len(modules_info),
+            "session_count": len(sessions),
+            "date_range_days": (datetime.datetime.fromisoformat(schedule_request.end_date.replace('Z', '+00:00')).date() - 
+                              datetime.datetime.fromisoformat(schedule_request.start_date.replace('Z', '+00:00')).date()).days + 1,
+            "generation_timestamp": datetime.datetime.utcnow().isoformat(),
+            "used_learning_preferences": learning_preferences.get("has_preferences", False)
+        }
+        save_ai_schedule_analytics(identity, created_schedule["id"], analytics_data)
+
         return func.HttpResponse(
             json.dumps({
                 "schedule": created_schedule,
                 "sessions": sessions,
+                "explanations": created_schedule.get("ai_explanations", []),
                 "message": "AI schedule generated successfully. Confirm to add events to calendar."
             }),
             status_code=201
         )
     except Exception as e:
-        print(f"Error creating AI schedule: {str(e)}")
-        print(traceback.format_exc())
+        logger.error(f"Error creating AI schedule: {str(e)}")
+        logger.error(traceback.format_exc())
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
 def update_schedule_route(req: func.HttpRequest) -> func.HttpResponse:
@@ -912,3 +946,314 @@ def generate_user_tips(user_email: str):
     except Exception as e:
         print(f"Error generating AI tips: {str(e)}")
         return []
+    
+
+def get_completion_analytics_route(req: func.HttpRequest) -> func.HttpResponse:
+    """Get detailed analytics on session completion rates"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    try:
+        analytics = get_completion_analytics(identity)
+        return func.HttpResponse(json.dumps(analytics), status_code=200)
+    except Exception as e:
+        print(f"Error getting completion analytics: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def get_completion_insights_route(req: func.HttpRequest) -> func.HttpResponse:
+    """Get insights based on session completion patterns"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    try:
+        insights = generate_completion_insights(identity)
+        return func.HttpResponse(json.dumps(insights), status_code=200)
+    except Exception as e:
+        print(f"Error generating completion insights: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def get_current_sessions(req: func.HttpRequest) -> func.HttpResponse:
+    """Get current and upcoming sessions for the sidebar"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    try:
+        limit = int(req.params.get('limit', '7'))
+        sessions = get_current_and_upcoming_sessions(identity, limit)
+        return func.HttpResponse(json.dumps(sessions), status_code=200)
+    except Exception as e:
+        print(f"Error getting current sessions: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def get_sidebar_data_route(req: func.HttpRequest) -> func.HttpResponse:
+    """Get all data needed for the sidebar"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    try:
+        sidebar_data = get_sidebar_data(identity)
+        return func.HttpResponse(json.dumps(sidebar_data), status_code=200)
+    except Exception as e:
+        print(f"Error getting sidebar data: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def mark_session_completed(req: func.HttpRequest) -> func.HttpResponse:
+    """Mark a session as completed with feedback"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    session_id = req.route_params.get('id')
+    if not session_id:
+        return func.HttpResponse(json.dumps({"error": "Session ID is required"}), status_code=400)
+
+    try:
+        # Get feedback data if provided
+        feedback = None
+        try:
+            req_body = req.get_json()
+            if req_body:
+                # Validate with SessionFeedback model
+                feedback = SessionFeedback(**req_body).dict(exclude_none=True)
+        except ValueError:
+            # No feedback provided, which is fine
+            pass
+
+        # Mark session as completed
+        updated_session = mark_session_as_completed(identity, session_id, feedback)
+
+        if not updated_session:
+            return func.HttpResponse(
+                json.dumps({"error": "Session not found or access denied"}),
+                status_code=404
+            )
+
+        # Update achievements and study stats
+        check_and_update_achievements(identity)
+        update_study_stats(identity)
+
+        # Generate new AI tips based on updated data
+        try:
+            generate_user_tips(identity)
+        except Exception as tips_error:
+            print(f"Error generating AI tips: {str(tips_error)}")
+            # Don't fail the request if tips generation fails
+
+        return func.HttpResponse(json.dumps(updated_session), status_code=200)
+    except Exception as e:
+        print(f"Error marking session as completed: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def mark_session_missed(req: func.HttpRequest) -> func.HttpResponse:
+    """Manually mark a session as missed"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    session_id = req.route_params.get('id')
+    if not session_id:
+        return func.HttpResponse(json.dumps({"error": "Session ID is required"}), status_code=400)
+
+    try:
+        # Mark session as missed
+        updated_session = mark_session_as_missed(identity, session_id)
+
+        if not updated_session:
+            return func.HttpResponse(
+                json.dumps({"error": "Session not found or access denied"}),
+                status_code=404
+            )
+
+        # Update analytics
+        update_study_stats(identity)
+
+        return func.HttpResponse(json.dumps(updated_session), status_code=200)
+    except Exception as e:
+        print(f"Error marking session as missed: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def update_session_statuses(req: func.HttpRequest) -> func.HttpResponse:
+    """Manually trigger session status updates (admin function)"""
+    # This could be protected with additional admin verification
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    try:
+        updated_count = update_session_statuses_automatically()
+        return func.HttpResponse(
+            json.dumps({"message": f"Updated {updated_count} session statuses"}),
+            status_code=200
+        )
+    except Exception as e:
+        print(f"Error updating session statuses: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+    
+def rate_ai_schedule(req: func.HttpRequest) -> func.HttpResponse:
+    """Allow users to rate AI-generated schedules for feedback"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    schedule_id = req.route_params.get('id')
+    if not schedule_id:
+        return func.HttpResponse(json.dumps({"error": "Schedule ID is required"}), status_code=400)
+
+    try:
+        rating_data = req.get_json()
+        rating = rating_data.get("rating")
+        feedback = rating_data.get("feedback", "")
+        
+        if not isinstance(rating, int) or rating < 1 or rating > 5:
+            return func.HttpResponse(
+                json.dumps({"error": "Rating must be an integer between 1 and 5"}),
+                status_code=400
+            )
+        
+        # Get the schedule to verify ownership
+        from study_database import get_schedule
+        schedule = get_schedule(identity, schedule_id)
+        if not schedule:
+            return func.HttpResponse(
+                json.dumps({"error": "Schedule not found or access denied"}),
+                status_code=404
+            )
+        
+        # Record the rating
+        from ai_scheduler import record_schedule_feedback
+        success = record_schedule_feedback(
+            user_email=identity,
+            schedule_id=schedule_id,
+            feedback_type="rating",
+            feedback_data={"rating": rating, "feedback": feedback}
+        )
+        
+        if success:
+            return func.HttpResponse(
+                json.dumps({"message": "Schedule rating recorded successfully"}),
+                status_code=200
+            )
+        else:
+            return func.HttpResponse(
+                json.dumps({"error": "Failed to record schedule rating"}),
+                status_code=500
+            )
+    except Exception as e:
+        print(f"Error rating schedule: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def analyze_schedule_modifications(req: func.HttpRequest) -> func.HttpResponse:
+    """Analyze how a user modified an AI-generated schedule for learning"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    try:
+        modification_data = req.get_json()
+        
+        # Ensure required data is present
+        required_fields = ["original_schedule", "modified_schedule", "original_sessions", "modified_sessions"]
+        for field in required_fields:
+            if field not in modification_data:
+                return func.HttpResponse(
+                    json.dumps({"error": f"Missing required field: {field}"}),
+                    status_code=400
+                )
+        
+        # Extract the data
+        original_schedule = modification_data["original_schedule"]
+        modified_schedule = modification_data["modified_schedule"]
+        original_sessions = modification_data["original_sessions"]
+        modified_sessions = modification_data["modified_sessions"]
+        
+        # Learn from the modifications
+        from ai_scheduler import learn_from_user_modifications
+        analysis = learn_from_user_modifications(
+            original_schedule, 
+            modified_schedule,
+            original_sessions,
+            modified_sessions
+        )
+        
+        return func.HttpResponse(
+            json.dumps({
+                "message": "Schedule modifications analyzed successfully",
+                "analysis": analysis
+            }),
+            status_code=200
+        )
+    except Exception as e:
+        print(f"Error analyzing schedule modifications: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+
+def get_schedule_explanations(req: func.HttpRequest) -> func.HttpResponse:
+    """Get AI explanations for a schedule's design decisions"""
+    is_valid, identity = verify_session(req)
+    if not is_valid:
+        return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
+
+    schedule_id = req.route_params.get('id')
+    if not schedule_id:
+        return func.HttpResponse(json.dumps({"error": "Schedule ID is required"}), status_code=400)
+
+    try:
+        # Get the schedule
+        from study_database import get_schedule
+        schedule = get_schedule(identity, schedule_id)
+        if not schedule:
+            return func.HttpResponse(
+                json.dumps({"error": "Schedule not found or access denied"}),
+                status_code=404
+            )
+        
+        # Ensure we have a dictionary to work with
+        if not isinstance(schedule, dict):
+            schedule_dict = dict(schedule)
+        else:
+            schedule_dict = schedule
+        
+        # Get the explanations
+        explanations = schedule_dict.get("ai_explanations", [])
+        
+        # If no explanations exist but it's an AI schedule, generate them
+        if not explanations and schedule_dict.get("is_ai_generated", False):
+            # Get sessions for this schedule
+            from study_database import get_user_sessions
+            sessions = get_user_sessions(identity, schedule_id=schedule_id)
+            
+            # Get modules
+            from database import get_user_modules
+            modules = get_user_modules(identity)
+            
+            # Generate explanations
+            from ai_scheduler import explain_schedule_decisions
+            explanations = explain_schedule_decisions(sessions, modules)
+            
+            # Save the explanations using the update_schedule function
+            from study_database import update_schedule
+            update_schedule(identity, schedule_id, {"ai_explanations": explanations})
+        
+        return func.HttpResponse(
+            json.dumps({
+                "schedule_id": schedule_id,
+                "explanations": explanations
+            }),
+            status_code=200
+        )
+    except Exception as e:
+        print(f"Error getting schedule explanations: {str(e)}")
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)

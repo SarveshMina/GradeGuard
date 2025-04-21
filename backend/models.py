@@ -243,6 +243,7 @@ class StudySessionStatus(str, Enum):
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
     MISSED = "missed"
+    RESCHEDULED = "rescheduled"
 
 class StudySession(BaseModel):
     id: str
@@ -256,16 +257,30 @@ class StudySession(BaseModel):
     topics: Optional[List[str]] = None
     status: StudySessionStatus = StudySessionStatus.PLANNED
     completed: bool = False
+    missed: bool = False
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None
     productivity: Optional[int] = None  # 1-5 rating
     difficulty: Optional[int] = None    # 1-5 rating
+    feedback_notes: Optional[str] = None
     xpEarned: Optional[int] = None
     notes: Optional[str] = None
     event_id: Optional[str] = None  # Reference to calendar event
     schedule_id: Optional[str] = None  # Reference to parent schedule
-
+    reminder_sent: bool = False
+    
     class Config:
         extra = "allow"
 
+
+class SessionFeedback(BaseModel):
+    productivity: int = Field(ge=1, le=5)
+    difficulty: Optional[int] = Field(None, ge=1, le=5)
+    notes: Optional[str] = None
+    topics: List[str] = []
+    
+    class Config:
+        extra = "allow"
 
 class StudyStreak(BaseModel):
     user_email: str

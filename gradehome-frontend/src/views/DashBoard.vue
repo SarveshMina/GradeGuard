@@ -1022,6 +1022,7 @@ import { notify } from "@/services/toastService.js";
 import DashboardNavBar from "@/components/DashboardNavBar.vue";
 import CalendarSidebar from "@/components/CalendarSidebar.vue";
 import { getDarkModePreference } from "@/services/darkModeService.js";
+import { userSettingsService } from "@/services/userSettingsService.js"; // Import userSettingsService
 import { API_URL } from "@/config.js";
 
 // Import chart components
@@ -1148,7 +1149,55 @@ export default {
       scoreDistribution: [],
 
       // Personalized tips
-      personalizedTips: []
+      personalizedTips: [],
+
+      // Settings-related data from userSettingsService
+      settings: {
+        appearance: {
+          accentColor: 'purple',
+          fontSize: 'medium',
+          highContrast: false,
+          enableAnimations: true
+        },
+        academic: {
+          academicLevel: 'Undergraduate',
+          enrollmentType: 'Full time',
+          studyPreferences: ['Mornings'],
+          currentYear: 1,
+          totalYears: 3,
+          semestersPerYear: 2,
+          creditsPerYear: 120,
+          targetGrade: 70,
+          gradingScale: [
+            {letter: 'A', minPercentage: 70, gpaValue: 4.0},
+            {letter: 'B', minPercentage: 60, gpaValue: 3.0},
+            {letter: 'C', minPercentage: 50, gpaValue: 2.0},
+            {letter: 'D', minPercentage: 40, gpaValue: 1.0},
+            {letter: 'F', minPercentage: 0, gpaValue: 0.0}
+          ],
+          yearWeights: []
+        },
+        accessibility: {
+          colorBlindMode: 'none',
+          screenReaderOptimized: false,
+          reduceMotion: false,
+          motionIntensity: 75,
+          keyboardShortcuts: true,
+          focusMode: false,
+          textToSpeech: false
+        },
+        calendar: {
+          firstDayOfWeek: 'sunday',
+          defaultEventDuration: 60,
+          defaultEventType: 'general',
+          timeFormat: '12h',
+          dateFormat: 'MM/DD/YYYY',
+          showWeekNumbers: false,
+          showCompleted: true,
+          highlightToday: true,
+          defaultView: 'month'
+        }
+      }
     };
   },
   computed: {
@@ -1240,11 +1289,11 @@ export default {
         return this.dashboardStats.topModule;
       }
 
-      if (this.completedModuleData.length === 0) return { name: 'N/A', score: 0 };
+      if (this.completedModuleData.length === 0) return {name: 'N/A', score: 0};
 
       return this.completedModuleData.reduce((top, module) => {
         return (module.score > top.score) ? module : top;
-      }, { name: 'N/A', score: 0 });
+      }, {name: 'N/A', score: 0});
     },
 
     // Get progress percentages
@@ -1274,23 +1323,41 @@ export default {
       return Math.round(100 - (completedCredits / totalCredits * 100));
     },
 
-    // Get target grades needed for different classifications
+    // Get target grades needed for different classifications based on settings or defaults
     targetHighGrade() {
-      return this.dashboardStats?.targetHighGrade || 0;
+      if (this.dashboardStats?.targetHighGrade) return this.dashboardStats.targetHighGrade;
+
+      // Calculate based on academic settings if available
+      const gradingScale = this.settings.academic.gradingScale || [];
+      const firstClass = gradingScale.find(g => g.letter === 'A') || {minPercentage: 70};
+      return firstClass.minPercentage;
     },
 
     targetMediumGrade() {
-      return this.dashboardStats?.targetMediumGrade || 0;
+      if (this.dashboardStats?.targetMediumGrade) return this.dashboardStats.targetMediumGrade;
+
+      // Calculate based on academic settings if available
+      const gradingScale = this.settings.academic.gradingScale || [];
+      const upperSecond = gradingScale.find(g => g.letter === 'B') || {minPercentage: 60};
+      return upperSecond.minPercentage;
     },
 
     targetLowGrade() {
-      return this.dashboardStats?.targetLowGrade || 0;
+      if (this.dashboardStats?.targetLowGrade) return this.dashboardStats.targetLowGrade;
+
+      // Calculate based on academic settings if available
+      const gradingScale = this.settings.academic.gradingScale || [];
+      const lowerSecond = gradingScale.find(g => g.letter === 'C') || {minPercentage: 50};
+      return lowerSecond.minPercentage;
     },
 
     // Insights tab calculations
     averageVsTarget() {
-      // Comparing current average to personal target
-      const targetGradeValue = this.targetGrade === 'custom' ? this.customTargetGrade : this.targetGrade;
+      // Comparing current average to personal target from settings
+      const targetGradeValue = this.settings.academic.targetGrade === 'custom' ?
+          this.settings.academic.customTargetGrade :
+          this.settings.academic.targetGrade || 70;
+
       return Math.round((this.overallAverage - targetGradeValue) * 10) / 10;
     },
 
@@ -1373,11 +1440,18 @@ export default {
     },
 
     minimumGrade() {
-      // Minimum needed to maintain classification
-      const classificationThresholds = [40, 50, 60, 70];
-      const currentClassification = classificationThresholds.filter(t => this.overallAverage >= t).pop() || 40;
+      // Use grading scale from settings to determine minimum needed grade
+      const gradingScale = this.settings.academic.gradingScale || [];
+      const passGrade = gradingScale.find(g => g.letter === 'D')?.minPercentage || 40;
 
-      return currentClassification;
+      // Minimum needed to maintain classification
+      const currentAverage = this.overallAverage;
+      const potentialThresholds = gradingScale
+          .map(g => g.minPercentage)
+          .filter(threshold => threshold <= currentAverage)
+          .sort((a, b) => b - a);
+
+      return potentialThresholds[0] || passGrade;
     },
 
     // Filtered years for the yearly view
@@ -1484,8 +1558,8 @@ export default {
 
     // Generate semester options based on calculator config
     semesterOptions() {
-      // Get the maximum number of semesters from calculator config
-      let maxSemesters = 2; // Default to 2 semesters if not specified
+      // Get the maximum number of semesters from calculator config or settings
+      let maxSemesters = this.settings.academic.semestersPerYear || 2; // Default to settings value
 
       if (this.calculatorConfig && this.calculatorConfig.years && this.calculatorConfig.years.length > 0) {
         // Find maximum semesters in configuration
@@ -1528,29 +1602,46 @@ export default {
     },
 
     // Watch for numYears changes to update year weights
-    'nextConfig.numYears': function(newValue) {
+    'nextConfig.numYears': function (newValue) {
       if (newValue !== 'other' && newValue > 0) {
         this.initializeYearWeights(newValue);
       }
     },
 
-    'nextConfig.customYears': function(newValue) {
+    'nextConfig.customYears': function (newValue) {
       if (this.nextConfig.numYears === 'other' && newValue > 0) {
         this.initializeYearWeights(newValue);
       }
     },
 
     // Watch for changes in module enrollment status
-    'moduleForm.isCurrentlyEnrolled': function(newValue) {
+    'moduleForm.isCurrentlyEnrolled': function (newValue) {
       if (newValue) {
         // Add completed flag to assessments when isCurrentlyEnrolled becomes true
         this.moduleForm.assessments = this.moduleForm.assessments.map(assessment => {
           if (!assessment.hasOwnProperty('completed')) {
-            return { ...assessment, completed: false };
+            return {...assessment, completed: false};
           }
           return assessment;
         });
       }
+    },
+
+    // Watch for settings changes that affect the UI
+    'settings.appearance.fontSize': function (newValue) {
+      this.applyFontSize(newValue);
+    },
+
+    'settings.appearance.highContrast': function (newValue) {
+      this.applyHighContrast(newValue);
+    },
+
+    'settings.accessibility.reduceMotion': function (newValue) {
+      this.applyReduceMotion(newValue);
+    },
+
+    'settings.accessibility.focusMode': function (newValue) {
+      this.applyFocusMode(newValue);
     }
   },
   async mounted() {
@@ -1584,14 +1675,31 @@ export default {
       // Add status bar color for Capacitor
       if (window.Capacitor.Plugins.StatusBar) {
         if (this.darkMode) {
-          window.Capacitor.Plugins.StatusBar.setBackgroundColor({ color: '#111827' });
-          window.Capacitor.Plugins.StatusBar.setStyle({ style: 'DARK' });
+          window.Capacitor.Plugins.StatusBar.setBackgroundColor({color: '#111827'});
+          window.Capacitor.Plugins.StatusBar.setStyle({style: 'DARK'});
         } else {
-          window.Capacitor.Plugins.StatusBar.setBackgroundColor({ color: '#f8f9fa' });
-          window.Capacitor.Plugins.StatusBar.setStyle({ style: 'LIGHT' });
+          window.Capacitor.Plugins.StatusBar.setBackgroundColor({color: '#f8f9fa'});
+          window.Capacitor.Plugins.StatusBar.setStyle({style: 'LIGHT'});
         }
       }
     }
+
+    // Load settings from userSettingsService
+    try {
+      const userSettings = await userSettingsService.fetchSettings();
+      if (userSettings) {
+        this.settings = this.mergeDeep(this.settings, userSettings);
+        console.log("Settings loaded from userSettingsService:", this.settings);
+
+        // Apply settings immediately
+        this.applyAllSettings();
+      }
+    } catch (error) {
+      console.error("Error loading settings:", error);
+    }
+
+    // Add event listeners for settings changes
+    this.setupSettingsEventListeners();
 
     // Fetch data after UI is initialized
     await this.checkLoginAndFetchConfig();
@@ -1601,8 +1709,355 @@ export default {
   beforeUnmount() {
     window.removeEventListener("resize", this.checkMobile);
     window.removeEventListener('darkModeChange', this.onDarkModeChange);
+
+    // Remove settings event listeners
+    this.removeSettingsEventListeners();
   },
   methods: {
+    // Setup settings event listeners
+    setupSettingsEventListeners() {
+      window.addEventListener('fontSizeChanged', this.onFontSizeChanged);
+      window.addEventListener('highContrastChanged', this.onHighContrastChanged);
+      window.addEventListener('animationsChanged', this.onAnimationsChanged);
+      window.addEventListener('colorBlindModeChanged', this.onColorBlindModeChanged);
+      window.addEventListener('reduceMotionChanged', this.onReduceMotionChanged);
+      window.addEventListener('settingsChange', this.onSettingsChanged);
+      window.addEventListener('calendarSettingsChanged', this.onCalendarSettingsChanged);
+      window.addEventListener('yearSettingsUpdated', this.onYearSettingsUpdated);
+      window.addEventListener('screenReaderVerbosityChanged', this.onScreenReaderVerbosityChanged);
+    },
+
+    // Remove settings event listeners
+    removeSettingsEventListeners() {
+      window.removeEventListener('fontSizeChanged', this.onFontSizeChanged);
+      window.removeEventListener('highContrastChanged', this.onHighContrastChanged);
+      window.removeEventListener('animationsChanged', this.onAnimationsChanged);
+      window.removeEventListener('colorBlindModeChanged', this.onColorBlindModeChanged);
+      window.removeEventListener('reduceMotionChanged', this.onReduceMotionChanged);
+      window.removeEventListener('settingsChange', this.onSettingsChanged);
+      window.removeEventListener('calendarSettingsChanged', this.onCalendarSettingsChanged);
+      window.removeEventListener('yearSettingsUpdated', this.onYearSettingsUpdated);
+      window.removeEventListener('screenReaderVerbosityChanged', this.onScreenReaderVerbosityChanged);
+    },
+
+    // Apply all settings at once
+    applyAllSettings() {
+      // Apply appearance settings
+      this.applyFontSize(this.settings.appearance.fontSize);
+      this.applyHighContrast(this.settings.appearance.highContrast);
+      this.applyAnimations(this.settings.appearance.enableAnimations);
+
+      // Apply accessibility settings
+      this.applyColorBlindMode(this.settings.accessibility.colorBlindMode);
+      this.applyReduceMotion(this.settings.accessibility.reduceMotion);
+      this.applyFocusMode(this.settings.accessibility.focusMode);
+      this.applyScreenReaderOptimization(this.settings.accessibility.screenReaderOptimized);
+
+      // Apply academic settings
+      this.updateAcademicSettings();
+
+      // Apply calendar settings
+      this.updateCalendarSettings();
+    },
+
+    // Settings event handlers
+    onFontSizeChanged(event) {
+      const size = event.detail.size;
+      this.settings.appearance.fontSize = size;
+      this.applyFontSize(size);
+    },
+
+    onHighContrastChanged(event) {
+      const enabled = event.detail.enabled;
+      this.settings.appearance.highContrast = enabled;
+      this.applyHighContrast(enabled);
+    },
+
+    onAnimationsChanged(event) {
+      const enabled = event.detail.enabled;
+      this.settings.appearance.enableAnimations = enabled;
+      this.applyAnimations(enabled);
+    },
+
+    onColorBlindModeChanged(event) {
+      const mode = event.detail.mode;
+      this.settings.accessibility.colorBlindMode = mode;
+      this.applyColorBlindMode(mode);
+    },
+
+    onReduceMotionChanged(event) {
+      const enabled = event.detail.enabled;
+      this.settings.accessibility.reduceMotion = enabled;
+      this.applyReduceMotion(enabled);
+    },
+
+    onSettingsChanged(event) {
+      const {setting, value} = event.detail;
+
+      // Handle various settings
+      if (setting === 'keyboardShortcuts') {
+        this.settings.accessibility.keyboardShortcuts = value;
+      } else if (setting === 'screenReaderOptimized') {
+        this.settings.accessibility.screenReaderOptimized = value;
+        this.applyScreenReaderOptimization(value);
+      } else if (setting === 'focusMode') {
+        this.settings.accessibility.focusMode = value;
+        this.applyFocusMode(value);
+      }
+    },
+
+    onCalendarSettingsChanged(event) {
+      // Update calendar settings
+      const calendarSettings = event.detail;
+      this.settings.calendar = {...this.settings.calendar, ...calendarSettings};
+      this.updateCalendarSettings();
+    },
+
+    onYearSettingsUpdated(event) {
+      // Update year weights and academic settings
+      const {yearWeights, totalYears, creditsPerYear} = event.detail;
+
+      if (yearWeights) {
+        this.settings.academic.yearWeights = yearWeights;
+      }
+
+      if (totalYears) {
+        this.settings.academic.totalYears = totalYears;
+      }
+
+      if (creditsPerYear) {
+        this.settings.academic.creditsPerYear = creditsPerYear;
+      }
+
+      this.updateAcademicSettings();
+    },
+
+    onScreenReaderVerbosityChanged(event) {
+      const level = event.detail.level;
+      this.settings.accessibility.screenReaderVerbosity = level;
+    },
+
+    // Settings application methods
+    applyFontSize(size) {
+      const sizeMap = {
+        'small': '14px',
+        'medium': '16px',
+        'large': '18px'
+      };
+
+      document.documentElement.style.setProperty('--font-size-base', sizeMap[size] || '16px');
+    },
+
+    applyHighContrast(enabled) {
+      if (enabled) {
+        document.documentElement.classList.add('high-contrast');
+      } else {
+        document.documentElement.classList.remove('high-contrast');
+      }
+    },
+
+    applyAnimations(enabled) {
+      if (!enabled) {
+        document.documentElement.classList.add('disable-animations');
+      } else {
+        document.documentElement.classList.remove('disable-animations');
+      }
+    },
+
+    applyColorBlindMode(mode) {
+      // Remove any existing filters
+      const existingFilter = document.getElementById('color-blind-filter');
+      if (existingFilter) {
+        existingFilter.remove();
+      }
+
+      // If no color blind mode selected, we're done
+      if (mode === 'none') {
+        document.documentElement.style.filter = '';
+        return;
+      }
+
+      // Create SVG filter element
+      const svgFilter = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svgFilter.setAttribute('id', 'color-blind-filter');
+      svgFilter.style.position = 'absolute';
+      svgFilter.style.height = '0';
+      svgFilter.style.width = '0';
+      svgFilter.style.overflow = 'hidden';
+
+      // Add filter definitions based on selected mode
+      let filterContent = '';
+
+      switch (mode) {
+        case 'protanopia':
+          // Red-blind
+          filterContent = `
+            <filter id="protanopia">
+              <feColorMatrix
+                type="matrix"
+                values="0.567, 0.433, 0,     0, 0
+                        0.558, 0.442, 0,     0, 0
+                        0,     0.242, 0.758, 0, 0
+                        0,     0,     0,     1, 0"/>
+            </filter>
+          `;
+          break;
+        case 'deuteranopia':
+          // Green-blind
+          filterContent = `
+            <filter id="deuteranopia">
+              <feColorMatrix
+                type="matrix"
+                values="0.625, 0.375, 0,   0, 0
+                        0.7,   0.3,   0,   0, 0
+                        0,     0.3,   0.7, 0, 0
+                        0,     0,     0,   1, 0"/>
+            </filter>
+          `;
+          break;
+        case 'tritanopia':
+          // Blue-blind
+          filterContent = `
+            <filter id="tritanopia">
+              <feColorMatrix
+                type="matrix"
+                values="0.95, 0.05,  0,     0, 0
+                        0,    0.433, 0.567, 0, 0
+                        0,    0.475, 0.525, 0, 0
+                        0,    0,     0,     1, 0"/>
+            </filter>
+          `;
+          break;
+        case 'achromatopsia':
+          // Monochrome
+          filterContent = `
+            <filter id="achromatopsia">
+              <feColorMatrix
+                type="matrix"
+                values="0.299, 0.587, 0.114, 0, 0
+                        0.299, 0.587, 0.114, 0, 0
+                        0.299, 0.587, 0.114, 0, 0
+                        0,     0,     0,     1, 0"/>
+            </filter>
+          `;
+          break;
+      }
+
+      svgFilter.innerHTML = filterContent;
+      document.body.appendChild(svgFilter);
+
+      // Apply filter to the entire document
+      document.documentElement.style.filter = `url(#${mode})`;
+    },
+
+    applyReduceMotion(enabled) {
+      if (enabled) {
+        document.documentElement.classList.add('reduce-motion');
+        // Force all animations to be turned off
+        document.documentElement.style.setProperty('--transition-speed', '0s');
+      } else {
+        document.documentElement.classList.remove('reduce-motion');
+        // Restore normal transitions
+        document.documentElement.style.setProperty('--transition-speed', '0.3s');
+
+        // Apply motion intensity if applicable
+        this.applyMotionIntensity();
+      }
+    },
+
+    applyMotionIntensity() {
+      if (!this.settings.accessibility.reduceMotion) {
+        // Scale transition duration based on intensity (0-100)
+        const intensity = this.settings.accessibility.motionIntensity / 100;
+        const transitionDuration = 0.1 + (intensity * 0.4); // Range from 0.1s to 0.5s
+
+        document.documentElement.style.setProperty('--transition-speed', `${transitionDuration}s`);
+      }
+    },
+
+    applyFocusMode(enabled) {
+      if (enabled) {
+        document.documentElement.classList.add('focus-mode');
+      } else {
+        document.documentElement.classList.remove('focus-mode');
+      }
+    },
+
+    applyScreenReaderOptimization(enabled) {
+      if (enabled) {
+        document.documentElement.classList.add('screen-reader-optimized');
+        // Add ARIA attributes to improve screen reader experience
+        this.addScreenReaderAttributes();
+      } else {
+        document.documentElement.classList.remove('screen-reader-optimized');
+      }
+    },
+
+    addScreenReaderAttributes() {
+      // Add ARIA labels to elements that might need them
+      // This would be more comprehensive in a real implementation
+      const moduleCards = document.querySelectorAll('.module-card');
+      moduleCards.forEach((card, index) => {
+        const moduleName = card.querySelector('.module-name')?.textContent || `Module ${index + 1}`;
+        const moduleScore = card.querySelector('.module-score')?.textContent || 'No score';
+        card.setAttribute('aria-label', `${moduleName}, ${moduleScore}`);
+      });
+    },
+
+    updateAcademicSettings() {
+      // Update calculator config based on academic settings
+      const academicSettings = this.settings.academic;
+
+      // Only update if we need to and have valid data
+      if (academicSettings.totalYears && academicSettings.creditsPerYear && academicSettings.yearWeights?.length) {
+        // Create new calculator config years if needed
+        if (!this.calculatorConfig.years || this.calculatorConfig.years.length === 0) {
+          this.calculatorConfig.years = academicSettings.yearWeights.map((weight, index) => ({
+            year: `Year ${index + 1}`,
+            active: weight.active,
+            credits: typeof academicSettings.creditsPerYear === 'number' ?
+                academicSettings.creditsPerYear :
+                parseInt(academicSettings.creditsPerYear) || 120,
+            weight: weight.weight,
+            semesters: academicSettings.semestersPerYear || 2
+          }));
+        }
+
+        // Update target grade
+        this.targetGrade = academicSettings.targetGrade;
+        this.customTargetGrade = academicSettings.customTargetGrade;
+      }
+    },
+
+    updateCalendarSettings() {
+      // Update calendar component with settings
+      // Real implementation would update the CalendarSidebar component
+      console.log("Updating calendar with settings:", this.settings.calendar);
+    },
+
+    // Deep merge utility for merging settings objects
+    mergeDeep(target, source) {
+      const output = Object.assign({}, target);
+      if (this.isObject(target) && this.isObject(source)) {
+        Object.keys(source).forEach(key => {
+          if (this.isObject(source[key])) {
+            if (!(key in target)) {
+              Object.assign(output, {[key]: source[key]});
+            } else {
+              output[key] = this.mergeDeep(target[key], source[key]);
+            }
+          } else {
+            Object.assign(output, {[key]: source[key]});
+          }
+        });
+      }
+      return output;
+    },
+
+    isObject(item) {
+      return (item && typeof item === 'object' && !Array.isArray(item));
+    },
+
     // Capacitor detection and mobile methods
     isCapacitorApp() {
       return window.Capacitor !== undefined && window.Capacitor.isNative === true;
@@ -1611,30 +2066,43 @@ export default {
     showGlobalAddModule() {
       // Create default years if none exist
       if (!this.calculatorConfig.years || this.calculatorConfig.years.length === 0) {
-        // Create default years configuration
-        this.calculatorConfig.years = [
-          {
-            year: 'Year 1',
-            active: true,
-            credits: 120,
-            weight: 33,
-            semesters: 2
-          },
-          {
-            year: 'Year 2',
-            active: true,
-            credits: 120,
-            weight: 33,
-            semesters: 2
-          },
-          {
-            year: 'Year 3',
-            active: true,
-            credits: 120,
-            weight: 34,
-            semesters: 2
-          }
-        ];
+        // Create default years configuration based on settings if available
+        if (this.settings.academic.totalYears && this.settings.academic.yearWeights?.length) {
+          this.calculatorConfig.years = this.settings.academic.yearWeights.map((weight, index) => ({
+            year: `Year ${index + 1}`,
+            active: weight.active,
+            credits: typeof this.settings.academic.creditsPerYear === 'number' ?
+                this.settings.academic.creditsPerYear :
+                parseInt(this.settings.academic.creditsPerYear) || 120,
+            weight: weight.weight,
+            semesters: this.settings.academic.semestersPerYear || 2
+          }));
+        } else {
+          // Fallback to default values
+          this.calculatorConfig.years = [
+            {
+              year: 'Year 1',
+              active: true,
+              credits: 120,
+              weight: 33,
+              semesters: 2
+            },
+            {
+              year: 'Year 2',
+              active: true,
+              credits: 120,
+              weight: 33,
+              semesters: 2
+            },
+            {
+              year: 'Year 3',
+              active: true,
+              credits: 120,
+              weight: 34,
+              semesters: 2
+            }
+          ];
+        }
       }
 
       // Set up the module form
@@ -1651,7 +2119,7 @@ export default {
         score: 0,
         isCurrentlyEnrolled: true,
         assessments: [
-          { name: 'Exam', weight: 100, score: 0, completed: false }
+          {name: 'Exam', weight: 100, score: 0, completed: false}
         ]
       };
 
@@ -1855,7 +2323,7 @@ export default {
         });
       } else {
         // Fallback to notify service
-        notify({ type: "info", message: message });
+        notify({type: "info", message: message});
       }
     },
 
@@ -1901,7 +2369,7 @@ export default {
     // API methods
     async fetchUserProfile() {
       try {
-        const response = await axios.get(`${API_URL}/user/profile`, { withCredentials: true });
+        const response = await axios.get(`${API_URL}/user/profile`, {withCredentials: true});
         this.userProfile = response.data;
         return response.data;
       } catch (error) {
@@ -1915,13 +2383,26 @@ export default {
 
     async fetchCalculatorConfig() {
       try {
-        const response = await axios.get(`${API_URL}/calculator`, { withCredentials: true });
+        const response = await axios.get(`${API_URL}/calculator`, {withCredentials: true});
         this.calculatorConfig = response.data;
+
+        // Synchronize with settings if needed
+        this.syncCalculatorConfigWithSettings();
+
         return response.data;
       } catch (error) {
         console.error("Error fetching calculator config:", error);
         return null;
       }
+    },
+
+    syncCalculatorConfigWithSettings() {
+      if (!this.calculatorConfig || !this.calculatorConfig.years || !this.settings.academic.yearWeights) {
+        return;
+      }
+
+      // Update calculator config with settings values where appropriate
+      // (This method could be expanded based on your specific needs)
     },
 
     async fetchModules() {
@@ -1930,7 +2411,7 @@ export default {
       try {
         this.loading = true;
         console.log("Fetching modules from API...");
-        const response = await axios.get(`${API_URL}/modules`, { withCredentials: true });
+        const response = await axios.get(`${API_URL}/modules`, {withCredentials: true});
         console.log("Modules from API:", response.data);
         this.moduleData = response.data;
         console.log("Current moduleData after assignment:", this.moduleData);
@@ -1987,8 +2468,8 @@ export default {
 
       try {
         this.loading = true;
-        const response = await axios.get(`${API_URL}/dashboard`, { withCredentials: true });
-        const { stats, config } = response.data;
+        const response = await axios.get(`${API_URL}/dashboard`, {withCredentials: true});
+        const {stats, config} = response.data;
 
         this.dashboardStats = stats;
         this.dashboardConfig = config;
@@ -2017,9 +2498,763 @@ export default {
       }
     },
 
+    // Handle dark mode change
+    onDarkModeChange(event) {
+      this.darkMode = event.detail.isDark;
+      this.settings.appearance.darkMode = this.darkMode;
+
+      // Update status bar in Capacitor
+      if (this.isCapacitorApp() && window.Capacitor.Plugins.StatusBar) {
+        if (this.darkMode) {
+          window.Capacitor.Plugins.StatusBar.setBackgroundColor({color: '#111827'});
+          window.Capacitor.Plugins.StatusBar.setStyle({style: 'DARK'});
+        } else {
+          window.Capacitor.Plugins.StatusBar.setBackgroundColor({color: '#f8f9fa'});
+          window.Capacitor.Plugins.StatusBar.setStyle({style: 'LIGHT'});
+        }
+      }
+
+      // Reapply accent color when theme changes
+      const accentColor = this.settings.appearance.accentColor || 'purple';
+      this.applyAccentColor(accentColor);
+
+      // Reapply color blind mode filter after theme change
+      if (this.settings.accessibility.colorBlindMode !== 'none') {
+        this.applyColorBlindMode(this.settings.accessibility.colorBlindMode);
+      }
+    },
+
+    // Apply accent color
+    applyAccentColor(colorId) {
+      // Map of color IDs to their hex values
+      const colorMap = {
+        'purple': '#7b49ff',
+        'blue': '#2196f3',
+        'green': '#4caf50',
+        'red': '#f44336',
+        'orange': '#ff9800',
+        'pink': '#e91e63',
+        'teal': '#009688'
+      };
+
+      const colorValue = colorMap[colorId] || colorMap['purple']; // Default to purple
+
+      // Set CSS variables for the accent color
+      document.documentElement.style.setProperty('--primary-color', colorValue);
+
+      // Calculate darker variant for hover states
+      const darkerColor = this.adjustColor(colorValue, -20);
+      document.documentElement.style.setProperty('--primary-dark', darkerColor);
+
+      // Calculate lighter variant
+      const lighterColor = this.adjustColor(colorValue, 20);
+      document.documentElement.style.setProperty('--primary-light', lighterColor);
+    },
+
+    // Helper function to adjust colors
+    adjustColor(hex, amount) {
+      // Convert hex to RGB
+      let r = parseInt(hex.slice(1, 3), 16);
+      let g = parseInt(hex.slice(3, 5), 16);
+      let b = parseInt(hex.slice(5, 7), 16);
+
+      // Adjust RGB values
+      r = Math.max(0, Math.min(255, r + amount));
+      g = Math.max(0, Math.min(255, g + amount));
+      b = Math.max(0, Math.min(255, b + amount));
+
+      // Convert back to hex
+      return `#${Math.round(r).toString(16).padStart(2, '0')}${Math.round(g).toString(16).padStart(2, '0')}${Math.round(b).toString(16).padStart(2, '0')}`;
+    },
+
+    // Handle logout event from navbar
+    async handleLogout() {
+      if (this.isMobile) this.showLoading();
+
+      try {
+        await axios.post(`${API_URL}/logout`, {}, {withCredentials: true});
+        this.notLoggedIn = true;
+
+        // Exit app if on Capacitor
+        if (this.isCapacitorApp()) {
+          this.showNativeToast("Logged out successfully");
+          // Give time for toast to show before exiting
+          setTimeout(() => {
+            window.Capacitor.Plugins.App.exitApp();
+          }, 1000);
+        } else {
+          // Add the logout=true query parameter here for web
+          this.$router.push('/login?logout=true');
+        }
+      } catch (error) {
+        console.error("Error during logout:", error);
+
+        if (this.isCapacitorApp()) {
+          this.showNativeToast("Error during logout");
+          this.hideLoading();
+        } else {
+          // Also add it here in case of errors
+          this.$router.push('/login?logout=true');
+        }
+      } finally {
+        if (this.isMobile) this.hideLoading();
+      }
+    },
+
+    // Get module icon class based on score
+    getModuleIconClass(score) {
+      if (score >= 70) return 'excellent';
+      if (score >= 60) return 'good';
+      if (score >= 50) return 'average';
+      if (score >= 40) return 'pass';
+      return 'fail';
+    },
+
+    // Get score class based on value
+    getScoreClass(score) {
+      // Use grading scale from settings if available
+      const gradingScale = this.settings.academic.gradingScale || [];
+
+      if (gradingScale.length >= 5) {
+        // Find corresponding grade in the scale
+        const firstClass = gradingScale.find(g => g.letter === 'A');
+        const upperSecond = gradingScale.find(g => g.letter === 'B');
+        const lowerSecond = gradingScale.find(g => g.letter === 'C');
+        const third = gradingScale.find(g => g.letter === 'D');
+
+        // Use custom thresholds if available
+        if (firstClass && score >= firstClass.minPercentage) return 'excellent-score';
+        if (upperSecond && score >= upperSecond.minPercentage) return 'good-score';
+        if (lowerSecond && score >= lowerSecond.minPercentage) return 'average-score';
+        if (third && score >= third.minPercentage) return 'pass-score';
+        return 'fail-score';
+      }
+
+      // Default behavior if gradingScale is not properly configured
+      if (score >= 70) return 'excellent-score';
+      if (score >= 60) return 'good-score';
+      if (score >= 50) return 'average-score';
+      if (score >= 40) return 'pass-score';
+      return 'fail-score';
+    },
+
+    // Get comparison class for difference values
+    getComparisonClass(value) {
+      if (value > 5) return 'positive-large';
+      if (value > 0) return 'positive-small';
+      if (value < -5) return 'negative-large';
+      if (value < 0) return 'negative-small';
+      return 'neutral';
+    },
+
+    // View module details
+    viewModuleDetails(module) {
+      this.selectedModule = module;
+      this.showModuleDetail = true;
+    },
+
+    // Show add module form
+    showAddModuleForm(year) {
+      this.editingModule = false;
+      this.moduleForm = {
+        name: '',
+        code: '',
+        credits: 15,
+        year: year.year,
+        semester: 1, // Default to semester 1
+        score: 0,
+        isCurrentlyEnrolled: true, // Default to true for new modules
+        assessments: [
+          {name: 'Exam', weight: 100, score: 0, completed: false}
+        ]
+      };
+      this.showModuleForm = true;
+    },
+
+    // Edit module
+    editModule(module) {
+      this.editingModule = true;
+      this.moduleForm = JSON.parse(JSON.stringify(module));
+
+      // If the module doesn't have a semester field yet, default to 1
+      if (this.moduleForm.semester === undefined) {
+        this.moduleForm.semester = 1;
+      }
+
+      // If the module doesn't have the isCurrentlyEnrolled field, default to false
+      if (this.moduleForm.isCurrentlyEnrolled === undefined) {
+        this.moduleForm.isCurrentlyEnrolled = false;
+      }
+
+      // Ensure assessments array exists
+      if (!this.moduleForm.assessments || !this.moduleForm.assessments.length) {
+        this.moduleForm.assessments = [
+          {name: 'Exam', weight: 100, score: module.score, completed: !module.isCurrentlyEnrolled}
+        ];
+      } else if (this.moduleForm.isCurrentlyEnrolled) {
+        // Make sure all assessments have the 'completed' property if the module is currently enrolled
+        this.moduleForm.assessments = this.moduleForm.assessments.map(assessment => {
+          if (!assessment.hasOwnProperty('completed')) {
+            return {...assessment, completed: false};
+          }
+          return assessment;
+        });
+      }
+
+      this.showModuleDetail = false;
+      this.showModuleForm = true;
+    },
+
+    // Add assessment to module form
+    addAssessment() {
+      this.moduleForm.assessments.push({
+        name: `Assessment ${this.moduleForm.assessments.length + 1}`,
+        weight: 0,
+        score: 0,
+        completed: false
+      });
+    },
+
+    // Remove assessment from module form
+    removeAssessment(index) {
+      this.moduleForm.assessments.splice(index, 1);
+    },
+
+    // Export grades to CSV
+    exportGrades() {
+      // Create CSV content with proper date formatting based on settings
+      let csv = 'Year,Module,Code,Credits,Semester,Score,Currently Enrolled\n';
+
+      // Format date function that respects settings
+      const formatDate = (date) => {
+        if (!date) return '';
+
+        const dateObj = new Date(date);
+        const format = this.settings.calendar.dateFormat || 'MM/DD/YYYY';
+
+        // Simple formatting based on format string
+        const day = dateObj.getDate().toString().padStart(2, '0');
+        const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+        const year = dateObj.getFullYear();
+
+        if (format === 'MM/DD/YYYY') {
+          return `${month}/${day}/${year}`;
+        } else if (format === 'DD/MM/YYYY') {
+          return `${day}/${month}/${year}`;
+        } else {
+          return `${year}-${month}-${day}`;
+        }
+      };
+
+      this.moduleData.forEach(module => {
+        const semesterText = module.semester === 0 ? 'Full Year' : `Semester ${module.semester || 1}`;
+        const scoreText = module.isCurrentlyEnrolled ? 'In Progress' : `${module.score}`;
+        csv += `${module.year},${module.name},${module.code || ''},${module.credits},${semesterText},${scoreText},${module.isCurrentlyEnrolled ? 'Yes' : 'No'}\n`;
+      });
+
+      // Handle export based on platform
+      if (this.isCapacitorApp() && window.Capacitor.Plugins.Filesystem) {
+        // Save file using Capacitor
+        const fileName = `GradeGuard_Export_${new Date().toISOString().slice(0, 10)}.csv`;
+
+        window.Capacitor.Plugins.Filesystem.writeFile({
+          path: fileName,
+          data: csv,
+          directory: window.Capacitor.FilesystemDirectory.Documents,
+          encoding: window.Capacitor.FilesystemEncoding.UTF8
+        }).then(() => {
+          this.showNativeToast("Grades exported successfully to Documents folder");
+
+          // Try to share the file
+          if (window.Capacitor.Plugins.Share) {
+            window.Capacitor.Plugins.Share.share({
+              title: 'GradeGuard Export',
+              text: 'Your exported grades',
+              url: fileName,
+              dialogTitle: 'Share your grades'
+            }).catch(err => {
+              console.error("Error sharing file:", err);
+            });
+          }
+        }).catch(err => {
+          console.error("Error saving file:", err);
+          this.showNativeToast("Error exporting grades");
+        });
+      } else {
+        // Web browser export
+        const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'GradeGuard_Export.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        notify({type: "success", message: "Grades exported successfully!"});
+      }
+    },
+
+    // Prepare data for charts
+    prepareChartData() {
+      // Year data for year comparison chart will be from API
+
+      // Score distribution for charts
+      const completedModules = this.completedModuleData;
+      const scores = completedModules.map(m => m.score);
+
+      // Use grading scale ranges from settings if available
+      let ranges;
+      const gradingScale = this.settings.academic.gradingScale;
+
+      if (gradingScale && gradingScale.length >= 4) {
+        ranges = [];
+        // Sort grading scale by minPercentage in descending order
+        const sortedScale = [...gradingScale].sort((a, b) => b.minPercentage - a.minPercentage);
+
+        // Create ranges from grading scale
+        for (let i = 0; i < sortedScale.length; i++) {
+          const min = sortedScale[i].minPercentage;
+          const max = i === 0 ? 100 : sortedScale[i - 1].minPercentage - 1;
+          ranges.push({
+            name: `${sortedScale[i].letter} (${min}-${max}%)`,
+            range: [min, max]
+          });
+        }
+      } else {
+        // Default ranges
+        ranges = [
+          {name: '0-39%', range: [0, 39]},
+          {name: '40-49%', range: [40, 49]},
+          {name: '50-59%', range: [50, 59]},
+          {name: '60-69%', range: [60, 69]},
+          {name: '70-100%', range: [70, 100]}
+        ];
+      }
+
+      this.scoreDistribution = ranges.map(range => {
+        return {
+          name: range.name,
+          count: scores.filter(score => score >= range.range[0] && score <= range.range[1]).length
+        };
+      });
+    },
+
+    // Prepare data for insights charts
+    prepareInsightsData() {
+      // Performance data for line chart
+      const completedModules = this.completedModuleData;
+      const modulesByYear = {};
+
+      completedModules.forEach(module => {
+        if (!modulesByYear[module.year]) {
+          modulesByYear[module.year] = [];
+        }
+        modulesByYear[module.year].push(module);
+      });
+
+      this.performanceData = Object.keys(modulesByYear).map(year => {
+        const modules = modulesByYear[year];
+        return {
+          name: year,
+          average: Math.round(modules.reduce((sum, m) => sum + m.score, 0) / modules.length * 10) / 10,
+          highest: Math.max(...modules.map(m => m.score)),
+          lowest: Math.min(...modules.map(m => m.score)),
+          count: modules.length
+        };
+      }).sort((a, b) => {
+        return parseInt(a.name.replace('Year ', '')) - parseInt(b.name.replace('Year ', ''));
+      });
+
+      // Strengths data for radar chart
+      const subjectCategories = [
+        {name: 'Programming', pattern: /(programming|coding|development|software)/i},
+        {name: 'Theory', pattern: /(theory|concepts|foundations)/i},
+        {name: 'Mathematics', pattern: /(math|mathematics|calculation|statistics)/i},
+        {name: 'Design', pattern: /(design|architecture|interface)/i},
+        {name: 'Research', pattern: /(research|analysis|thesis)/i},
+        {name: 'Security', pattern: /(security|cyber|protection)/i}
+      ];
+
+      this.strengthsData = subjectCategories.map(category => {
+        const matchingModules = completedModules.filter(m =>
+            category.pattern.test(m.name) || category.pattern.test(m.code)
+        );
+
+        return {
+          subject: category.name,
+          score: matchingModules.length ?
+              Math.round(matchingModules.reduce((sum, m) => sum + m.score, 0) / matchingModules.length) :
+              50 // Default value if no matching modules
+        };
+      });
+
+      // Generate personalized tips
+      this.generatePersonalizedTips();
+    },
+
+    // Generate personalized tips based on module data and settings
+    generatePersonalizedTips() {
+      const tips = [];
+
+      // Focus on currently enrolled modules
+      const currentModules = this.currentModuleData;
+      if (currentModules.length > 0) {
+        // Group by completion date or urgency
+        const upcomingModules = currentModules.slice(0, 3); // Take the first 3 for simplicity
+
+        upcomingModules.forEach(module => {
+          tips.push({
+            title: `Focus on ${module.name}`,
+            description: `You're currently enrolled in this module. Create a study plan and allocate regular time to stay on top of the coursework.`
+          });
+        });
+
+        // Add general study tip for current modules
+        if (currentModules.length > 0) {
+          tips.push({
+            title: 'Current Modules Strategy',
+            description: `You're currently enrolled in ${currentModules.length} module${currentModules.length > 1 ? 's' : ''}. Try to distribute your effort based on credit weighting and assessment schedules.`
+          });
+        }
+      }
+
+      // Add study preference based tip if available
+      if (this.settings.academic.studyPreferences && this.settings.academic.studyPreferences.length > 0) {
+        const preferredTimes = this.settings.academic.studyPreferences.join(' and ');
+        tips.push({
+          title: 'Leverage Your Study Preferences',
+          description: `You've indicated that ${preferredTimes} are your best study times. Schedule your most difficult work during these periods to maximize productivity.`
+        });
+      }
+
+      // Add time management tip
+      tips.push({
+        title: 'Effective Time Management',
+        description: 'Break down large assignments into smaller tasks and set deadlines for each part. This makes progress more manageable and reduces last-minute stress.'
+      });
+
+      // Add study technique tip
+      tips.push({
+        title: 'Active Learning Techniques',
+        description: 'Instead of passive reading, try active recall by testing yourself on key concepts. Research shows this significantly improves retention compared to re-reading materials.'
+      });
+
+      // Add tip based on academic level if available
+      if (this.settings.academic.academicLevel) {
+        let levelTip = {
+          title: `${this.settings.academic.academicLevel} Level Tips`,
+          description: ''
+        };
+
+        if (this.settings.academic.academicLevel === 'Undergraduate') {
+          levelTip.description = 'Focus on building a solid foundation across all your subjects. Make connections between different modules to deepen your understanding.';
+        } else if (this.settings.academic.academicLevel.includes('Masters')) {
+          levelTip.description = 'Develop your critical analysis skills. Go beyond just learning content to evaluating, critiquing, and applying concepts in new contexts.';
+        } else if (this.settings.academic.academicLevel.includes('PhD')) {
+          levelTip.description = 'Regular writing is essential. Set aside time each week to document your research progress and ideas, even if they\'re not fully formed yet.';
+        }
+        if (levelTip.description) {
+          tips.push(levelTip);
+        }
+      }
+
+      // If we have less than 4 tips, add general ones
+      if (tips.length < 4) {
+        tips.push({
+          title: 'Balance Your Workload',
+          description: 'Try spacing out your work to reduce stress and improve quality. Setting regular study periods can help maintain consistent progress.'
+        });
+      }
+
+      this.personalizedTips = tips.slice(0, 4); // Limit to 4 tips
+    },
+
+    // Initialize year weights based on number of years
+    initializeYearWeights(numYears) {
+      // Create default distribution (equal weights for now)
+      const defaultWeight = Math.floor(100 / numYears);
+      const remainder = 100 - (defaultWeight * numYears);
+
+      this.yearWeights = [];
+
+      for (let i = 0; i < numYears; i++) {
+        // Add remainder to last year if needed
+        const weight = i === numYears - 1 ? defaultWeight + remainder : defaultWeight;
+        this.yearWeights.push({
+          year: i + 1,
+          weight: weight,
+          active: true
+        });
+      }
+    },
+
+    // Validate year weights to ensure they sum to 100%
+    validateYearWeights() {
+      if (!this.yearWeights) return;
+
+      // Validate individual weights (cap at 100)
+      this.yearWeights.forEach(year => {
+        if (year.weight > 100) year.weight = 100;
+        if (year.weight < 0) year.weight = 0;
+      });
+
+      // If only one active year, force it to 100%
+      const activeYears = this.yearWeights.filter(y => y.active);
+      if (activeYears.length === 1) {
+        activeYears[0].weight = 100;
+      }
+    },
+
+    // Check if user is logged in and fetch configuration
+    async checkLoginAndFetchConfig() {
+      try {
+        // First try to get user profile to check if logged in
+        const profile = await this.fetchUserProfile();
+
+        if (!profile) {
+          this.notLoggedIn = true;
+          return;
+        }
+
+        // Fetch calculator config
+        const calcConfig = await this.fetchCalculatorConfig();
+
+        // Check if needs setup
+        if (!calcConfig || !calcConfig.years || calcConfig.years.length === 0) {
+          // Try to use academic settings for setup if available
+          if (this.settings.academic.yearWeights?.length) {
+            this.calculatorConfig.years = this.settings.academic.yearWeights.map((weight, index) => ({
+              year: `Year ${index + 1}`,
+              active: weight.active,
+              credits: typeof this.settings.academic.creditsPerYear === 'number' ?
+                  this.settings.academic.creditsPerYear :
+                  parseInt(this.settings.academic.creditsPerYear) || 120,
+              weight: weight.weight,
+              semesters: this.settings.academic.semestersPerYear || 2
+            }));
+          } else {
+            this.showSetupWizard = true;
+          }
+        }
+      } catch (error) {
+        console.error("Error checking login and config:", error);
+        this.notLoggedIn = true;
+      }
+    },
+
+    logSidebarStatus() {
+      console.log(
+          `[Sidebar Debug] sidebarVisible: ${this.sidebarVisible},
+     localStorage value: ${localStorage.getItem('sidebarVisible')},
+     isMobile: ${this.isMobile}`
+      );
+    },
+
+    toggleSidebar() {
+      this.sidebarVisible = !this.sidebarVisible;
+      localStorage.setItem('sidebarVisible', this.sidebarVisible.toString());
+
+      // Add debug logs
+      console.log(`Sidebar toggled to: ${this.sidebarVisible}`);
+
+      // Add proper class for mobile
+      if (this.sidebarVisible && this.isMobile) {
+        document.querySelector('.dashboard-sidebar').classList.add('visible');
+      } else if (!this.sidebarVisible && this.isMobile) {
+        document.querySelector('.dashboard-sidebar').classList.remove('visible');
+      }
+    },
+
+    // Save user config from wizard step 1
+    saveUserConfig() {
+      if (!this.userConfig.academicLevel || !this.userConfig.enrollmentType || !this.userConfig.studyPreference) {
+        const message = "Please complete all preference fields.";
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(message);
+        } else {
+          notify({type: "warning", message: message});
+        }
+        return;
+      }
+
+      // Update settings with user config
+      this.settings.academic.academicLevel = this.userConfig.academicLevel;
+      this.settings.academic.enrollmentType = this.userConfig.enrollmentType;
+      this.settings.academic.studyPreferences = [this.userConfig.studyPreference];
+
+      // Move to next step
+      this.showSetupWizard = false;
+      this.showNextConfig = true;
+    },
+
+    // Go back to wizard step 1
+    goBackToStep1() {
+      this.showNextConfig = false;
+      this.showSetupWizard = true;
+    },
+
+    // Go to year weights config
+    goToYearWeights() {
+      const yearsCount =
+          this.nextConfig.numYears === "other" ? this.nextConfig.customYears : this.nextConfig.numYears;
+      const semCount =
+          this.nextConfig.semesters === "other"
+              ? this.nextConfig.customSemesters
+              : this.nextConfig.semesters;
+      const credCount =
+          this.nextConfig.credits === "other" ? this.nextConfig.customCredits : this.nextConfig.credits;
+
+      if (!yearsCount || !semCount || !credCount) {
+        const message = "Please fill all degree details (years, semesters, credits).";
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(message);
+        } else {
+          notify({type: "warning", message: message});
+        }
+        return;
+      }
+
+      // Update settings with degree config
+      this.settings.academic.totalYears = yearsCount;
+      this.settings.academic.semestersPerYear = semCount;
+      this.settings.academic.creditsPerYear = credCount;
+
+      // Move to year weights step
+      this.showNextConfig = false;
+      this.showYearWeights = true;
+
+      // Initialize year weights if not already done
+      if (this.yearWeights.length === 0) {
+        this.initializeYearWeights(yearsCount);
+      }
+    },
+
+    // Go back to degree config
+    goBackToDegreeConfig() {
+      this.showYearWeights = false;
+      this.showNextConfig = true;
+    },
+
+    async completeSetup() {
+      // Validate weights before proceeding
+      if (this.totalWeight !== 100 && this.hasActiveYears) {
+        const message = "The total weight of active years should equal 100%.";
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(message);
+        } else {
+          notify({type: "warning", message: message});
+        }
+        return;
+      }
+
+      if (this.isMobile) this.showLoading();
+
+      try {
+        this.loading = true;
+
+        const yearsCount =
+            this.nextConfig.numYears === "other" ? this.nextConfig.customYears : this.nextConfig.numYears;
+        const semCount =
+            this.nextConfig.semesters === "other"
+                ? this.nextConfig.customSemesters
+                : this.nextConfig.semesters;
+        const credCount =
+            this.nextConfig.credits === "other" ? this.nextConfig.customCredits : this.nextConfig.credits;
+
+        // Create request payload for calculator config
+        const configData = {
+          numYears: yearsCount,
+          semesters: semCount,
+          credits: credCount,
+          years: this.yearWeights.map((year, index) => ({
+            year: `Year ${index + 1}`,
+            active: year.active,
+            credits: credCount,
+            weight: year.weight,
+            semesters: semCount
+          }))
+        };
+
+        // Update settings with completed setup data
+        this.settings.academic.totalYears = yearsCount;
+        this.settings.academic.semestersPerYear = semCount;
+        this.settings.academic.creditsPerYear = credCount;
+        this.settings.academic.yearWeights = this.yearWeights;
+        this.settings.academic.targetGrade = this.targetGrade;
+        this.settings.academic.customTargetGrade = this.customTargetGrade;
+
+        // Save calculator config
+        await axios.put(
+            `${API_URL}/calculator/update`,
+            configData,
+            {withCredentials: true}
+        );
+
+        // Save target grade in goals
+        const targetValue = this.targetGrade === 'custom' ? this.customTargetGrade : this.targetGrade;
+        const goals = [{
+          title: 'First Class Degree',
+          description: `Achieve overall average of ${targetValue}% or higher`,
+          progress: 0,
+          target_score: targetValue
+        }];
+
+        // Update goals
+        await axios.put(
+            `${API_URL}/dashboard/goals`,
+            goals,
+            {withCredentials: true}
+        );
+
+        // Save user configuration
+        if (this.userConfig.academicLevel || this.userConfig.enrollmentType || this.userConfig.studyPreference) {
+          await axios.put(
+              `${API_URL}/user/config`,
+              {studyPreferences: this.userConfig},
+              {withCredentials: true}
+          );
+        }
+
+        // Save settings to userSettingsService
+        await userSettingsService.saveSettings(this.settings);
+
+        this.showYearWeights = false;
+        this.showSetupWizard = false;
+        this.showNextConfig = false;
+
+        // Refresh data
+        await this.fetchCalculatorConfig();
+        await this.fetchModules();
+        await this.fetchDashboardData();
+
+        const message = "Setup completed successfully!";
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(message);
+        } else {
+          notify({type: "success", message: message});
+        }
+      } catch (error) {
+        console.error("Error completing setup:", error);
+        const errorMsg = `Setup failed: ${error.response?.data?.error || error.message}`;
+
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(errorMsg);
+        } else {
+          notify({type: "error", message: errorMsg});
+        }
+      } finally {
+        this.loading = false;
+        if (this.isMobile) this.hideLoading();
+      }
+    },
     async saveModule() {
       if (!this.isModuleFormValid) {
-        notify({ type: "warning", message: "Please complete all required fields and ensure assessment weights total 100%." });
+        notify({
+          type: "warning",
+          message: "Please complete all required fields and ensure assessment weights total 100%."
+        });
         return;
       }
 
@@ -2066,7 +3301,7 @@ export default {
             response = await axios.put(
                 `${API_URL}/modules/${this.moduleForm.id}`,
                 this.moduleForm,
-                { withCredentials: true }
+                {withCredentials: true}
             );
             apiSuccess = true;
             console.log("Module updated successfully via API");
@@ -2076,7 +3311,7 @@ export default {
             response = await axios.post(
                 `${API_URL}/modules`,
                 this.moduleForm,
-                { withCredentials: true }
+                {withCredentials: true}
             );
             apiSuccess = true;
             console.log("Module created successfully via API");
@@ -2103,7 +3338,7 @@ export default {
             const moduleYear = this.moduleForm.year;
 
             // Fetch the latest calculator config
-            const calcResponse = await axios.get(`${API_URL}/calculator`, { withCredentials: true });
+            const calcResponse = await axios.get(`${API_URL}/calculator`, {withCredentials: true});
             let calculatorConfig = calcResponse.data;
 
             // Initialize years array if it doesn't exist
@@ -2165,7 +3400,7 @@ export default {
               await axios.put(
                   `${API_URL}/calculator`,
                   calculatorConfig,
-                  { withCredentials: true }
+                  {withCredentials: true}
               );
               console.log("Calculator config updated with active year:", moduleYear);
 
@@ -2301,7 +3536,7 @@ export default {
         if (this.isCapacitorApp()) {
           this.showNativeToast(message);
         } else {
-          notify({ type: "success", message: message });
+          notify({type: "success", message: message});
         }
 
         this.showModuleForm = false;
@@ -2323,20 +3558,19 @@ export default {
         if (this.isCapacitorApp()) {
           this.showNativeToast(errorMsg);
         } else {
-          notify({ type: "error", message: errorMsg });
+          notify({type: "error", message: errorMsg});
         }
       } finally {
         this.loading = false;
         if (this.isMobile) this.hideLoading();
       }
     },
-
     async deleteModule(module) {
       // Use a confirm dialog appropriate for the platform
       let confirmed = false;
 
       if (this.isCapacitorApp() && window.Capacitor.Plugins.Dialog) {
-        const { value } = await window.Capacitor.Plugins.Dialog.confirm({
+        const {value} = await window.Capacitor.Plugins.Dialog.confirm({
           title: 'Confirm Deletion',
           message: `Are you sure you want to delete "${module.name}"?`,
           okButtonTitle: 'Delete',
@@ -2352,7 +3586,7 @@ export default {
 
         try {
           this.loading = true;
-          await axios.delete(`${API_URL}/modules/${module.id}`, { withCredentials: true });
+          await axios.delete(`${API_URL}/modules/${module.id}`, {withCredentials: true});
 
           await this.fetchModules(); // Refresh module data
           await this.fetchDashboardData(); // Refresh dashboard stats
@@ -2361,7 +3595,7 @@ export default {
           if (this.isCapacitorApp()) {
             this.showNativeToast(message);
           } else {
-            notify({ type: "success", message: message });
+            notify({type: "success", message: message});
           }
 
           this.showModuleDetail = false;
@@ -2380,7 +3614,7 @@ export default {
           if (this.isCapacitorApp()) {
             this.showNativeToast(errorMsg);
           } else {
-            notify({ type: "error", message: errorMsg });
+            notify({type: "error", message: errorMsg});
           }
         } finally {
           this.loading = false;
@@ -2388,13 +3622,12 @@ export default {
         }
       }
     },
-
     async addActivity(activityData) {
       try {
         await axios.post(
             `${API_URL}/dashboard/activity`,
             activityData,
-            { withCredentials: true }
+            {withCredentials: true}
         );
 
         // Update local activities
@@ -2418,596 +3651,22 @@ export default {
         await axios.put(
             `${API_URL}/dashboard/goals`,
             this.goals,
-            { withCredentials: true }
+            {withCredentials: true}
         );
       } catch (error) {
         console.error("Error updating goals:", error);
       }
     },
-
     async updateDashboardConfig(config) {
       try {
         await axios.put(
             `${API_URL}/dashboard`,
             config,
-            { withCredentials: true }
+            {withCredentials: true}
         );
       } catch (error) {
         console.error("Error updating dashboard config:", error);
       }
-    },
-
-    async completeSetup() {
-      // Validate weights before proceeding
-      if (this.totalWeight !== 100 && this.hasActiveYears) {
-        const message = "The total weight of active years should equal 100%.";
-        if (this.isCapacitorApp()) {
-          this.showNativeToast(message);
-        } else {
-          notify({ type: "warning", message: message });
-        }
-        return;
-      }
-
-      if (this.isMobile) this.showLoading();
-
-      try {
-        this.loading = true;
-
-        const yearsCount =
-            this.nextConfig.numYears === "other" ? this.nextConfig.customYears : this.nextConfig.numYears;
-        const semCount =
-            this.nextConfig.semesters === "other"
-                ? this.nextConfig.customSemesters
-                : this.nextConfig.semesters;
-        const credCount =
-            this.nextConfig.credits === "other" ? this.nextConfig.customCredits : this.nextConfig.credits;
-
-        // Create request payload for calculator config
-        const configData = {
-          numYears: yearsCount,
-          semesters: semCount,
-          credits: credCount,
-          years: this.yearWeights.map((year, index) => ({
-            year: `Year ${index + 1}`,
-            active: year.active,
-            credits: credCount,
-            weight: year.weight,
-            semesters: semCount
-          }))
-        };
-
-        // Save calculator config
-        await axios.put(
-            `${API_URL}/calculator/update`,
-            configData,
-            { withCredentials: true }
-        );
-
-        // Save target grade in goals
-        const targetValue = this.targetGrade === 'custom' ? this.customTargetGrade : this.targetGrade;
-        const goals = [{
-          title: 'First Class Degree',
-          description: `Achieve overall average of ${targetValue}% or higher`,
-          progress: 0,
-          target_score: targetValue
-        }];
-
-        // Update goals
-        await axios.put(
-            `${API_URL}/dashboard/goals`,
-            goals,
-            { withCredentials: true }
-        );
-
-        // Save user configuration
-        if (this.userConfig.academicLevel || this.userConfig.enrollmentType || this.userConfig.studyPreference) {
-          await axios.put(
-              `${API_URL}/user/config`,
-              { studyPreferences: this.userConfig },
-              { withCredentials: true }
-          );
-        }
-
-        this.showYearWeights = false;
-        this.showSetupWizard = false;
-        this.showNextConfig = false;
-
-        // Refresh data
-        await this.fetchCalculatorConfig();
-        await this.fetchModules();
-        await this.fetchDashboardData();
-
-        const message = "Setup completed successfully!";
-        if (this.isCapacitorApp()) {
-          this.showNativeToast(message);
-        } else {
-          notify({ type: "success", message: message });
-        }
-      } catch (error) {
-        console.error("Error completing setup:", error);
-        const errorMsg = `Setup failed: ${error.response?.data?.error || error.message}`;
-
-        if (this.isCapacitorApp()) {
-          this.showNativeToast(errorMsg);
-        } else {
-          notify({ type: "error", message: errorMsg });
-        }
-      } finally {
-        this.loading = false;
-        if (this.isMobile) this.hideLoading();
-      }
-    },
-
-    // Initialize year weights based on number of years
-    initializeYearWeights(numYears) {
-      // Create default distribution (equal weights for now)
-      const defaultWeight = Math.floor(100 / numYears);
-      const remainder = 100 - (defaultWeight * numYears);
-
-      this.yearWeights = [];
-
-      for (let i = 0; i < numYears; i++) {
-        // Add remainder to last year if needed
-        const weight = i === numYears - 1 ? defaultWeight + remainder : defaultWeight;
-        this.yearWeights.push({
-          year: i + 1,
-          weight: weight,
-          active: true
-        });
-      }
-    },
-
-    // Validate year weights to ensure they sum to 100%
-    validateYearWeights() {
-      // Cap individual weight values at 100
-      this.yearWeights.forEach(year => {
-        if (year.weight > 100) year.weight = 100;
-        if (year.weight < 0) year.weight = 0;
-      });
-
-      // If only one active year, force it to 100%
-      const activeYears = this.yearWeights.filter(y => y.active);
-      if (activeYears.length === 1) {
-        activeYears[0].weight = 100;
-      }
-    },
-
-    // Check if user is logged in and fetch configuration
-    async checkLoginAndFetchConfig() {
-      try {
-        // First try to get user profile to check if logged in
-        const profile = await this.fetchUserProfile();
-
-        if (!profile) {
-          this.notLoggedIn = true;
-          return;
-        }
-
-        // Fetch calculator config
-        const calcConfig = await this.fetchCalculatorConfig();
-
-        // Check if needs setup
-        if (!calcConfig || !calcConfig.years || calcConfig.years.length === 0) {
-          this.showSetupWizard = true;
-        }
-      } catch (error) {
-        console.error("Error checking login and config:", error);
-        this.notLoggedIn = true;
-      }
-    },
-
-    // Save user config from wizard step 1
-    saveUserConfig() {
-      if (!this.userConfig.academicLevel || !this.userConfig.enrollmentType || !this.userConfig.studyPreference) {
-        const message = "Please complete all preference fields.";
-        if (this.isCapacitorApp()) {
-          this.showNativeToast(message);
-        } else {
-          notify({ type: "warning", message: message });
-        }
-        return;
-      }
-
-      // Move to next step
-      this.showSetupWizard = false;
-      this.showNextConfig = true;
-    },
-
-    // Go back to wizard step 1
-    goBackToStep1() {
-      this.showNextConfig = false;
-      this.showSetupWizard = true;
-    },
-
-    // Go to year weights config
-    goToYearWeights() {
-      const yearsCount =
-          this.nextConfig.numYears === "other" ? this.nextConfig.customYears : this.nextConfig.numYears;
-      const semCount =
-          this.nextConfig.semesters === "other"
-              ? this.nextConfig.customSemesters
-              : this.nextConfig.semesters;
-      const credCount =
-          this.nextConfig.credits === "other" ? this.nextConfig.customCredits : this.nextConfig.credits;
-
-      if (!yearsCount || !semCount || !credCount) {
-        const message = "Please fill all degree details (years, semesters, credits).";
-        if (this.isCapacitorApp()) {
-          this.showNativeToast(message);
-        } else {
-          notify({ type: "warning", message: message });
-        }
-        return;
-      }
-
-      // Move to year weights step
-      this.showNextConfig = false;
-      this.showYearWeights = true;
-
-      // Initialize year weights if not already done
-      if (this.yearWeights.length === 0) {
-        this.initializeYearWeights(yearsCount);
-      }
-    },
-
-    // Go back to degree config
-    goBackToDegreeConfig() {
-      this.showYearWeights = false;
-      this.showNextConfig = true;
-    },
-
-    logSidebarStatus() {
-      console.log(
-          `[Sidebar Debug] sidebarVisible: ${this.sidebarVisible},
-     localStorage value: ${localStorage.getItem('sidebarVisible')},
-     isMobile: ${this.isMobile}`
-      );
-    },
-
-    toggleSidebar() {
-      this.sidebarVisible = !this.sidebarVisible;
-      localStorage.setItem('sidebarVisible', this.sidebarVisible.toString());
-
-      // Add debug logs
-      console.log(`Sidebar toggled to: ${this.sidebarVisible}`);
-
-      // Add proper class for mobile
-      if (this.sidebarVisible && this.isMobile) {
-        document.querySelector('.dashboard-sidebar').classList.add('visible');
-      } else if (!this.sidebarVisible && this.isMobile) {
-        document.querySelector('.dashboard-sidebar').classList.remove('visible');
-      }
-    },
-
-    // Handle dark mode change
-    onDarkModeChange(event) {
-      this.darkMode = event.detail.isDark;
-
-      // Update status bar in Capacitor
-      if (this.isCapacitorApp() && window.Capacitor.Plugins.StatusBar) {
-        if (this.darkMode) {
-          window.Capacitor.Plugins.StatusBar.setBackgroundColor({ color: '#111827' });
-          window.Capacitor.Plugins.StatusBar.setStyle({ style: 'DARK' });
-        } else {
-          window.Capacitor.Plugins.StatusBar.setBackgroundColor({ color: '#f8f9fa' });
-          window.Capacitor.Plugins.StatusBar.setStyle({ style: 'LIGHT' });
-        }
-      }
-    },
-
-    // Handle logout event from navbar
-    async handleLogout() {
-      if (this.isMobile) this.showLoading();
-
-      try {
-        await axios.post(`${API_URL}/logout`, {}, { withCredentials: true });
-        this.notLoggedIn = true;
-
-        // Exit app if on Capacitor
-        if (this.isCapacitorApp()) {
-          this.showNativeToast("Logged out successfully");
-          // Give time for toast to show before exiting
-          setTimeout(() => {
-            window.Capacitor.Plugins.App.exitApp();
-          }, 1000);
-        } else {
-          // Add the logout=true query parameter here for web
-          this.$router.push('/login?logout=true');
-        }
-      } catch (error) {
-        console.error("Error during logout:", error);
-
-        if (this.isCapacitorApp()) {
-          this.showNativeToast("Error during logout");
-          this.hideLoading();
-        } else {
-          // Also add it here in case of errors
-          this.$router.push('/login?logout=true');
-        }
-      } finally {
-        if (this.isMobile) this.hideLoading();
-      }
-    },
-
-    // Get module icon class based on score
-    getModuleIconClass(score) {
-      if (score >= 70) return 'excellent';
-      if (score >= 60) return 'good';
-      if (score >= 50) return 'average';
-      if (score >= 40) return 'pass';
-      return 'fail';
-    },
-
-    // Get score class based on value
-    getScoreClass(score) {
-      if (score >= 70) return 'excellent-score';
-      if (score >= 60) return 'good-score';
-      if (score >= 50) return 'average-score';
-      if (score >= 40) return 'pass-score';
-      return 'fail-score';
-    },
-
-    // Get comparison class for difference values
-    getComparisonClass(value) {
-      if (value > 5) return 'positive-large';
-      if (value > 0) return 'positive-small';
-      if (value < -5) return 'negative-large';
-      if (value < 0) return 'negative-small';
-      return 'neutral';
-    },
-
-    // View module details
-    viewModuleDetails(module) {
-      this.selectedModule = module;
-      this.showModuleDetail = true;
-    },
-
-    // Show add module form
-    showAddModuleForm(year) {
-      this.editingModule = false;
-      this.moduleForm = {
-        name: '',
-        code: '',
-        credits: 15,
-        year: year.year,
-        semester: 1, // Default to semester 1
-        score: 0,
-        isCurrentlyEnrolled: true, // Default to true for new modules
-        assessments: [
-          { name: 'Exam', weight: 100, score: 0, completed: false }
-        ]
-      };
-      this.showModuleForm = true;
-    },
-
-    // Edit module
-    editModule(module) {
-      this.editingModule = true;
-      this.moduleForm = JSON.parse(JSON.stringify(module));
-
-      // If the module doesn't have a semester field yet, default to 1
-      if (this.moduleForm.semester === undefined) {
-        this.moduleForm.semester = 1;
-      }
-
-      // If the module doesn't have the isCurrentlyEnrolled field, default to false
-      if (this.moduleForm.isCurrentlyEnrolled === undefined) {
-        this.moduleForm.isCurrentlyEnrolled = false;
-      }
-
-      // Ensure assessments array exists
-      if (!this.moduleForm.assessments || !this.moduleForm.assessments.length) {
-        this.moduleForm.assessments = [
-          { name: 'Exam', weight: 100, score: module.score, completed: !module.isCurrentlyEnrolled }
-        ];
-      } else if (this.moduleForm.isCurrentlyEnrolled) {
-        // Make sure all assessments have the 'completed' property if the module is currently enrolled
-        this.moduleForm.assessments = this.moduleForm.assessments.map(assessment => {
-          if (!assessment.hasOwnProperty('completed')) {
-            return { ...assessment, completed: false };
-          }
-          return assessment;
-        });
-      }
-
-      this.showModuleDetail = false;
-      this.showModuleForm = true;
-    },
-
-    // Add assessment to module form
-    addAssessment() {
-      this.moduleForm.assessments.push({
-        name: `Assessment ${this.moduleForm.assessments.length + 1}`,
-        weight: 0,
-        score: 0,
-        completed: false
-      });
-    },
-
-    // Remove assessment from module form
-    removeAssessment(index) {
-      this.moduleForm.assessments.splice(index, 1);
-    },
-
-    // Export grades to CSV
-    exportGrades() {
-      // Create CSV content
-      let csv = 'Year,Module,Code,Credits,Semester,Score,Currently Enrolled\n';
-
-      this.moduleData.forEach(module => {
-        const semesterText = module.semester === 0 ? 'Full Year' : `Semester ${module.semester || 1}`;
-        const scoreText = module.isCurrentlyEnrolled ? 'In Progress' : `${module.score}`;
-        csv += `${module.year},${module.name},${module.code || ''},${module.credits},${semesterText},${scoreText},${module.isCurrentlyEnrolled ? 'Yes' : 'No'}\n`;
-      });
-
-      // Handle export based on platform
-      if (this.isCapacitorApp() && window.Capacitor.Plugins.Filesystem) {
-        // Save file using Capacitor
-        const fileName = `GradeGuard_Export_${new Date().toISOString().slice(0,10)}.csv`;
-
-        window.Capacitor.Plugins.Filesystem.writeFile({
-          path: fileName,
-          data: csv,
-          directory: window.Capacitor.FilesystemDirectory.Documents,
-          encoding: window.Capacitor.FilesystemEncoding.UTF8
-        }).then(() => {
-          this.showNativeToast("Grades exported successfully to Documents folder");
-
-          // Try to share the file
-          if (window.Capacitor.Plugins.Share) {
-            window.Capacitor.Plugins.Share.share({
-              title: 'GradeGuard Export',
-              text: 'Your exported grades',
-              url: fileName,
-              dialogTitle: 'Share your grades'
-            }).catch(err => {
-              console.error("Error sharing file:", err);
-            });
-          }
-        }).catch(err => {
-          console.error("Error saving file:", err);
-          this.showNativeToast("Error exporting grades");
-        });
-      } else {
-        // Web browser export
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.setAttribute('href', url);
-        link.setAttribute('download', 'GradeGuard_Export.csv');
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        notify({ type: "success", message: "Grades exported successfully!" });
-      }
-    },
-
-    // Prepare data for charts
-    prepareChartData() {
-      // Year data for year comparison chart will be from API
-
-      // Score distribution for charts
-      const completedModules = this.completedModuleData;
-      const scores = completedModules.map(m => m.score);
-      const ranges = [
-        { name: '0-39%', range: [0, 39] },
-        { name: '40-49%', range: [40, 49] },
-        { name: '50-59%', range: [50, 59] },
-        { name: '60-69%', range: [60, 69] },
-        { name: '70-100%', range: [70, 100] }
-      ];
-
-      this.scoreDistribution = ranges.map(range => {
-        return {
-          name: range.name,
-          count: scores.filter(score => score >= range.range[0] && score <= range.range[1]).length
-        };
-      });
-    },
-
-    // Prepare data for insights charts
-    prepareInsightsData() {
-      // Performance data for line chart
-      const completedModules = this.completedModuleData;
-      const modulesByYear = {};
-
-      completedModules.forEach(module => {
-        if (!modulesByYear[module.year]) {
-          modulesByYear[module.year] = [];
-        }
-        modulesByYear[module.year].push(module);
-      });
-
-      this.performanceData = Object.keys(modulesByYear).map(year => {
-        const modules = modulesByYear[year];
-        return {
-          name: year,
-          average: Math.round(modules.reduce((sum, m) => sum + m.score, 0) / modules.length * 10) / 10,
-          highest: Math.max(...modules.map(m => m.score)),
-          lowest: Math.min(...modules.map(m => m.score)),
-          count: modules.length
-        };
-      }).sort((a, b) => {
-        return parseInt(a.name.replace('Year ', '')) - parseInt(b.name.replace('Year ', ''));
-      });
-
-      // Strengths data for radar chart
-      const subjectCategories = [
-        { name: 'Programming', pattern: /(programming|coding|development|software)/i },
-        { name: 'Theory', pattern: /(theory|concepts|foundations)/i },
-        { name: 'Mathematics', pattern: /(math|mathematics|calculation|statistics)/i },
-        { name: 'Design', pattern: /(design|architecture|interface)/i },
-        { name: 'Research', pattern: /(research|analysis|thesis)/i },
-        { name: 'Security', pattern: /(security|cyber|protection)/i }
-      ];
-
-      this.strengthsData = subjectCategories.map(category => {
-        const matchingModules = completedModules.filter(m =>
-            category.pattern.test(m.name) || category.pattern.test(m.code)
-        );
-
-        return {
-          subject: category.name,
-          score: matchingModules.length ?
-              Math.round(matchingModules.reduce((sum, m) => sum + m.score, 0) / matchingModules.length) :
-              50 // Default value if no matching modules
-        };
-      });
-
-      // Generate personalized tips
-      this.generatePersonalizedTips();
-    },
-
-    // Generate personalized tips based on module data
-    generatePersonalizedTips() {
-      const tips = [];
-
-      // Focus on currently enrolled modules
-      const currentModules = this.currentModuleData;
-      if (currentModules.length > 0) {
-        // Group by completion date or urgency
-        const upcomingModules = currentModules.slice(0, 3); // Take the first 3 for simplicity
-
-        upcomingModules.forEach(module => {
-          tips.push({
-            title: `Focus on ${module.name}`,
-            description: `You're currently enrolled in this module. Create a study plan and allocate regular time to stay on top of the coursework.`
-          });
-        });
-
-        // Add general study tip for current modules
-        if (currentModules.length > 0) {
-          tips.push({
-            title: 'Current Modules Strategy',
-            description: `You're currently enrolled in ${currentModules.length} module${currentModules.length > 1 ? 's' : ''}. Try to distribute your effort based on credit weighting and assessment schedules.`
-          });
-        }
-      }
-
-      // Add time management tip
-      tips.push({
-        title: 'Effective Time Management',
-        description: 'Break down large assignments into smaller tasks and set deadlines for each part. This makes progress more manageable and reduces last-minute stress.'
-      });
-
-      // Add study technique tip
-      tips.push({
-        title: 'Active Learning Techniques',
-        description: 'Instead of passive reading, try active recall by testing yourself on key concepts. Research shows this significantly improves retention compared to re-reading materials.'
-      });
-
-      // If we have less than 4 tips, add general ones
-      if (tips.length < 4) {
-        tips.push({
-          title: 'Balance Your Workload',
-          description: 'Try spacing out your work to reduce stress and improve quality. Setting regular study periods can help maintain consistent progress.'
-        });
-      }
-
-      this.personalizedTips = tips.slice(0, 4); // Limit to 4 tips
     }
   }
 };
@@ -3059,6 +3718,263 @@ export default {
   --primary-light: #a78bfa;
   --border-color: #374151;
   --border-color-light: #4b5563;
+}
+
+/* High contrast mode */
+.high-contrast {
+  --primary-color: #0050c8;
+  --primary-dark: #003b94;
+  --primary-light: #4d89f0;
+  --error-color: #d50000;
+  --success-color: #008a00;
+  --warning-color: #e65100;
+  --text-primary: #000000;
+  --text-secondary: #333333;
+  --bg-light: #ffffff;
+  --bg-card: #f8f8f8;
+  --bg-input: #ffffff;
+  --bg-hover: #e6e6e6;
+  --border-color: #000000;
+  --focus-outline: 3px solid #000000;
+}
+
+.dark-mode.high-contrast {
+  --primary-color: #82b1ff;
+  --primary-dark: #448aff;
+  --primary-light: #bbdefb;
+  --text-primary: #ffffff;
+  --text-secondary: #dddddd;
+  --bg-light: #000000;
+  --bg-card: #121212;
+  --bg-input: #1e1e1e;
+  --bg-hover: #2a2a2a;
+  --border-color: #ffffff;
+  --focus-outline: 3px solid #ffffff;
+}
+
+/* Animation settings */
+.disable-animations * {
+  transition: none !important;
+  animation: none !important;
+}
+
+.reduce-motion * {
+  transition-duration: 0.001s !important;
+  animation-duration: 0.001s !important;
+}
+
+/* Focus mode */
+.focus-mode .dashboard-content > *:not(:focus-within):not(.overview-card):not(.chart-card):not(.activity-card):not(.goals-card):not(.year-card):not(.insights-card):not(.settings-section) {
+  opacity: 0.7;
+  filter: grayscale(20%);
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.focus-mode .dashboard-content > *:hover:not(:focus-within) {
+  opacity: 0.9;
+  filter: grayscale(0%);
+}
+
+.focus-mode .dashboard-header {
+  opacity: 1 !important;
+  filter: none !important;
+}
+
+/* Screen reader optimizations */
+.screen-reader-optimized .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.screen-reader-optimized .module-card,
+.screen-reader-optimized .chart-card,
+.screen-reader-optimized .activity-item,
+.screen-reader-optimized .goal-item {
+  position: relative;
+}
+
+/* Skip to content link for screen readers */
+.screen-reader-optimized .skip-to-content {
+  position: absolute;
+  left: -9999px;
+  z-index: 999;
+  padding: 1rem;
+  background-color: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+}
+
+.screen-reader-optimized .skip-to-content:focus {
+  left: 50%;
+  transform: translateX(-50%);
+  top: 0;
+}
+
+/* Accessibility focus indicators */
+.screen-reader-optimized button:focus-visible,
+.screen-reader-optimized input:focus-visible,
+.screen-reader-optimized select:focus-visible,
+.screen-reader-optimized a:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Enhanced focus outlines for keyboard navigation */
+.screen-reader-optimized .module-card:focus-within,
+.screen-reader-optimized .chart-card:focus-within,
+.screen-reader-optimized .activity-item:focus-within,
+.screen-reader-optimized .goal-item:focus-within {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+/* Font size adjustments based on setting */
+:root {
+  --font-size-base: 16px;
+}
+
+.dashboard-main-content {
+  font-size: var(--font-size-base);
+}
+
+/* Small font size */
+.dashboard-main-content.font-small {
+  --font-size-base: 14px;
+}
+
+.dashboard-main-content.font-small h1 {
+  font-size: 1.6rem;
+}
+
+.dashboard-main-content.font-small h2 {
+  font-size: 1.3rem;
+}
+
+.dashboard-main-content.font-small h3 {
+  font-size: 1.1rem;
+}
+
+.dashboard-main-content.font-small .grade-value {
+  font-size: 2.25rem;
+}
+
+/* Medium font size - default */
+.dashboard-main-content.font-medium {
+  --font-size-base: 16px;
+}
+
+/* Large font size */
+.dashboard-main-content.font-large {
+  --font-size-base: 18px;
+}
+
+.dashboard-main-content.font-large h1 {
+  font-size: 2rem;
+}
+
+.dashboard-main-content.font-large h2 {
+  font-size: 1.7rem;
+}
+
+.dashboard-main-content.font-large h3 {
+  font-size: 1.4rem;
+}
+
+.dashboard-main-content.font-large .grade-value {
+  font-size: 3rem;
+}
+
+.dashboard-main-content.font-large .module-card,
+.dashboard-main-content.font-large .activity-item,
+.dashboard-main-content.font-large .goal-item {
+  padding: 1.5rem;
+}
+
+/* Responsive modifications for increased font sizes */
+@media (max-width: 768px) {
+  .dashboard-main-content.font-large .visualization-row,
+  .dashboard-main-content.font-large .bottom-row {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-main-content.font-large .modules-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Calendar display based on settings */
+.hide-week-numbers .fc-week-number {
+  display: none !important;
+}
+
+.hide-completed .fc-event.completed {
+  display: none !important;
+}
+
+.highlight-today .fc-day-today {
+  background-color: rgba(var(--primary-color-rgb), 0.1) !important;
+  border: 1px solid var(--primary-color) !important;
+}
+
+/* Time format adjustments for calendar */
+.time-format-24h .fc-event-time {
+  /* Styles for 24h time format in calendar */
+}
+
+.time-format-12h .fc-event-time {
+  /* Styles for 12h time format in calendar */
+}
+
+/* Enhanced color coding for grading scale from settings */
+.grading-scale-custom .excellent-score {
+  color: var(--custom-excellent-color, #2ecc71);
+}
+
+.grading-scale-custom .good-score {
+  color: var(--custom-good-color, #3498db);
+}
+
+.grading-scale-custom .average-score {
+  color: var(--custom-average-color, #f1c40f);
+}
+
+.grading-scale-custom .pass-score {
+  color: var(--custom-pass-color, #e67e22);
+}
+
+.grading-scale-custom .fail-score {
+  color: var(--custom-fail-color, #e74c3c);
+}
+
+/* Custom module icon classes based on grading scale */
+.grading-scale-custom .module-icon.excellent {
+  background: linear-gradient(135deg, var(--custom-excellent-color, #2ecc71), var(--custom-excellent-dark, #27ae60));
+}
+
+.grading-scale-custom .module-icon.good {
+  background: linear-gradient(135deg, var(--custom-good-color, #3498db), var(--custom-good-dark, #2980b9));
+}
+
+.grading-scale-custom .module-icon.average {
+  background: linear-gradient(135deg, var(--custom-average-color, #f1c40f), var(--custom-average-dark, #f39c12));
+}
+
+.grading-scale-custom .module-icon.pass {
+  background: linear-gradient(135deg, var(--custom-pass-color, #e67e22), var(--custom-pass-dark, #d35400));
+}
+
+.grading-scale-custom .module-icon.fail {
+  background: linear-gradient(135deg, var(--custom-fail-color, #e74c3c), var(--custom-fail-dark, #c0392b));
 }
 
 .dashboard-layout {

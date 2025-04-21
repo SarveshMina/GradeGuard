@@ -14,6 +14,7 @@
       <div class="dashboard-main-content expanded">
         <div class="dashboard-header">
           <h1>Settings</h1>
+          <p class="settings-subtitle">Customize your GradeGuard experience</p>
         </div>
 
         <!-- Loading State -->
@@ -31,7 +32,7 @@
             </svg>
             <h2>Welcome to GradeGuard</h2>
             <p>Please sign in to access your settings.</p>
-            <a href="/login" class="login-button">Go to Login</a>
+            <a href="/login" class="login-button" aria-label="Go to login page">Go to Login</a>
           </div>
         </div>
 
@@ -39,19 +40,21 @@
         <div v-else class="settings-content">
           <!-- Mobile Settings Dropdown (shown only on mobile) -->
           <div class="mobile-settings-dropdown" v-if="isMobile">
-            <div class="dropdown-selector" @click="toggleMobileNav">
+            <div class="dropdown-selector" @click="toggleMobileNav" aria-haspopup="true" :aria-expanded="mobileNavOpen">
               <span>{{ getCurrentSectionName() }}</span>
               <svg class="dropdown-icon" :class="{ 'open': mobileNavOpen }" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </div>
-            <div class="mobile-nav-menu" v-if="mobileNavOpen">
+            <div class="mobile-nav-menu" v-if="mobileNavOpen" role="menu">
               <button
                   v-for="(section, index) in sections"
                   :key="index"
                   @click="selectMobileSection(section.id)"
                   class="mobile-nav-item"
                   :class="{ active: activeSection === section.id }"
+                  role="menuitem"
+                  :aria-current="activeSection === section.id"
               >
                 <span class="icon" v-html="section.icon"></span>
                 <span class="text">{{ section.name }}</span>
@@ -60,13 +63,16 @@
           </div>
 
           <!-- Desktop Settings Navigation (hidden on mobile) -->
-          <div class="settings-navigation" v-if="!isMobile">
+          <div class="settings-navigation" v-if="!isMobile" role="navigation" aria-label="Settings sections">
             <button
                 v-for="(section, index) in sections"
                 :key="index"
                 @click="activeSection = section.id"
                 class="nav-button"
                 :class="{ active: activeSection === section.id }"
+                role="tab"
+                :aria-selected="activeSection === section.id"
+                :aria-controls="`${section.id}-panel`"
             >
               <span class="icon" v-html="section.icon"></span>
               <span class="text">{{ section.name }}</span>
@@ -74,9 +80,9 @@
           </div>
 
           <!-- Settings Panels -->
-          <div class="settings-panel">
+          <div class="settings-panel" role="tabpanel" :aria-labelledby="activeSection">
             <!-- Appearance Settings -->
-            <div v-if="activeSection === 'appearance'" class="settings-section">
+            <div v-if="activeSection === 'appearance'" id="appearance-panel" class="settings-section">
               <h2>Appearance Settings</h2>
 
               <!-- Theme Selection -->
@@ -87,6 +93,7 @@
                       @click="setTheme('light')"
                       class="theme-option"
                       :class="{ active: !darkMode }"
+                      aria-pressed="!darkMode"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <circle cx="12" cy="12" r="5"></circle>
@@ -105,6 +112,7 @@
                       @click="setTheme('dark')"
                       class="theme-option"
                       :class="{ active: darkMode }"
+                      aria-pressed="darkMode"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -125,6 +133,8 @@
                       class="color-option"
                       :class="{ active: settings.appearance.accentColor === color.id }"
                       :style="{ backgroundColor: color.value }"
+                      :aria-label="`${color.id} color`"
+                      :aria-pressed="settings.appearance.accentColor === color.id"
                   ></button>
                 </div>
               </div>
@@ -172,16 +182,34 @@
                         type="checkbox"
                         v-model="settings.appearance.highContrast"
                         @change="toggleHighContrast"
+                        aria-label="Enable high contrast mode"
                     />
                     <span class="toggle-slider"></span>
                   </label>
                   <span>Enable high contrast for better visibility</span>
                 </div>
               </div>
+
+              <!-- NEW: UI Animation Control -->
+              <div class="setting-group">
+                <h3>Interface Animations</h3>
+                <div class="toggle-option">
+                  <label class="toggle">
+                    <input
+                        type="checkbox"
+                        v-model="settings.appearance.enableAnimations"
+                        @change="toggleAnimations"
+                        aria-label="Enable interface animations"
+                    />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span>Enable interface animations and transitions</span>
+                </div>
+              </div>
             </div>
 
             <!-- Academic Settings -->
-            <div v-if="activeSection === 'academic'" class="settings-section">
+            <div v-if="activeSection === 'academic'" id="academic-panel" class="settings-section">
               <h2>Academic Settings</h2>
 
               <!-- NEW: Academic Level and Enrollment Type Section -->
@@ -194,19 +222,25 @@
                     <div class="select-group">
                       <button class="select-btn"
                               :class="{ active: settings.academic.academicLevel === 'Undergraduate' }"
-                              @click="settings.academic.academicLevel = 'Undergraduate'">
+                              @click="settings.academic.academicLevel = 'Undergraduate'"
+                              aria-pressed="settings.academic.academicLevel === 'Undergraduate'"
+                      >
                         <span class="btn-icon">🎓</span>
                         <span class="btn-text">Undergraduate</span>
                       </button>
                       <button class="select-btn"
                               :class="{ active: settings.academic.academicLevel === 'Postgraduate (Masters)' }"
-                              @click="settings.academic.academicLevel = 'Postgraduate (Masters)'">
+                              @click="settings.academic.academicLevel = 'Postgraduate (Masters)'"
+                              aria-pressed="settings.academic.academicLevel === 'Postgraduate (Masters)'"
+                      >
                         <span class="btn-icon">🧑‍🎓</span>
                         <span class="btn-text">Masters</span>
                       </button>
                       <button class="select-btn"
                               :class="{ active: settings.academic.academicLevel === 'Postgraduate (PhD)' }"
-                              @click="settings.academic.academicLevel = 'Postgraduate (PhD)'">
+                              @click="settings.academic.academicLevel = 'Postgraduate (PhD)'"
+                              aria-pressed="settings.academic.academicLevel === 'Postgraduate (PhD)'"
+                      >
                         <span class="btn-icon">👨‍🎓</span>
                         <span class="btn-text">PhD</span>
                       </button>
@@ -219,13 +253,17 @@
                     <div class="select-group">
                       <button class="select-btn"
                               :class="{ active: settings.academic.enrollmentType === 'Full time' }"
-                              @click="settings.academic.enrollmentType = 'Full time'">
+                              @click="settings.academic.enrollmentType = 'Full time'"
+                              aria-pressed="settings.academic.enrollmentType === 'Full time'"
+                      >
                         <span class="btn-icon">✅</span>
                         <span class="btn-text">Full time</span>
                       </button>
                       <button class="select-btn"
                               :class="{ active: settings.academic.enrollmentType === 'Part time' }"
-                              @click="settings.academic.enrollmentType = 'Part time'">
+                              @click="settings.academic.enrollmentType = 'Part time'"
+                              aria-pressed="settings.academic.enrollmentType === 'Part time'"
+                      >
                         <span class="btn-icon">⏳</span>
                         <span class="btn-text">Part time</span>
                       </button>
@@ -238,25 +276,33 @@
                     <div class="select-group">
                       <button class="select-btn"
                               :class="{ active: settings.academic.studyPreferences.includes('Mornings') }"
-                              @click="toggleStudyPreference('Mornings')">
+                              @click="toggleStudyPreference('Mornings')"
+                              aria-pressed="settings.academic.studyPreferences.includes('Mornings')"
+                      >
                         <span class="btn-icon">🌅</span>
                         <span class="btn-text">Mornings</span>
                       </button>
                       <button class="select-btn"
                               :class="{ active: settings.academic.studyPreferences.includes('Afternoons') }"
-                              @click="toggleStudyPreference('Afternoons')">
+                              @click="toggleStudyPreference('Afternoons')"
+                              aria-pressed="settings.academic.studyPreferences.includes('Afternoons')"
+                      >
                         <span class="btn-icon">☀️</span>
                         <span class="btn-text">Afternoons</span>
                       </button>
                       <button class="select-btn"
                               :class="{ active: settings.academic.studyPreferences.includes('Evenings') }"
-                              @click="toggleStudyPreference('Evenings')">
+                              @click="toggleStudyPreference('Evenings')"
+                              aria-pressed="settings.academic.studyPreferences.includes('Evenings')"
+                      >
                         <span class="btn-icon">🌆</span>
                         <span class="btn-text">Evenings</span>
                       </button>
                       <button class="select-btn"
                               :class="{ active: settings.academic.studyPreferences.includes('Late Night') }"
-                              @click="toggleStudyPreference('Late Night')">
+                              @click="toggleStudyPreference('Late Night')"
+                              aria-pressed="settings.academic.studyPreferences.includes('Late Night')"
+                      >
                         <span class="btn-icon">🌙</span>
                         <span class="btn-text">Late Night</span>
                       </button>
@@ -326,27 +372,37 @@
                     <div class="select-group">
                       <button class="select-btn target-grade-btn"
                               :class="{ active: settings.academic.targetGrade === 70 }"
-                              @click="settings.academic.targetGrade = 70; settings.academic.customTargetGrade = null">
+                              @click="settings.academic.targetGrade = 70; settings.academic.customTargetGrade = null"
+                              aria-pressed="settings.academic.targetGrade === 70"
+                      >
                         <span class="btn-text">First Class (70%+)</span>
                       </button>
                       <button class="select-btn target-grade-btn"
                               :class="{ active: settings.academic.targetGrade === 60 }"
-                              @click="settings.academic.targetGrade = 60; settings.academic.customTargetGrade = null">
+                              @click="settings.academic.targetGrade = 60; settings.academic.customTargetGrade = null"
+                              aria-pressed="settings.academic.targetGrade === 60"
+                      >
                         <span class="btn-text">2:1 (60-69%)</span>
                       </button>
                       <button class="select-btn target-grade-btn"
                               :class="{ active: settings.academic.targetGrade === 50 }"
-                              @click="settings.academic.targetGrade = 50; settings.academic.customTargetGrade = null">
+                              @click="settings.academic.targetGrade = 50; settings.academic.customTargetGrade = null"
+                              aria-pressed="settings.academic.targetGrade === 50"
+                      >
                         <span class="btn-text">2:2 (50-59%)</span>
                       </button>
                       <button class="select-btn target-grade-btn"
                               :class="{ active: settings.academic.targetGrade === 40 }"
-                              @click="settings.academic.targetGrade = 40; settings.academic.customTargetGrade = null">
+                              @click="settings.academic.targetGrade = 40; settings.academic.customTargetGrade = null"
+                              aria-pressed="settings.academic.targetGrade === 40"
+                      >
                         <span class="btn-text">Third (40-49%)</span>
                       </button>
                       <button class="select-btn target-grade-btn"
                               :class="{ active: settings.academic.targetGrade === 'custom' }"
-                              @click="settings.academic.targetGrade = 'custom'">
+                              @click="settings.academic.targetGrade = 'custom'"
+                              aria-pressed="settings.academic.targetGrade === 'custom'"
+                      >
                         <span class="btn-text">Custom</span>
                       </button>
                     </div>
@@ -420,6 +476,7 @@
                           type="text"
                           v-model="grade.letter"
                           maxlength="2"
+                          aria-label="Grade letter"
                       />
                     </div>
                     <div class="grade-min">
@@ -429,6 +486,7 @@
                           min="0"
                           max="100"
                           step="0.1"
+                          aria-label="Minimum percentage"
                       />
                     </div>
                     <div class="grade-gpa">
@@ -438,6 +496,7 @@
                           min="0"
                           max="4"
                           step="0.1"
+                          aria-label="GPA value"
                       />
                     </div>
                     <div class="grade-action">
@@ -445,6 +504,7 @@
                           v-if="index > 0"
                           @click="removeGrade(index)"
                           class="remove-grade"
+                          aria-label="Remove grade"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -454,7 +514,7 @@
                     </div>
                   </div>
                 </div>
-                <button @click="addGrade" class="add-grade-btn">
+                <button @click="addGrade" class="add-grade-btn" aria-label="Add grade">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -503,10 +563,12 @@
                           v-model="holiday.name"
                           placeholder="Holiday Name"
                           class="holiday-name"
+                          aria-label="Holiday name"
                       />
                       <button
                           @click="removeHoliday(index)"
                           class="remove-holiday"
+                          aria-label="Remove holiday"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -520,6 +582,7 @@
                         <input
                             type="date"
                             v-model="holiday.startDate"
+                            aria-label="Holiday start date"
                         />
                       </div>
                       <div class="form-group">
@@ -527,11 +590,12 @@
                         <input
                             type="date"
                             v-model="holiday.endDate"
+                            aria-label="Holiday end date"
                         />
                       </div>
                     </div>
                   </div>
-                  <button @click="addHoliday" class="add-holiday-btn">
+                  <button @click="addHoliday" class="add-holiday-btn" aria-label="Add holiday or break">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <line x1="12" y1="5" x2="12" y2="19"></line>
                       <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -543,7 +607,7 @@
             </div>
 
             <!-- Account & Security Settings -->
-            <div v-if="activeSection === 'account'" class="settings-section">
+            <div v-if="activeSection === 'account'" id="account-panel" class="settings-section">
               <h2>Account & Security</h2>
 
               <!-- Password Change -->
@@ -558,11 +622,13 @@
                           id="current-password"
                           v-model="passwordForm.currentPassword"
                           required
+                          autocomplete="current-password"
                       />
                       <button
                           type="button"
                           class="toggle-password"
                           @click="showPassword.current = !showPassword.current"
+                          aria-label="Toggle password visibility"
                       >
                         <svg v-if="!showPassword.current" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -583,11 +649,13 @@
                           id="new-password"
                           v-model="passwordForm.newPassword"
                           required
+                          autocomplete="new-password"
                       />
                       <button
                           type="button"
                           class="toggle-password"
                           @click="showPassword.new = !showPassword.new"
+                          aria-label="Toggle password visibility"
                       >
                         <svg v-if="!showPassword.new" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -609,11 +677,13 @@
                           id="confirm-password"
                           v-model="passwordForm.confirmPassword"
                           required
+                          autocomplete="new-password"
                       />
                       <button
                           type="button"
                           class="toggle-password"
                           @click="showPassword.confirm = !showPassword.confirm"
+                          aria-label="Toggle password visibility"
                       >
                         <svg v-if="!showPassword.confirm" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -636,15 +706,114 @@
                   </button>
                 </form>
               </div>
+
+              <!-- NEW: Two-Factor Authentication -->
+              <div class="setting-group">
+                <h3>Two-Factor Authentication</h3>
+                <p class="setting-description">Add an extra layer of security to your account by enabling two-factor authentication.</p>
+
+                <div class="toggle-option">
+                  <label class="toggle">
+                    <input
+                        type="checkbox"
+                        v-model="settings.security.twoFactorEnabled"
+                        @change="toggleTwoFactor"
+                    />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span>Enable Two-Factor Authentication</span>
+                </div>
+
+                <div v-if="settings.security.twoFactorEnabled" class="tfa-setup-section">
+                  <p>Two-factor authentication is enabled. Use your authenticator app to generate codes when signing in.</p>
+                  <button @click="resetTwoFactor" class="reset-tfa-btn">Reset Two-Factor Setup</button>
+                </div>
+
+                <div v-else-if="showTfaSetup" class="tfa-setup-section">
+                  <h4>Setup Instructions</h4>
+                  <ol class="setup-steps">
+                    <li>Install an authenticator app like Google Authenticator or Authy</li>
+                    <li>Scan the QR code with your app</li>
+                    <li>Enter the 6-digit code from your app below to verify</li>
+                  </ol>
+
+                  <div class="qr-code-container">
+                    <!-- Sample QR code placeholder - would be generated dynamically -->
+                    <div class="qr-code-placeholder">QR Code</div>
+                  </div>
+
+                  <div class="verification-code-section">
+                    <label for="verification-code">Enter 6-digit code</label>
+                    <input type="text" id="verification-code" v-model="tfaVerificationCode" maxlength="6" placeholder="000000" />
+                    <button @click="verifyTfaCode" class="verify-code-btn">Verify & Enable</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- NEW: Account Preferences -->
+              <div class="setting-group">
+                <h3>Account Preferences</h3>
+
+                <div class="form-group">
+                  <label for="notification-email">Notification Email</label>
+                  <input type="email" id="notification-email" v-model="settings.security.notificationEmail" placeholder="your@email.com" />
+                </div>
+
+                <div class="toggle-option">
+                  <label class="toggle">
+                    <input type="checkbox" v-model="settings.security.emailNotifications" />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span>Receive email notifications</span>
+                </div>
+
+                <div class="toggle-option">
+                  <label class="toggle">
+                    <input type="checkbox" v-model="settings.security.activityAlerts" />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span>Receive alerts for unusual account activity</span>
+                </div>
+              </div>
             </div>
 
             <!-- Accessibility Settings -->
-            <div v-if="activeSection === 'accessibility'" class="settings-section">
+            <div v-if="activeSection === 'accessibility'" id="accessibility-panel" class="settings-section">
               <h2>Accessibility Features</h2>
+
+              <!-- NEW: Color Vision Deficiency Support -->
+              <div class="setting-group">
+                <h3>Color Vision Deficiency Support</h3>
+                <p class="setting-description">Select a color blindness correction to optimize the interface for your needs.</p>
+
+                <div class="select-wrapper">
+                  <select
+                      v-model="settings.accessibility.colorBlindMode"
+                      @change="applyColorBlindMode"
+                      aria-label="Color blindness mode">
+                    <option value="none">No Adjustment (Default)</option>
+                    <option value="protanopia">Protanopia (Red-Blind)</option>
+                    <option value="deuteranopia">Deuteranopia (Green-Blind)</option>
+                    <option value="tritanopia">Tritanopia (Blue-Blind)</option>
+                    <option value="achromatopsia">Achromatopsia (Monochromacy)</option>
+                  </select>
+                </div>
+
+                <div class="color-blind-preview">
+                  <div class="preview-title">Color Preview:</div>
+                  <div class="color-samples">
+                    <div class="color-sample" style="background-color: #ff0000;">Red</div>
+                    <div class="color-sample" style="background-color: #00ff00;">Green</div>
+                    <div class="color-sample" style="background-color: #0000ff;">Blue</div>
+                    <div class="color-sample" style="background-color: #ffff00;">Yellow</div>
+                    <div class="color-sample" style="background-color: #ff00ff;">Magenta</div>
+                  </div>
+                </div>
+              </div>
 
               <!-- Screen Reader Optimization -->
               <div class="setting-group">
-                <h3>Screen Reader Optimization</h3>
+                <h3>Screen Reader Support</h3>
                 <div class="toggle-option">
                   <label class="toggle">
                     <input
@@ -655,6 +824,49 @@
                     <span class="toggle-slider"></span>
                   </label>
                   <span>Optimize interface for screen readers</span>
+                </div>
+
+                <!-- NEW: Screen Reader Verbosity -->
+                <div v-if="settings.accessibility.screenReaderOptimized" class="indented-option">
+                  <label for="screen-reader-verbosity">Verbosity Level</label>
+                  <select id="screen-reader-verbosity" v-model="settings.accessibility.screenReaderVerbosity" @change="applyAccessibilitySettings">
+                    <option value="low">Low (Essential Information Only)</option>
+                    <option value="medium">Medium (Default)</option>
+                    <option value="high">High (Detailed Descriptions)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- NEW: Motion & Animation Settings -->
+              <div class="setting-group">
+                <h3>Motion & Animation</h3>
+                <div class="toggle-option">
+                  <label class="toggle">
+                    <input
+                        type="checkbox"
+                        v-model="settings.accessibility.reduceMotion"
+                        @change="applyReduceMotion"
+                    />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span>Reduce motion and animations</span>
+                </div>
+
+                <div class="motion-level" v-if="!settings.accessibility.reduceMotion">
+                  <label for="motion-intensity">Animation Intensity</label>
+                  <input
+                      type="range"
+                      id="motion-intensity"
+                      v-model="settings.accessibility.motionIntensity"
+                      min="0"
+                      max="100"
+                      step="25"
+                      @change="applyMotionIntensity"
+                  />
+                  <div class="range-labels">
+                    <span>Minimal</span>
+                    <span>Full</span>
+                  </div>
                 </div>
               </div>
 
@@ -721,10 +933,73 @@
                   <span>Reduce UI distractions for better focus</span>
                 </div>
               </div>
+
+              <!-- NEW: Text-to-Speech -->
+              <div class="setting-group">
+                <h3>Text-to-Speech</h3>
+                <div class="toggle-option">
+                  <label class="toggle">
+                    <input
+                        type="checkbox"
+                        v-model="settings.accessibility.textToSpeech"
+                        @change="toggleTextToSpeech"
+                    />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span>Enable text-to-speech for selected text</span>
+                </div>
+
+                <div v-if="settings.accessibility.textToSpeech" class="tts-options">
+                  <div class="form-group">
+                    <label for="tts-voice">Voice</label>
+                    <select id="tts-voice" v-model="settings.accessibility.ttsVoice">
+                      <option value="default">Default</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="tts-rate">Speaking Rate</label>
+                    <input
+                        type="range"
+                        id="tts-rate"
+                        v-model="settings.accessibility.ttsRate"
+                        min="0.5"
+                        max="2"
+                        step="0.1"
+                    />
+                    <div class="range-labels">
+                      <span>Slower</span>
+                      <span>Normal</span>
+                      <span>Faster</span>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="tts-pitch">Pitch</label>
+                    <input
+                        type="range"
+                        id="tts-pitch"
+                        v-model="settings.accessibility.ttsPitch"
+                        min="0.5"
+                        max="2"
+                        step="0.1"
+                    />
+                    <div class="range-labels">
+                      <span>Lower</span>
+                      <span>Normal</span>
+                      <span>Higher</span>
+                    </div>
+                  </div>
+
+                  <button @click="testTextToSpeech" class="test-tts-btn">Test Speech</button>
+                </div>
+              </div>
             </div>
 
             <!-- Calendar & Events Settings -->
-            <div v-if="activeSection === 'calendar'" class="settings-section">
+            <div v-if="activeSection === 'calendar'" id="calendar-panel" class="settings-section">
               <h2>Calendar & Events</h2>
 
               <!-- First Day of Week -->
@@ -839,6 +1114,87 @@
                   </label>
                 </div>
               </div>
+
+              <!-- NEW: Calendar Display Settings -->
+              <div class="setting-group">
+                <h3>Calendar Display</h3>
+
+                <div class="toggle-option">
+                  <label class="toggle">
+                    <input
+                        type="checkbox"
+                        v-model="settings.calendar.showWeekNumbers"
+                        @change="applyCalendarSettings"
+                    />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span>Show week numbers</span>
+                </div>
+
+                <div class="toggle-option">
+                  <label class="toggle">
+                    <input
+                        type="checkbox"
+                        v-model="settings.calendar.showCompleted"
+                        @change="applyCalendarSettings"
+                    />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span>Show completed tasks/events</span>
+                </div>
+
+                <div class="toggle-option">
+                  <label class="toggle">
+                    <input
+                        type="checkbox"
+                        v-model="settings.calendar.highlightToday"
+                        @change="applyCalendarSettings"
+                    />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span>Highlight current day</span>
+                </div>
+
+                <div class="form-group">
+                  <label for="default-calendar-view">Default Calendar View</label>
+                  <select id="default-calendar-view" v-model="settings.calendar.defaultView" @change="applyCalendarSettings">
+                    <option value="month">Month</option>
+                    <option value="week">Week</option>
+                    <option value="day">Day</option>
+                    <option value="agenda">Agenda</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- NEW: Event Notifications -->
+              <div class="setting-group">
+                <h3>Event Notifications</h3>
+
+                <div class="toggle-option">
+                  <label class="toggle">
+                    <input
+                        type="checkbox"
+                        v-model="settings.calendar.enableNotifications"
+                        @change="applyCalendarSettings"
+                    />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span>Enable event notifications</span>
+                </div>
+
+                <div v-if="settings.calendar.enableNotifications" class="form-group">
+                  <label for="notification-time">Default Notification Time</label>
+                  <select id="notification-time" v-model="settings.calendar.defaultNotificationTime">
+                    <option value="0">At time of event</option>
+                    <option value="5">5 minutes before</option>
+                    <option value="15">15 minutes before</option>
+                    <option value="30">30 minutes before</option>
+                    <option value="60">1 hour before</option>
+                    <option value="120">2 hours before</option>
+                    <option value="1440">1 day before</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -848,6 +1204,7 @@
           <button
               @click="resetSettings"
               class="reset-button"
+              aria-label="Reset all settings to defaults"
           >
             Reset to Defaults
           </button>
@@ -855,6 +1212,7 @@
               @click="saveSettings"
               class="save-button"
               :disabled="isSaving"
+              aria-label="Save all settings"
           >
             <span v-if="isSaving">Saving...</span>
             <span v-else>Save Settings</span>
@@ -890,6 +1248,13 @@ export default {
         new: false,
         confirm: false
       },
+
+      // TFA setup
+      showTfaSetup: false,
+      tfaVerificationCode: '',
+
+      // Test TTS
+      testTtsText: "This is a test of the text-to-speech feature.",
 
       // User profile
       userProfile: {
@@ -952,7 +1317,8 @@ export default {
           accentColor: 'purple',
           fontSize: 'medium',
           highContrast: false,
-          darkMode: false
+          darkMode: false,
+          enableAnimations: true
         },
         academic: {
           gradingScale: [
@@ -987,14 +1353,36 @@ export default {
         accessibility: {
           screenReaderOptimized: false,
           keyboardShortcuts: true,
-          focusMode: false
+          focusMode: false,
+          // New accessibility settings
+          colorBlindMode: 'none',
+          reduceMotion: false,
+          motionIntensity: 75,
+          textToSpeech: false,
+          ttsVoice: 'default',
+          ttsRate: 1,
+          ttsPitch: 1,
+          screenReaderVerbosity: 'medium'
         },
         calendar: {
           firstDayOfWeek: 'sunday',
           defaultEventDuration: '60',
           defaultEventType: 'general',
           timeFormat: '12h',
-          dateFormat: 'MM/DD/YYYY'
+          dateFormat: 'MM/DD/YYYY',
+          // New calendar settings
+          showWeekNumbers: false,
+          showCompleted: true,
+          highlightToday: true,
+          defaultView: 'month',
+          enableNotifications: true,
+          defaultNotificationTime: 15
+        },
+        security: {
+          twoFactorEnabled: false,
+          notificationEmail: '',
+          emailNotifications: true,
+          activityAlerts: true
         }
       },
 
@@ -1047,10 +1435,27 @@ export default {
     // Fetch user profile and settings
     this.fetchUserProfile();
     this.fetchSettings();
+
+    // Apply color blind mode
+    this.applyColorBlindMode();
+
+    // Apply animation settings
+    this.toggleAnimations();
+
+    // Apply reduce motion
+    this.applyReduceMotion();
   },
   beforeUnmount() {
     window.removeEventListener("resize", this.checkMobile);
     window.removeEventListener('darkModeChange', this.onDarkModeChange);
+
+    // Cleanup for text-to-speech
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+
+    // Remove text selection handler for TTS
+    document.removeEventListener('mouseup', this.handleTextSelection);
   },
   methods: {
     onDarkModeChange(event) {
@@ -1058,6 +1463,10 @@ export default {
       // When dark mode changes, we need to reapply the accent color
       this.$nextTick(() => {
         this.applyAccentColor(this.settings.appearance.accentColor);
+        // Reapply color blind adjustments if needed
+        if (this.settings.accessibility.colorBlindMode !== 'none') {
+          this.applyColorBlindMode();
+        }
       });
     },
     handleLogout() {
@@ -1179,7 +1588,6 @@ export default {
         this.isSaving = false;
       }
     },
-
     applySettings() {
       // Apply theme from settings instead of always reading from localStorage
       if (this.settings.appearance.darkMode !== undefined) {
@@ -1221,8 +1629,22 @@ export default {
         document.documentElement.classList.remove('focus-mode');
       }
 
+      // Apply color blind mode
+      this.applyColorBlindMode();
+
+      // Apply reduce motion settings
+      this.applyReduceMotion();
+
+      // Apply animation settings
+      this.toggleAnimations();
+
       // Apply calendar settings
       this.applyCalendarSettings();
+
+      // Apply text-to-speech settings
+      if (this.settings.accessibility.textToSpeech) {
+        this.toggleTextToSpeech();
+      }
     },
     resetSettings() {
       // Reset to default settings
@@ -1253,6 +1675,8 @@ export default {
       // Reapply accent color after theme change to ensure proper rendering
       this.$nextTick(() => {
         this.applyAccentColor(this.settings.appearance.accentColor);
+        // Reapply color blind mode after theme change
+        this.applyColorBlindMode();
       });
     },
     setAccentColor(colorId) {
@@ -1277,78 +1701,28 @@ export default {
         // Apply to active elements that might need the color in dark mode
         document.documentElement.style.setProperty('--active-color', color.value);
 
+        // Also set RGB values for transparency
+        const rgb = this.hexToRgb(color.value);
+        if (rgb) {
+          document.documentElement.style.setProperty('--primary-color-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+        }
+
         // Force update of elements that might be using the accent color
         this.$forceUpdate();
       }
     },
-    applyFontSize(size) {
-      const sizeMap = {
-        'small': '14px',
-        'medium': '16px',
-        'large': '18px'
-      };
+    // Helper to convert hex to RGB
+    hexToRgb(hex) {
+      // Remove # if present
+      hex = hex.replace(/^#/, '');
 
-      document.documentElement.style.setProperty('--font-size-base', sizeMap[size] || '16px');
+      // Parse hex values
+      const bigint = parseInt(hex, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
 
-      // Dispatch an event so other components can update if needed
-      window.dispatchEvent(new CustomEvent('fontSizeChanged', {
-        detail: { size: size }
-      }));
-    },
-    toggleHighContrast() {
-      if (this.settings.appearance.highContrast) {
-        document.documentElement.classList.add('high-contrast');
-      } else {
-        document.documentElement.classList.remove('high-contrast');
-      }
-
-      // Dispatch an event so other components can update if needed
-      window.dispatchEvent(new CustomEvent('highContrastChanged', {
-        detail: { enabled: this.settings.appearance.highContrast }
-      }));
-    },
-    applyAccessibilitySettings() {
-      // Apply keyboard shortcuts
-      window.dispatchEvent(new CustomEvent('settingsChange', {
-        detail: {
-          setting: 'keyboardShortcuts',
-          value: this.settings.accessibility.keyboardShortcuts
-        }
-      }));
-
-      // Apply screen reader optimization
-      window.dispatchEvent(new CustomEvent('settingsChange', {
-        detail: {
-          setting: 'screenReaderOptimized',
-          value: this.settings.accessibility.screenReaderOptimized
-        }
-      }));
-
-      // Apply focus mode
-      if (this.settings.accessibility.focusMode) {
-        document.documentElement.classList.add('focus-mode');
-      } else {
-        document.documentElement.classList.remove('focus-mode');
-      }
-
-      window.dispatchEvent(new CustomEvent('settingsChange', {
-        detail: {
-          setting: 'focusMode',
-          value: this.settings.accessibility.focusMode
-        }
-      }));
-    },
-    applyCalendarSettings() {
-      // Dispatch calendar settings event for the calendar component to pick up
-      window.dispatchEvent(new CustomEvent('calendarSettingsChanged', {
-        detail: {
-          firstDayOfWeek: this.settings.calendar.firstDayOfWeek,
-          defaultEventDuration: this.settings.calendar.defaultEventDuration,
-          defaultEventType: this.settings.calendar.defaultEventType,
-          timeFormat: this.settings.calendar.timeFormat,
-          dateFormat: this.settings.calendar.dateFormat
-        }
-      }));
+      return { r, g, b };
     },
     adjustColor(hex, amount) {
       // Convert hex to RGB
@@ -1376,6 +1750,303 @@ export default {
 
       // Convert back to hex
       return `#${Math.round(r).toString(16).padStart(2, '0')}${Math.round(g).toString(16).padStart(2, '0')}${Math.round(b).toString(16).padStart(2, '0')}`;
+    },
+    applyFontSize(size) {
+      const sizeMap = {
+        'small': '14px',
+        'medium': '16px',
+        'large': '18px'
+      };
+
+      document.documentElement.style.setProperty('--font-size-base', sizeMap[size] || '16px');
+
+      // Dispatch an event so other components can update if needed
+      window.dispatchEvent(new CustomEvent('fontSizeChanged', {
+        detail: { size: size }
+      }));
+    },
+    toggleHighContrast() {
+      if (this.settings.appearance.highContrast) {
+        document.documentElement.classList.add('high-contrast');
+      } else {
+        document.documentElement.classList.remove('high-contrast');
+      }
+
+      // Dispatch an event so other components can update if needed
+      window.dispatchEvent(new CustomEvent('highContrastChanged', {
+        detail: { enabled: this.settings.appearance.highContrast }
+      }));
+    },
+    toggleAnimations() {
+      // Apply animation setting
+      if (!this.settings.appearance.enableAnimations) {
+        document.documentElement.classList.add('disable-animations');
+      } else {
+        document.documentElement.classList.remove('disable-animations');
+      }
+
+      window.dispatchEvent(new CustomEvent('animationsChanged', {
+        detail: { enabled: this.settings.appearance.enableAnimations }
+      }));
+    },
+    applyColorBlindMode() {
+      // Remove any existing filters
+      const existingFilter = document.getElementById('color-blind-filter');
+      if (existingFilter) {
+        existingFilter.remove();
+      }
+
+      // If no color blind mode selected, we're done
+      if (this.settings.accessibility.colorBlindMode === 'none') {
+        document.documentElement.style.filter = '';
+        return;
+      }
+
+      // Create SVG filter element
+      const svgFilter = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svgFilter.setAttribute('id', 'color-blind-filter');
+      svgFilter.style.position = 'absolute';
+      svgFilter.style.height = '0';
+      svgFilter.style.width = '0';
+      svgFilter.style.overflow = 'hidden';
+
+      // Add filter definitions based on selected mode
+      let filterContent = '';
+
+      switch (this.settings.accessibility.colorBlindMode) {
+        case 'protanopia':
+          // Red-blind
+          filterContent = `
+            <filter id="protanopia">
+              <feColorMatrix
+                type="matrix"
+                values="0.567, 0.433, 0,     0, 0
+                        0.558, 0.442, 0,     0, 0
+                        0,     0.242, 0.758, 0, 0
+                        0,     0,     0,     1, 0"/>
+            </filter>
+          `;
+          break;
+        case 'deuteranopia':
+          // Green-blind
+          filterContent = `
+            <filter id="deuteranopia">
+              <feColorMatrix
+                type="matrix"
+                values="0.625, 0.375, 0,   0, 0
+                        0.7,   0.3,   0,   0, 0
+                        0,     0.3,   0.7, 0, 0
+                        0,     0,     0,   1, 0"/>
+            </filter>
+          `;
+          break;
+        case 'tritanopia':
+          // Blue-blind
+          filterContent = `
+            <filter id="tritanopia">
+              <feColorMatrix
+                type="matrix"
+                values="0.95, 0.05,  0,     0, 0
+                        0,    0.433, 0.567, 0, 0
+                        0,    0.475, 0.525, 0, 0
+                        0,    0,     0,     1, 0"/>
+            </filter>
+          `;
+          break;
+        case 'achromatopsia':
+          // Monochrome
+          filterContent = `
+            <filter id="achromatopsia">
+              <feColorMatrix
+                type="matrix"
+                values="0.299, 0.587, 0.114, 0, 0
+                        0.299, 0.587, 0.114, 0, 0
+                        0.299, 0.587, 0.114, 0, 0
+                        0,     0,     0,     1, 0"/>
+            </filter>
+          `;
+          break;
+      }
+
+      svgFilter.innerHTML = filterContent;
+      document.body.appendChild(svgFilter);
+
+      // Apply filter to the entire document
+      document.documentElement.style.filter = `url(#${this.settings.accessibility.colorBlindMode})`;
+
+      // Dispatch event for other components
+      window.dispatchEvent(new CustomEvent('colorBlindModeChanged', {
+        detail: { mode: this.settings.accessibility.colorBlindMode }
+      }));
+    },
+    applyReduceMotion() {
+      if (this.settings.accessibility.reduceMotion) {
+        document.documentElement.classList.add('reduce-motion');
+        // Force all animations to be turned off
+        document.documentElement.style.setProperty('--transition-speed', '0s');
+      } else {
+        document.documentElement.classList.remove('reduce-motion');
+        // Restore normal transitions
+        document.documentElement.style.setProperty('--transition-speed', '0.3s');
+
+        // Apply motion intensity if applicable
+        this.applyMotionIntensity();
+      }
+
+      window.dispatchEvent(new CustomEvent('reduceMotionChanged', {
+        detail: { enabled: this.settings.accessibility.reduceMotion }
+      }));
+    },
+    applyMotionIntensity() {
+      if (!this.settings.accessibility.reduceMotion) {
+        // Scale transition duration based on intensity (0-100)
+        const intensity = this.settings.accessibility.motionIntensity / 100;
+        const transitionDuration = 0.1 + (intensity * 0.4); // Range from 0.1s to 0.5s
+
+        document.documentElement.style.setProperty('--transition-speed', `${transitionDuration}s`);
+      }
+    },
+    toggleTextToSpeech() {
+      // When enabled, initialize the speech synthesis
+      if (this.settings.accessibility.textToSpeech && window.speechSynthesis) {
+        // Add event listener for text selection
+        document.addEventListener('mouseup', this.handleTextSelection);
+      } else {
+        // Remove event listener when disabled
+        document.removeEventListener('mouseup', this.handleTextSelection);
+
+        // Cancel any ongoing speech
+        if (window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
+      }
+    },
+    handleTextSelection() {
+      const selectedText = window.getSelection().toString().trim();
+
+      if (selectedText && this.settings.accessibility.textToSpeech) {
+        this.speakText(selectedText);
+      }
+    },
+    speakText(text) {
+      if (!window.speechSynthesis) return;
+
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+
+      // Apply voice settings
+      utterance.rate = parseFloat(this.settings.accessibility.ttsRate);
+      utterance.pitch = parseFloat(this.settings.accessibility.ttsPitch);
+
+      // Set voice if available
+      if (this.settings.accessibility.ttsVoice !== 'default') {
+        const voices = window.speechSynthesis.getVoices();
+        const voiceType = this.settings.accessibility.ttsVoice;
+
+        // Try to find appropriate voice
+        const voiceFound = voices.find(voice => {
+          if (voiceType === 'male') {
+            return voice.name.toLowerCase().includes('male');
+          } else if (voiceType === 'female') {
+            return voice.name.toLowerCase().includes('female');
+          }
+          return false;
+        });
+
+        if (voiceFound) {
+          utterance.voice = voiceFound;
+        }
+      }
+
+      window.speechSynthesis.speak(utterance);
+    },
+    testTextToSpeech() {
+      this.speakText(this.testTtsText);
+    },
+    toggleTwoFactor() {
+      if (this.settings.security.twoFactorEnabled) {
+        // If enabling 2FA, show setup UI
+        this.showTfaSetup = true;
+      } else {
+        // If disabling 2FA, hide setup UI
+        this.showTfaSetup = false;
+      }
+    },
+    verifyTfaCode() {
+      // This would verify with the backend in a real implementation
+      if (this.tfaVerificationCode.length === 6) {
+        // Simulate successful verification
+        this.settings.security.twoFactorEnabled = true;
+        this.showTfaSetup = false;
+        notify({ type: "success", message: "Two-factor authentication enabled!" });
+      } else {
+        notify({ type: "error", message: "Please enter a valid 6-digit code" });
+      }
+    },
+    resetTwoFactor() {
+      // This would reset 2FA on the backend in a real implementation
+      this.settings.security.twoFactorEnabled = false;
+      this.showTfaSetup = true;
+      notify({ type: "info", message: "Two-factor authentication has been reset" });
+    },
+    applyAccessibilitySettings() {
+      // Apply keyboard shortcuts
+      window.dispatchEvent(new CustomEvent('settingsChange', {
+        detail: {
+          setting: 'keyboardShortcuts',
+          value: this.settings.accessibility.keyboardShortcuts
+        }
+      }));
+
+      // Apply screen reader optimization
+      window.dispatchEvent(new CustomEvent('settingsChange', {
+        detail: {
+          setting: 'screenReaderOptimized',
+          value: this.settings.accessibility.screenReaderOptimized
+        }
+      }));
+
+      // Apply screen reader verbosity setting
+      if (this.settings.accessibility.screenReaderOptimized) {
+        window.dispatchEvent(new CustomEvent('screenReaderVerbosityChanged', {
+          detail: { level: this.settings.accessibility.screenReaderVerbosity }
+        }));
+      }
+
+      // Apply focus mode
+      if (this.settings.accessibility.focusMode) {
+        document.documentElement.classList.add('focus-mode');
+      } else {
+        document.documentElement.classList.remove('focus-mode');
+      }
+
+      window.dispatchEvent(new CustomEvent('settingsChange', {
+        detail: {
+          setting: 'focusMode',
+          value: this.settings.accessibility.focusMode
+        }
+      }));
+    },
+    applyCalendarSettings() {
+      // Dispatch calendar settings event for the calendar component to pick up
+      window.dispatchEvent(new CustomEvent('calendarSettingsChanged', {
+        detail: {
+          firstDayOfWeek: this.settings.calendar.firstDayOfWeek,
+          defaultEventDuration: this.settings.calendar.defaultEventDuration,
+          defaultEventType: this.settings.calendar.defaultEventType,
+          timeFormat: this.settings.calendar.timeFormat,
+          dateFormat: this.settings.calendar.dateFormat,
+          // New settings
+          showWeekNumbers: this.settings.calendar.showWeekNumbers,
+          showCompleted: this.settings.calendar.showCompleted,
+          highlightToday: this.settings.calendar.highlightToday,
+          defaultView: this.settings.calendar.defaultView,
+          enableNotifications: this.settings.calendar.enableNotifications,
+          defaultNotificationTime: this.settings.calendar.defaultNotificationTime
+        }
+      }));
     },
     async changePassword() {
       if (this.passwordForm.newPassword !== this.passwordForm.confirmPassword) {
@@ -1537,15 +2208,19 @@ export default {
 
 <style scoped>
 /* Basic variables - Update to include RGB versions for transparency */
-/* Base variables - Update to include RGB versions for transparency */
 :root {
   --primary-color: #7b49ff;
   --primary-color-rgb: 123, 73, 255;
   --primary-light: #9b7aff;
   --primary-dark: #5b34cc;
   --error-color: #f44336;
+  --error-color-rgb: 244, 67, 54;
   --success-color: #4caf50;
+  --success-color-rgb: 76, 175, 80;
   --warning-color: #ff9800;
+  --warning-color-rgb: 255, 152, 0;
+  --info-color: #2196f3;
+  --info-color-rgb: 33, 150, 243;
   --text-primary: #333;
   --text-secondary: #666;
   --text-tertiary: #999;
@@ -1554,16 +2229,19 @@ export default {
   --bg-input: #f5f7fa;
   --bg-hover: #f0f0f0;
   --border-color: #e1e4e8;
+  --border-color-light: #f0f0f0;
   --border-radius: 8px;
   --border-radius-lg: 12px;
+  --border-radius-xl: 20px;
   --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.1);
   --font-size-base: 16px;
   --transition-speed: 0.3s;
+  --focus-outline: 2px solid rgba(123, 73, 255, 0.5);
 }
 
-/* Dark mode variables - ensure they don't override accent colors */
+/* Dark mode variables */
 .dark-mode {
   --text-primary: #e4e6eb;
   --text-secondary: #b0b3b8;
@@ -1573,10 +2251,22 @@ export default {
   --bg-input: #3a3b3c;
   --bg-hover: #3a3b3c;
   --border-color: #3e4042;
+  --border-color-light: #3e4042;
   --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.4);
-  /* Important: Do NOT override primary-color here */
+  --focus-outline: 2px solid rgba(155, 122, 255, 0.6);
+}
+
+/* Animation settings */
+.disable-animations * {
+  transition: none !important;
+  animation: none !important;
+}
+
+.reduce-motion * {
+  transition-duration: 0.001s !important;
+  animation-duration: 0.001s !important;
 }
 
 /* Base styles */
@@ -1607,12 +2297,21 @@ export default {
 
 .dashboard-header {
   margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .dashboard-header h1 {
   font-size: 1.75rem;
   font-weight: 600;
   color: var(--primary-color);
+  margin: 0;
+}
+
+.settings-subtitle {
+  color: var(--text-secondary);
+  font-size: 1rem;
   margin: 0;
 }
 
@@ -1628,7 +2327,7 @@ export default {
 .loading-spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid rgba(0, 0, 0, 0.1);
+  border: 4px solid rgba(var(--primary-color-rgb), 0.1);
   border-radius: 50%;
   border-top-color: var(--primary-color);
   animation: spin 1s linear infinite;
@@ -1661,10 +2360,23 @@ export default {
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.auth-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
 }
 
 .auth-card svg {
   color: var(--primary-color);
+  opacity: 0.9;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.auth-card:hover svg {
+  opacity: 1;
+  transform: scale(1.05);
 }
 
 .auth-card h2 {
@@ -1683,17 +2395,58 @@ export default {
   display: inline-block;
   background: var(--primary-color);
   color: white;
-  padding: 0.75rem 1.5rem;
+  padding: 0.85rem 1.75rem;
   border-radius: 24px;
   text-decoration: none;
   font-weight: 500;
   box-shadow: var(--shadow-sm);
   transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .login-button:hover {
   background: var(--primary-dark);
   transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(var(--primary-color-rgb), 0.3);
+}
+
+.login-button:focus {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.login-button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  border-radius: 100%;
+  transform: scale(1, 1) translate(-50%);
+  transform-origin: 50% 50%;
+}
+
+.login-button:focus:not(:active)::after {
+  animation: ripple 1s ease-out;
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0, 0);
+    opacity: 0.5;
+  }
+  20% {
+    transform: scale(25, 25);
+    opacity: 0.3;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(40, 40);
+  }
 }
 
 /* Settings content */
@@ -1725,6 +2478,12 @@ export default {
 
 .dropdown-selector:hover {
   background-color: var(--bg-hover);
+  transform: translateY(-1px);
+}
+
+.dropdown-selector:focus {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
 }
 
 .dropdown-icon {
@@ -1771,6 +2530,7 @@ export default {
   text-align: left;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  color: var(--text-primary);
 }
 
 .mobile-nav-item:last-child {
@@ -1781,15 +2541,27 @@ export default {
   background-color: var(--bg-hover);
 }
 
+.mobile-nav-item:focus {
+  outline: var(--focus-outline);
+  z-index: 1;
+}
+
 .mobile-nav-item.active {
   background-color: rgba(var(--primary-color-rgb), 0.1);
   color: var(--primary-color);
+  font-weight: 500;
 }
 
 .mobile-nav-item .icon {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.mobile-nav-item .icon svg {
+  stroke-width: 2;
+  width: 18px;
+  height: 18px;
 }
 
 /* Desktop settings navigation */
@@ -1807,6 +2579,11 @@ export default {
   position: sticky;
   top: 85px; /* Stick below navbar */
   height: fit-content;
+  transition: box-shadow 0.3s ease;
+}
+
+.settings-navigation:hover {
+  box-shadow: var(--shadow-lg);
 }
 
 .nav-button {
@@ -1821,7 +2598,9 @@ export default {
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  position: relative;
+  overflow: hidden;
 }
 
 .nav-button .icon {
@@ -1829,30 +2608,47 @@ export default {
   align-items: center;
   justify-content: center;
   color: var(--text-secondary);
+  transition: color 0.2s ease;
 }
 
 .nav-button:hover {
   background-color: var(--bg-hover);
   color: var(--text-primary);
+  transform: translateX(2px);
+}
+
+.nav-button:focus {
+  outline: var(--focus-outline);
+  outline-offset: -2px;
 }
 
 .nav-button.active {
   background-color: var(--primary-color);
   color: white;
+  font-weight: 500;
+  box-shadow: 0 4px 8px rgba(var(--primary-color-rgb), 0.3);
 }
 
 .nav-button.active .icon {
   color: white;
 }
 
-/* Fix navigation buttons in dark mode */
-.dark-mode .nav-button.active {
-  background-color: var(--primary-color);
-  color: white;
+.nav-button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(var(--primary-color-rgb), 0.3);
+  opacity: 0;
+  border-radius: 100%;
+  transform: scale(1, 1) translate(-50%);
+  transform-origin: 50% 50%;
 }
 
-.dark-mode .nav-button.active .icon {
-  color: white;
+.nav-button:active::after {
+  animation: ripple 0.8s ease-out;
 }
 
 /* Settings panel */
@@ -1863,6 +2659,11 @@ export default {
   box-shadow: var(--shadow-md);
   padding: 2rem;
   overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+.settings-panel:hover {
+  box-shadow: var(--shadow-lg);
 }
 
 .settings-section {
@@ -1881,18 +2682,32 @@ export default {
   color: var(--primary-color);
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border-color);
+  position: relative;
+}
+
+.settings-section h2::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background-color: var(--primary-color);
+  border-radius: 3px;
 }
 
 .setting-group {
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
   background-color: var(--bg-light);
   padding: 1.5rem;
   border-radius: var(--border-radius);
   transition: all 0.3s ease;
+  border: 1px solid var(--border-color-light);
 }
 
 .setting-group:hover {
   box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
 }
 
 .setting-group:last-child {
@@ -1904,12 +2719,16 @@ export default {
   font-size: 1.1rem;
   font-weight: 500;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .setting-description {
   color: var(--text-secondary);
-  margin-bottom: 1rem;
+  margin-bottom: 1.25rem;
   font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 /* Theme selection */
@@ -1922,65 +2741,88 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1.25rem;
   border-radius: var(--border-radius);
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-primary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
   flex: 1;
   justify-content: center;
+  font-weight: 500;
 }
 
 .theme-option:hover {
   background-color: var(--bg-hover);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.theme-option:focus {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
 }
 
 .theme-option.active {
   border-color: var(--primary-color);
-  background-color: rgba(var(--primary-color-rgb), 0.1);
+  background-color: rgba(var(--primary-color-rgb), 0.08);
+  box-shadow: 0 4px 10px rgba(var(--primary-color-rgb), 0.15);
+  transform: translateY(-3px);
+}
+
+.theme-option svg {
+  transition: transform 0.3s ease;
+}
+
+.theme-option:hover svg {
+  transform: rotate(15deg);
 }
 
 .dark-mode .theme-option.active {
-  background-color: rgba(var(--primary-color-rgb), 0.2);
+  background-color: rgba(var(--primary-color-rgb), 0.15);
 }
 
 /* Color options */
 .color-options {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 1.25rem;
   justify-content: center;
+  padding: 0.5rem;
 }
 
 .dark-mode .color-options {
   background-color: rgba(0, 0, 0, 0.2);
-  padding: 15px;
+  padding: 1.25rem;
   border-radius: var(--border-radius);
 }
 
 .color-option {
-  width: 40px;
-  height: 40px;
+  width: 45px;
+  height: 45px;
   border-radius: 50%;
   cursor: pointer;
   border: 2px solid transparent;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   position: relative;
   box-shadow: var(--shadow-sm);
 }
 
 .color-option:hover {
-  transform: scale(1.15);
-  box-shadow: var(--shadow-md);
+  transform: scale(1.15) translateY(-2px);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.15);
+}
+
+.color-option:focus {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
 }
 
 .color-option.active {
   border-color: var(--text-primary);
   transform: scale(1.15);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
 .color-option.active::after {
@@ -1989,8 +2831,8 @@ export default {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   background-color: white;
   border-radius: 50%;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -2009,6 +2851,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 1rem;
+  padding: 0.5rem 0;
 }
 
 .toggle {
@@ -2016,6 +2859,7 @@ export default {
   display: inline-block;
   width: 52px;
   height: 26px;
+  flex-shrink: 0;
 }
 
 .toggle input {
@@ -2057,7 +2901,8 @@ input:checked + .toggle-slider {
 }
 
 input:focus + .toggle-slider {
-  box-shadow: 0 0 1px var(--primary-color);
+  outline: var(--focus-outline);
+  outline-offset: 1px;
 }
 
 input:checked + .toggle-slider:before {
@@ -2089,10 +2934,16 @@ input:checked + .toggle-slider:before {
   margin: 0;
   cursor: pointer;
   position: relative;
+  transition: border-color 0.2s ease;
 }
 
 .radio-option input[type="radio"]:checked {
   border-color: var(--primary-color);
+}
+
+.radio-option input[type="radio"]:focus {
+  outline: var(--focus-outline);
+  outline-offset: 1px;
 }
 
 .radio-option input[type="radio"]:checked::after {
@@ -2104,7 +2955,14 @@ input:checked + .toggle-slider:before {
   background: var(--primary-color);
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(0);
+  animation: radioScale 0.2s forwards;
+}
+
+@keyframes radioScale {
+  to {
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .dark-mode .radio-option input[type="radio"]:checked {
@@ -2131,6 +2989,12 @@ input:checked + .toggle-slider:before {
   padding: 1.25rem;
   border-radius: var(--border-radius);
   border: 1px solid var(--border-color);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.profile-item:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
 }
 
 .profile-item h4 {
@@ -2161,13 +3025,39 @@ input:checked + .toggle-slider:before {
   font-weight: 500;
   transition: all 0.25s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: hidden;
 }
 
 .select-btn:hover {
   border-color: var(--primary-color);
-  background: rgba(123, 73, 255, 0.05);
+  background: rgba(var(--primary-color-rgb), 0.05);
   color: var(--primary-color);
   transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(var(--primary-color-rgb), 0.1);
+}
+
+.select-btn:focus {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+.select-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(var(--primary-color-rgb), 0.3);
+  opacity: 0;
+  border-radius: 100%;
+  transform: scale(1, 1) translate(-50%);
+  transform-origin: 50% 50%;
+}
+
+.select-btn:active::after {
+  animation: ripple 0.8s ease-out;
 }
 
 .select-btn.active {
@@ -2175,11 +3065,16 @@ input:checked + .toggle-slider:before {
   color: white;
   border-color: var(--primary-color);
   transform: translateY(-2px);
-  box-shadow: 0 3px 10px rgba(123, 73, 255, 0.2);
+  box-shadow: 0 3px 10px rgba(var(--primary-color-rgb), 0.2);
 }
 
 .btn-icon {
   font-size: 1.15rem;
+  transition: transform 0.2s ease;
+}
+
+.select-btn:hover .btn-icon {
+  transform: scale(1.15);
 }
 
 .btn-text {
@@ -2214,7 +3109,8 @@ input:checked + .toggle-slider:before {
 .form-group select,
 .form-group input[type="text"],
 .form-group input[type="number"],
-.form-group input[type="date"] {
+.form-group input[type="date"],
+.form-group input[type="email"] {
   width: 100%;
   padding: 0.85rem 1rem;
   border: 1px solid var(--border-color);
@@ -2228,7 +3124,8 @@ input:checked + .toggle-slider:before {
 .form-group select:focus,
 .form-group input[type="text"]:focus,
 .form-group input[type="number"]:focus,
-.form-group input[type="date"]:focus {
+.form-group input[type="date"]:focus,
+.form-group input[type="email"]:focus {
   border-color: var(--primary-color);
   outline: none;
   box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.2);
@@ -2237,7 +3134,8 @@ input:checked + .toggle-slider:before {
 .dark-mode .form-group select:focus,
 .dark-mode .form-group input[type="text"]:focus,
 .dark-mode .form-group input[type="number"]:focus,
-.dark-mode .form-group input[type="date"]:focus {
+.dark-mode .form-group input[type="date"]:focus,
+.dark-mode .form-group input[type="email"]:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.3);
 }
@@ -2305,7 +3203,7 @@ input:checked + .toggle-slider:before {
 }
 
 .year-weight-row:hover {
-  background-color: rgba(123, 73, 255, 0.03);
+  background-color: rgba(var(--primary-color-rgb), 0.03);
 }
 
 .year-weight-row:last-child {
@@ -2337,7 +3235,7 @@ input:checked + .toggle-slider:before {
 .weight-column input:focus {
   border-color: var(--primary-color);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(123, 73, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.15);
 }
 
 .weight-column input:disabled {
@@ -2430,10 +3328,16 @@ input:checked + .toggle-switch:before {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: color 0.2s ease;
 }
 
 .toggle-password:hover {
   color: var(--primary-color);
+}
+
+.toggle-password:focus {
+  outline: var(--focus-outline);
+  outline-offset: 1px;
 }
 
 .select-wrapper {
@@ -2507,6 +3411,7 @@ input:checked + .toggle-switch:before {
   border-radius: var(--border-radius);
   text-align: center;
   background-color: transparent;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .grade-row input:focus {
@@ -2515,21 +3420,31 @@ input:checked + .toggle-switch:before {
   outline: none;
 }
 
-.remove-grade {
+.remove-grade,
+.remove-holiday {
   background: transparent;
   border: none;
   color: var(--error-color);
   cursor: pointer;
   padding: 0.5rem;
   opacity: 0.7;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
 }
 
-.remove-grade:hover {
+.remove-grade:hover,
+.remove-holiday:hover {
   opacity: 1;
+  background-color: rgba(var(--error-color-rgb), 0.1);
+}
+
+.remove-grade:focus,
+.remove-holiday:focus {
+  outline: var(--focus-outline);
+  outline-offset: 1px;
 }
 
 .add-grade-btn,
@@ -2555,6 +3470,13 @@ input:checked + .toggle-switch:before {
   background-color: rgba(var(--primary-color-rgb), 0.05);
   border-color: var(--primary-color);
   transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.add-grade-btn:focus,
+.add-holiday-btn:focus {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
 }
 
 .dark-mode .add-grade-btn:hover,
@@ -2576,6 +3498,7 @@ input:checked + .toggle-switch:before {
 
 .holiday-item:hover {
   box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
 }
 
 .holiday-header {
@@ -2593,23 +3516,6 @@ input:checked + .toggle-switch:before {
 .holiday-dates {
   display: flex;
   gap: 1rem;
-}
-
-.remove-holiday {
-  background: transparent;
-  border: none;
-  color: var(--error-color);
-  cursor: pointer;
-  padding: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: all 0.2s ease;
-}
-
-.remove-holiday:hover {
-  background-color: rgba(244, 67, 54, 0.1);
 }
 
 /* Password form */
@@ -2671,12 +3577,17 @@ input:checked + .toggle-switch:before {
 }
 
 .reset-button,
-.save-button {
+.save-button,
+.verify-code-btn,
+.reset-tfa-btn,
+.test-tts-btn {
   padding: 0.75rem 1.5rem;
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius-xl);
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .reset-button {
@@ -2688,6 +3599,12 @@ input:checked + .toggle-switch:before {
 .reset-button:hover {
   background-color: var(--bg-hover);
   border-color: var(--text-secondary);
+  transform: translateY(-2px);
+}
+
+.reset-button:focus {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
 }
 
 .save-button {
@@ -2695,12 +3612,18 @@ input:checked + .toggle-switch:before {
   border: none;
   color: white;
   min-width: 120px;
+  box-shadow: 0 3px 6px rgba(var(--primary-color-rgb), 0.2);
 }
 
 .save-button:hover {
   background-color: var(--primary-dark);
   transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 5px 12px rgba(var(--primary-color-rgb), 0.3);
+}
+
+.save-button:focus {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
 }
 
 .dark-mode .save-button {
@@ -2715,6 +3638,43 @@ input:checked + .toggle-switch:before {
   background-color: var(--border-color);
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
+}
+
+.verify-code-btn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  margin-top: 0.5rem;
+}
+
+.verify-code-btn:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-2px);
+}
+
+.reset-tfa-btn {
+  background-color: var(--warning-color);
+  color: white;
+  border: none;
+  margin-top: 0.5rem;
+}
+
+.reset-tfa-btn:hover {
+  background-color: darkorange;
+  transform: translateY(-2px);
+}
+
+.test-tts-btn {
+  background-color: var(--info-color);
+  color: white;
+  border: none;
+  margin-top: 0.5rem;
+}
+
+.test-tts-btn:hover {
+  background-color: #0b7dda;
+  transform: translateY(-2px);
 }
 
 /* Center content for auth prompt */
@@ -2723,6 +3683,33 @@ input:checked + .toggle-switch:before {
   align-items: center;
   justify-content: center;
   height: 100%;
+}
+
+/* Button ripple effect */
+.reset-button::after,
+.save-button::after,
+.verify-code-btn::after,
+.reset-tfa-btn::after,
+.test-tts-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.5);
+  opacity: 0;
+  border-radius: 100%;
+  transform: scale(1, 1) translate(-50%);
+  transform-origin: 50% 50%;
+}
+
+.reset-button:active::after,
+.save-button:active::after,
+.verify-code-btn:active::after,
+.reset-tfa-btn:active::after,
+.test-tts-btn:active::after {
+  animation: ripple 0.8s ease-out;
 }
 
 /* High contrast mode styles */
@@ -2740,6 +3727,7 @@ input:checked + .toggle-switch:before {
   --bg-input: #ffffff;
   --bg-hover: #e6e6e6;
   --border-color: #000000;
+  --focus-outline: 3px solid #000000;
 }
 
 :root.high-contrast.dark-mode {
@@ -2753,6 +3741,7 @@ input:checked + .toggle-switch:before {
   --bg-input: #1e1e1e;
   --bg-hover: #2a2a2a;
   --border-color: #ffffff;
+  --focus-outline: 3px solid #ffffff;
 }
 
 /* Focus mode styles */
@@ -2769,6 +3758,159 @@ input:checked + .toggle-switch:before {
 
 :root.focus-mode .settings-panel {
   box-shadow: 0 0 0 4px rgba(var(--primary-color-rgb), 0.2);
+}
+
+:root.focus-mode .setting-group:not(:hover) {
+  opacity: 0.85;
+}
+
+/* New styles for TFA Setup */
+.tfa-setup-section {
+  margin-top: 1.5rem;
+  background-color: var(--bg-card);
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+}
+
+.setup-steps {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+}
+
+.setup-steps li {
+  margin-bottom: 0.75rem;
+}
+
+.qr-code-container {
+  display: flex;
+  justify-content: center;
+  margin: 1.5rem 0;
+}
+
+.qr-code-placeholder {
+  width: 200px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-light);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-weight: bold;
+}
+
+.verification-code-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 200px;
+  margin: 0 auto;
+}
+
+/* Color Blind Preview Styles */
+.color-blind-preview {
+  margin-top: 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+}
+
+.preview-title {
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.color-samples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.color-sample {
+  padding: 0.75rem 1rem;
+  border-radius: var(--border-radius);
+  color: white;
+  font-weight: 500;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  min-width: 80px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Screen Reader Verbosity Settings */
+.indented-option {
+  margin-top: 1rem;
+  margin-left: 2.5rem;
+  padding: 1rem;
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+}
+
+/* Motion Settings */
+.motion-level {
+  margin-top: 1rem;
+  margin-left: 2.5rem;
+}
+
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+input[type="range"] {
+  width: 100%;
+  height: 5px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(to right, var(--text-tertiary), var(--primary-color));
+  outline: none;
+  border-radius: 5px;
+  margin: 1rem 0 0.5rem;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: var(--primary-color);
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  transition: transform 0.1s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+input[type="range"]:focus {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
+}
+
+/* TTS Options */
+.tts-options {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+}
+
+.tts-options .form-group {
+  margin-bottom: 1.5rem;
+}
+
+.tts-options .range-labels {
+  display: flex;
+  justify-content: space-between;
 }
 
 /* Responsive styles */
@@ -2799,6 +3941,7 @@ input:checked + .toggle-switch:before {
   .theme-option {
     flex: none;
     width: 100%;
+    margin-bottom: 0.5rem;
   }
 
   .form-row {
@@ -2854,6 +3997,16 @@ input:checked + .toggle-switch:before {
     gap: 0.5rem;
     align-items: flex-start;
   }
+
+  /* Adjust color samples for mobile */
+  .color-samples {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .color-sample {
+    width: 100%;
+  }
 }
 
 /* Medium size devices */
@@ -2872,32 +4025,32 @@ input:checked + .toggle-switch:before {
   }
 }
 
-/* Animation for buttons */
-button {
+/* Accessibility focus indicators */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
   position: relative;
-  overflow: hidden;
+  z-index: 1;
 }
 
-button::after {
-  content: '';
-  display: block;
+/* Skip to main content - accessibility feature */
+.skip-to-content {
   position: absolute;
-  width: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
-  pointer-events: none;
-  background-image: radial-gradient(circle, #fff 10%, transparent 10.01%);
-  background-repeat: no-repeat;
-  background-position: 50%;
-  transform: scale(10, 10);
-  opacity: 0;
-  transition: transform .5s, opacity 1s;
+  left: -9999px;
+  z-index: 999;
+  padding: 1rem;
+  background-color: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
 }
 
-button:active::after {
-  transform: scale(0, 0);
-  opacity: .3;
-  transition: 0s;
+.skip-to-content:focus {
+  left: 50%;
+  transform: translateX(-50%);
+  top: 0;
 }
 </style>

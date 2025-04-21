@@ -1,115 +1,400 @@
 <template>
-  <div class="calendar-sidebar">
-    <div class="sidebar-header">
-      <h2>Calendar</h2>
-      <div class="month-navigator">
-        <button @click="previousMonth" class="nav-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-        <span class="current-month">{{ formatMonthYear(currentDate) }}</span>
-        <button @click="nextMonth" class="nav-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </button>
-      </div>
-    </div>
+  <div class="study-hub-sidebar" :class="{ 'collapsed': isCollapsed }">
+    <!-- Collapse Toggle Button -->
+    <button @click="toggleSidebar" class="collapse-toggle" :title="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 18l-6-6 6-6" v-if="!isCollapsed" />
+        <path d="M9 18l6-6-6-6" v-else />
+      </svg>
+    </button>
 
-    <!-- Calendar -->
-    <div class="calendar-wrapper">
-      <vc-calendar
-          v-model="currentDate"
-          is-inline
-          @dayclick="onDayClick"
-          class="custom-calendar"
-          :attributes="calendarAttributes"
-      />
-    </div>
-
-    <!-- Today's Quick View -->
-    <div class="today-summary">
-      <div class="date-pill">Today</div>
-      <div class="quick-stats">
-        <div class="stat-item">
-          <div class="stat-value">{{ todayEvents.length }}</div>
-          <div class="stat-label">Events</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">{{ calculateStudyHours() }}h</div>
-          <div class="stat-label">Study</div>
+    <div class="sidebar-content">
+      <!-- Header Section -->
+      <div class="sidebar-header">
+        <h2>Study Hub</h2>
+        <div class="month-navigator">
+          <button @click="previousMonth" class="nav-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <span class="current-month">{{ formatMonthYear(currentDate) }}</span>
+          <button @click="nextMonth" class="nav-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </button>
         </div>
       </div>
-    </div>
 
-    <!-- Events section -->
-    <div v-if="activeDate" class="events-container">
-      <div class="events-header">
-        <h3>{{ formatDate(activeDate) }}</h3>
-        <button @click="openCreateEventModal" class="add-event-btn" title="Add new event">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>
+      <!-- Calendar -->
+      <div class="calendar-wrapper">
+        <vc-calendar
+            v-model="currentDate"
+            is-inline
+            @dayclick="onDayClick"
+            class="custom-calendar"
+            :attributes="calendarAttributes"
+        />
       </div>
 
-      <div v-if="loadingEvents" class="loading-events">
-        <div class="loading-spinner"></div>
-        <p>Loading events...</p>
-      </div>
-
-      <div v-else-if="eventsForSelectedDate.length === 0" class="no-events">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="empty-icon">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-          <line x1="16" y1="2" x2="16" y2="6"></line>
-          <line x1="8" y1="2" x2="8" y2="6"></line>
-          <line x1="3" y1="10" x2="21" y2="10"></line>
-        </svg>
-        <p>No events scheduled for this day</p>
-        <button @click="openCreateEventModal('study')" class="schedule-btn">Schedule Study Time</button>
-      </div>
-
-      <div v-else class="events-list">
-        <div
-            v-for="event in eventsForSelectedDate"
-            :key="event.id"
-            class="event-card"
-            :class="getEventClass(event)"
-        >
-          <div class="event-dot"></div>
-          <div class="event-content">
-            <div class="event-time">
-              {{ formatEventTime(event) }}
-            </div>
-            <div class="event-title">{{ event.title }}</div>
-            <div class="event-description">{{ event.description }}</div>
+      <!-- Today's Quick View -->
+      <div class="today-summary">
+        <div class="date-pill">Today</div>
+        <div class="quick-stats">
+          <div class="stat-item">
+            <div class="stat-value">{{ todayEvents.length }}</div>
+            <div class="stat-label">Events</div>
           </div>
-          <div class="event-actions">
-            <button @click="openEditEventModal(event)" class="action-btn edit-btn" title="Edit event">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          <div class="stat-item">
+            <div class="stat-value">{{ calculateStudyHours() }}h</div>
+            <div class="stat-label">Study</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Schedule Card -->
+      <div v-if="activeSchedule" class="active-schedule">
+        <div class="card-header">
+          <h3>Active Schedule</h3>
+          <div class="header-actions">
+            <button @click="changeSchedule" class="change-schedule-btn" title="Change active schedule">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+              </svg>
+              Change
+            </button>
+            <span class="badge">{{ activeSchedule.is_ai_generated ? 'AI Generated' : 'Custom' }}</span>
+          </div>
+        </div>
+
+        <div class="schedule-info">
+          <div class="schedule-name">{{ activeSchedule.name }}</div>
+          <div class="schedule-dates">
+            {{ formatDate(new Date(activeSchedule.start_date)) }} - {{ formatDate(new Date(activeSchedule.end_date)) }}
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="progress-container">
+            <div class="progress-label">
+              <span>Progress</span>
+              <span>{{ completionStats.rate }}%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-value" :style="{ width: completionStats.rate + '%' }"></div>
+            </div>
+          </div>
+
+          <div class="schedule-stats">
+            <div class="stat">
+              <span class="value">{{ completionStats.total }}</span>
+              <span class="label">Sessions</span>
+            </div>
+            <div class="stat">
+              <span class="value">{{ completionStats.completed }}</span>
+              <span class="label">Completed</span>
+            </div>
+            <div class="stat">
+              <span class="value">{{ completionStats.missed || 0 }}</span>
+              <span class="label">Missed</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upcoming Study Sessions Card -->
+      <div v-if="upcomingSessions.length > 0" class="upcoming-sessions">
+        <div class="card-header">
+          <h3>Upcoming Sessions</h3>
+          <div class="header-actions">
+            <button @click="viewAllSessions" class="view-all-btn" title="View all sessions">
+              View All
+            </button>
+            <button @click="refreshSessions" class="refresh-btn" title="Refresh sessions">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 4v6h-6"></path>
+                <path d="M1 20v-6h6"></path>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
               </svg>
             </button>
-            <button @click="confirmDeleteEvent(event)" class="action-btn delete-btn" title="Delete event">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-              </svg>
+          </div>
+        </div>
+
+        <div class="sessions-list">
+          <div
+              v-for="session in upcomingSessions.slice(0, 5)"
+              :key="session.id"
+              class="session-card"
+              :class="[
+              getSessionStatusClass(session),
+              { 'active-now': isSessionActive(session) }
+            ]"
+          >
+            <div class="session-time">
+              <div class="session-date">{{ formatDateShort(new Date(session.date)) }}</div>
+              <div class="session-hours">{{ session.startTime }} - {{ session.endTime }}</div>
+
+              <!-- Countdown timer for in-progress sessions -->
+              <div v-if="isSessionActive(session)" class="session-countdown">
+                {{ getSessionCountdown(session) }} remaining
+              </div>
+            </div>
+
+            <div class="session-content">
+              <div class="session-title">{{ session.title }}</div>
+              <div class="session-module">{{ getModuleName(session.module) }}</div>
+            </div>
+
+            <div class="session-actions">
+              <!-- Only show complete button for active or planned sessions -->
+              <button
+                  v-if="isSessionActive(session) || session.status === 'planned'"
+                  @click="markSessionCompleted(session)"
+                  class="action-btn complete-btn"
+                  title="Mark as completed"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </button>
+
+              <!-- Only show missed button for active or planned sessions -->
+              <button
+                  v-if="isSessionActive(session) || session.status === 'planned'"
+                  @click="markSessionMissed(session)"
+                  class="action-btn missed-btn"
+                  title="Mark as missed"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+
+              <!-- Reschedule button for missed sessions -->
+              <button
+                  v-if="session.status === 'missed'"
+                  @click="rescheduleSession(session)"
+                  class="action-btn reschedule-btn"
+                  title="Reschedule session"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Status indicators -->
+            <div class="session-status">
+              <span v-if="session.status === 'in_progress'" class="status in-progress">In Progress</span>
+              <span v-else-if="session.status === 'completed'" class="status completed">
+                Completed
+                <span class="completion-time" v-if="session.completed_at">
+                  {{ formatCompletionTime(session.completed_at) }}
+                </span>
+              </span>
+              <span v-else-if="session.status === 'missed'" class="status missed">Missed</span>
+              <span v-else-if="isSessionActive(session)" class="status active">Active Now</span>
+              <span v-else class="status planned">Planned</span>
+            </div>
+          </div>
+
+          <!-- Show more indicator if there are more than 5 sessions -->
+          <div v-if="upcomingSessions.length > 5" class="more-sessions">
+            <button @click="viewAllSessions" class="more-btn">
+              + {{ upcomingSessions.length - 5 }} more sessions
             </button>
-            <button
-                @click="toggleEventCompletion(event)"
-                class="action-btn complete-btn"
-                :class="{ 'completed': event.completed }"
-                :title="event.completed ? 'Mark as incomplete' : 'Mark as complete'"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Events section for selected date -->
+      <div v-if="activeDate" class="events-container">
+        <div class="events-header">
+          <h3>{{ formatDate(activeDate) }}</h3>
+          <button @click="openCreateEventModal" class="add-event-btn" title="Add new event">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div v-if="loadingEvents" class="loading-events">
+          <div class="loading-spinner"></div>
+          <p>Loading events...</p>
+        </div>
+
+        <div v-else-if="eventsForSelectedDate.length === 0" class="no-events">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="empty-icon">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <p>No events scheduled for this day</p>
+          <button @click="openCreateEventModal('study')" class="schedule-btn">Schedule Study Time</button>
+        </div>
+
+        <div v-else class="events-list">
+          <div
+              v-for="event in eventsForSelectedDate"
+              :key="event.id"
+              class="event-card"
+              :class="getEventClass(event)"
+          >
+            <div class="event-dot"></div>
+            <div class="event-content">
+              <div class="event-time">
+                {{ formatEventTime(event) }}
+              </div>
+              <div class="event-title">{{ event.title }}</div>
+              <div class="event-description">{{ event.description }}</div>
+            </div>
+            <div class="event-actions">
+              <button @click="openEditEventModal(event)" class="action-btn edit-btn" title="Edit event">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button @click="confirmDeleteEvent(event)" class="action-btn delete-btn" title="Delete event">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </button>
+              <button
+                  @click="toggleEventCompletion(event)"
+                  class="action-btn complete-btn"
+                  :class="{ 'completed': event.completed }"
+                  :title="event.completed ? 'Mark as incomplete' : 'Mark as complete'"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Session Completion Modal -->
+    <div v-if="showSessionFeedbackModal" class="modal-overlay" @click.self="closeSessionFeedbackModal">
+      <div class="modal-container">
+        <div class="modal-header">
+          <h2>Session Feedback</h2>
+          <button @click="closeSessionFeedbackModal" class="close-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <form @submit.prevent="submitSessionFeedback">
+            <div class="session-details">
+              <div class="session-title">{{ sessionToComplete?.title }}</div>
+              <div class="session-time">{{ formatDateShort(new Date(sessionToComplete?.date || '')) }} | {{ sessionToComplete?.startTime }} - {{ sessionToComplete?.endTime }}</div>
+            </div>
+
+            <div class="form-group">
+              <label for="productivity">How productive was this session? (1-5)*</label>
+              <div class="rating-buttons">
+                <button
+                    v-for="n in 5"
+                    :key="n"
+                    type="button"
+                    :class="['rating-btn', { active: sessionFeedback.productivity === n }]"
+                    @click="sessionFeedback.productivity = n"
+                >
+                  {{ n }}
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="difficulty">How difficult was the material? (1-5)</label>
+              <div class="rating-buttons">
+                <button
+                    v-for="n in 5"
+                    :key="n"
+                    type="button"
+                    :class="['rating-btn', { active: sessionFeedback.difficulty === n }]"
+                    @click="sessionFeedback.difficulty = n"
+                >
+                  {{ n }}
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="session-notes">Notes (optional)</label>
+              <textarea
+                  id="session-notes"
+                  v-model="sessionFeedback.notes"
+                  placeholder="What did you learn or accomplish?"
+                  rows="3"
+              ></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Topics Covered:</label>
+              <div class="tags-input">
+                <input
+                    type="text"
+                    v-model="topicInput"
+                    @keydown.enter.prevent="addTopic"
+                    placeholder="Enter topic and press Enter"
+                />
+                <div class="tags-container">
+                  <span v-for="(topic, index) in sessionFeedback.topics" :key="index" class="tag">
+                    {{ topic }}
+                    <button type="button" @click="removeTopic(index)" class="remove-tag">×</button>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" @click="closeSessionFeedbackModal" class="cancel-btn">Cancel</button>
+              <button type="submit" class="save-btn" :disabled="submitFeedbackLoading">
+                <span v-if="submitFeedbackLoading">Saving...</span>
+                <span v-else>Submit Feedback</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirmation Modal for Delete -->
+    <div v-if="showDeleteConfirmation" class="modal-overlay" @click.self="showDeleteConfirmation = false">
+      <div class="modal-container confirmation-modal">
+        <div class="modal-header">
+          <h2>Confirm Delete</h2>
+          <button @click="showDeleteConfirmation = false" class="close-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete this event?</p>
+          <div class="event-to-delete" v-if="eventToDelete">
+            <div class="event-title">{{ eventToDelete.title }}</div>
+            <div class="event-date">{{ formatDate(new Date(eventToDelete.date)) }}</div>
+          </div>
+          <div class="confirmation-actions">
+            <button @click="showDeleteConfirmation = false" class="cancel-btn">Cancel</button>
+            <button @click="deleteEvent" class="delete-confirm-btn" :disabled="deleting">
+              <span v-if="deleting">Deleting...</span>
+              <span v-else>Delete Event</span>
             </button>
           </div>
         </div>
@@ -229,12 +514,12 @@
       </div>
     </div>
 
-    <!-- Confirmation Modal for Delete -->
-    <div v-if="showDeleteConfirmation" class="modal-overlay" @click.self="showDeleteConfirmation = false">
-      <div class="modal-container confirmation-modal">
+    <!-- Reschedule Session Modal -->
+    <div v-if="showRescheduleModal" class="modal-overlay" @click.self="closeRescheduleModal">
+      <div class="modal-container">
         <div class="modal-header">
-          <h2>Confirm Delete</h2>
-          <button @click="showDeleteConfirmation = false" class="close-btn">
+          <h2>Reschedule Session</h2>
+          <button @click="closeRescheduleModal" class="close-btn">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -242,18 +527,52 @@
           </button>
         </div>
         <div class="modal-body">
-          <p>Are you sure you want to delete this event?</p>
-          <div class="event-to-delete" v-if="eventToDelete">
-            <div class="event-title">{{ eventToDelete.title }}</div>
-            <div class="event-date">{{ formatDate(new Date(eventToDelete.date)) }}</div>
-          </div>
-          <div class="confirmation-actions">
-            <button @click="showDeleteConfirmation = false" class="cancel-btn">Cancel</button>
-            <button @click="deleteEvent" class="delete-confirm-btn" :disabled="deleting">
-              <span v-if="deleting">Deleting...</span>
-              <span v-else>Delete Event</span>
-            </button>
-          </div>
+          <form @submit.prevent="submitReschedule">
+            <div class="session-details">
+              <div class="session-title">{{ sessionToReschedule?.title }}</div>
+              <div class="session-module">{{ getModuleName(sessionToReschedule?.module) }}</div>
+            </div>
+
+            <div class="form-group">
+              <label for="reschedule-date">New Date*</label>
+              <input
+                  type="date"
+                  id="reschedule-date"
+                  v-model="rescheduleForm.date"
+                  required
+              />
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="reschedule-start-time">Start Time*</label>
+                <input
+                    type="time"
+                    id="reschedule-start-time"
+                    v-model="rescheduleForm.startTime"
+                    required
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="reschedule-end-time">End Time*</label>
+                <input
+                    type="time"
+                    id="reschedule-end-time"
+                    v-model="rescheduleForm.endTime"
+                    required
+                />
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" @click="closeRescheduleModal" class="cancel-btn">Cancel</button>
+              <button type="submit" class="save-btn" :disabled="rescheduleLoading">
+                <span v-if="rescheduleLoading">Rescheduling...</span>
+                <span v-else>Reschedule Session</span>
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
@@ -267,7 +586,7 @@ import { notify } from '@/services/toastService.js';
 import { API_URL } from '@/config.js';
 
 export default {
-  name: 'CalendarSidebar',
+  name: 'StudyHubSidebar',
   props: {
     // The events array can be passed from parent
     events: {
@@ -282,8 +601,9 @@ export default {
   },
   data() {
     return {
+      isCollapsed: false,
       currentDate: new Date(),
-      internalSelectedDate: new Date(), // Internal date for when no prop is provided
+      internalSelectedDate: new Date(), // Internal date when no prop is provided
       loadingEvents: false,
       showEventModal: false,
       editMode: false,
@@ -292,6 +612,17 @@ export default {
       showDeleteConfirmation: false,
       eventToDelete: null,
       deleting: false,
+
+      // Reschedule modal state
+      showRescheduleModal: false,
+      sessionToReschedule: null,
+      rescheduleForm: {
+        date: '',
+        startTime: '',
+        endTime: ''
+      },
+      rescheduleLoading: false,
+
       availableColors: [
         { name: 'Purple', value: '#7b49ff' },
         { name: 'Blue', value: '#2196f3' },
@@ -312,7 +643,35 @@ export default {
         color: '#7b49ff',
         completed: false
       },
-      internalEvents: [] // Used when no events prop is provided
+      internalEvents: [], // Used when no events prop is provided
+
+      // StudyHub specific data
+      activeSchedule: null,
+      upcomingSessions: [],
+      userModules: [],
+      loadingSessions: false,
+      refreshInterval: null,
+      countdownInterval: null,
+
+      // Session Feedback Modal
+      showSessionFeedbackModal: false,
+      sessionToComplete: null,
+      sessionFeedback: {
+        productivity: 3,
+        difficulty: 3,
+        notes: '',
+        topics: []
+      },
+      topicInput: '',
+      submitFeedbackLoading: false,
+
+      // Stats tracking
+      completionStats: {
+        total: 0,
+        completed: 0,
+        missed: 0,
+        rate: 0
+      }
     }
   },
   computed: {
@@ -361,6 +720,15 @@ export default {
         eventsByDate[event.date].push(event);
       });
 
+      // Group sessions by date
+      const sessionsByDate = {};
+      this.upcomingSessions.forEach(session => {
+        if (!sessionsByDate[session.date]) {
+          sessionsByDate[session.date] = [];
+        }
+        sessionsByDate[session.date].push(session);
+      });
+
       // Create dot attributes for dates with events
       Object.keys(eventsByDate).forEach(date => {
         const events = eventsByDate[date];
@@ -388,6 +756,37 @@ export default {
             className: count > 3 ? 'event-dot-highlight' : ''
           }
         });
+      });
+
+      // Create dot attributes for dates with study sessions
+      Object.keys(sessionsByDate).forEach(date => {
+        const sessions = sessionsByDate[date];
+        const hasActiveSession = sessions.some(s => this.isSessionActive(s));
+        const hasCompletedSession = sessions.some(s => s.status === 'completed');
+        const hasMissedSession = sessions.some(s => s.status === 'missed');
+
+        let sessionDotColor = '#4caf50'; // Default green
+
+        if (hasActiveSession) {
+          sessionDotColor = '#ff9100'; // Orange for active
+        } else if (hasMissedSession && !hasCompletedSession) {
+          sessionDotColor = '#f44336'; // Red for all missed
+        } else if (hasMissedSession && hasCompletedSession) {
+          sessionDotColor = '#ff9100'; // Orange for mixed
+        } else if (hasCompletedSession) {
+          sessionDotColor = '#4caf50'; // Green for completed
+        }
+
+        // Only add if we don't already have an event dot for this date
+        if (!eventsByDate[date]) {
+          attributes.push({
+            dates: new Date(date),
+            dot: {
+              color: sessionDotColor,
+              className: sessions.length > 3 ? 'event-dot-highlight' : ''
+            }
+          });
+        }
       });
 
       return attributes;
@@ -418,6 +817,11 @@ export default {
       await this.fetchEvents();
     }
 
+    // Fetch study data
+    await this.fetchActiveSchedule();
+    await this.fetchUserModules();
+    await this.fetchUpcomingSessions();
+
     // Force a redraw of the calendar
     await nextTick();
 
@@ -426,11 +830,47 @@ export default {
 
     // Listen for dark mode changes
     window.addEventListener('darkModeChange', this.onDarkModeChange);
+
+    // Set up refresh interval to check for active sessions every minute
+    this.refreshInterval = setInterval(() => {
+      this.updateSessionStatuses();
+      this.fetchUpcomingSessions();
+    }, 60000); // Every minute
+
+    // Start the countdown timer for any active sessions
+    this.countdownInterval = setInterval(() => {
+      // This will update the countdown timer every second
+      this.$forceUpdate();
+    }, 1000);
+
+    // Check if sidebar collapse state is stored in localStorage
+    const storedCollapseState = localStorage.getItem('studyHubSidebarCollapsed');
+    if (storedCollapseState) {
+      this.isCollapsed = storedCollapseState === 'true';
+    }
   },
   beforeUnmount() {
     window.removeEventListener('darkModeChange', this.onDarkModeChange);
+
+    // Clear intervals
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval);
+    }
+
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+    }
   },
   methods: {
+    toggleSidebar() {
+      this.isCollapsed = !this.isCollapsed;
+      // Store collapse state in localStorage
+      localStorage.setItem('studyHubSidebarCollapsed', this.isCollapsed);
+
+      // Emit event to parent so they can adjust layout if needed
+      this.$emit('toggle-collapse', this.isCollapsed);
+    },
+
     async fetchEvents(startDate = null, endDate = null) {
       // Only fetch if we're not using the events prop
       if (this.events.length > 0) return;
@@ -458,6 +898,335 @@ export default {
       }
     },
 
+    async fetchActiveSchedule() {
+      try {
+        const response = await axios.get(`${API_URL}/study/schedules/active`, {
+          withCredentials: true
+        });
+        this.activeSchedule = response.data;
+
+        // Calculate completion statistics if we have an active schedule
+        if (this.activeSchedule) {
+          await this.calculateCompletionStats();
+        }
+      } catch (error) {
+        console.error('Error fetching active schedule:', error);
+        // Don't show error notification as it's normal to not have an active schedule
+      }
+    },
+
+    async fetchUserModules() {
+      try {
+        const response = await axios.get(`${API_URL}/modules`, {
+          withCredentials: true
+        });
+        this.userModules = response.data;
+      } catch (error) {
+        console.error('Error fetching modules:', error);
+        // Don't show error notification for this non-critical resource
+      }
+    },
+
+    async fetchUpcomingSessions() {
+      try {
+        this.loadingSessions = true;
+        const response = await axios.get(`${API_URL}/study/sessions/current`, {
+          withCredentials: true
+        });
+        this.upcomingSessions = response.data;
+
+        // Sort sessions by date and time
+        this.upcomingSessions.sort((a, b) => {
+          // First compare by date
+          if (a.date < b.date) return -1;
+          if (a.date > b.date) return 1;
+
+          // If same date, compare by time
+          return a.startTime.localeCompare(b.startTime);
+        });
+      } catch (error) {
+        console.error('Error fetching upcoming sessions:', error);
+        notify({ type: 'error', message: 'Failed to load study sessions' });
+      } finally {
+        this.loadingSessions = false;
+      }
+    },
+
+    async calculateCompletionStats() {
+      try {
+        if (!this.activeSchedule) {
+          this.completionStats = { total: 0, completed: 0, missed: 0, rate: 0 };
+          return;
+        }
+
+        // Get all sessions for the active schedule
+        const response = await axios.get(`${API_URL}/study/sessions`, {
+          withCredentials: true,
+          params: { schedule_id: this.activeSchedule.id }
+        });
+
+        const sessions = response.data;
+        const total = sessions.length;
+        const completed = sessions.filter(s => s.status === 'completed').length;
+        const missed = sessions.filter(s => s.status === 'missed').length;
+        const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+        this.completionStats = { total, completed, missed, rate };
+      } catch (error) {
+        console.error('Error calculating completion stats:', error);
+        this.completionStats = { total: 0, completed: 0, missed: 0, rate: 0 };
+      }
+    },
+
+    async updateSessionStatuses() {
+      try {
+        // This will check for sessions that need to be marked as in_progress or missed
+        await axios.post(`${API_URL}/study/sessions/update-statuses`, {}, {
+          withCredentials: true
+        });
+
+        // Refresh the sessions to get updated statuses
+        await this.fetchUpcomingSessions();
+      } catch (error) {
+        console.error('Error updating session statuses:', error);
+      }
+    },
+
+    isSessionActive(session) {
+      // Check if the session is currently active (happening right now)
+      if (session.status === 'in_progress') return true;
+
+      const now = new Date();
+      const sessionDate = new Date(session.date);
+
+      // Check if it's the same day
+      if (now.toDateString() !== sessionDate.toDateString()) return false;
+
+      // Parse times
+      const [startHours, startMinutes] = session.startTime.split(':').map(Number);
+      const [endHours, endMinutes] = session.endTime.split(':').map(Number);
+
+      // Create Date objects for start and end times
+      const startTime = new Date(sessionDate);
+      startTime.setHours(startHours, startMinutes, 0);
+
+      const endTime = new Date(sessionDate);
+      endTime.setHours(endHours, endMinutes, 0);
+
+      // Check if current time is between start and end
+      return now >= startTime && now <= endTime;
+    },
+
+    getSessionCountdown(session) {
+      if (!this.isSessionActive(session)) return '';
+
+      const now = new Date();
+      const sessionDate = new Date(session.date);
+      const [endHours, endMinutes] = session.endTime.split(':').map(Number);
+
+      const endTime = new Date(sessionDate);
+      endTime.setHours(endHours, endMinutes, 0);
+
+      // Calculate the time difference in milliseconds
+      const diff = endTime - now;
+
+      // Convert to minutes and seconds
+      if (diff <= 0) return '0:00';
+
+      const minutes = Math.floor(diff / 60000);
+      const seconds = Math.floor((diff % 60000) / 1000);
+
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    },
+
+    getSessionStatusClass(session) {
+      if (session.status === 'completed') return 'completed-session';
+      if (session.status === 'missed') return 'missed-session';
+      if (session.status === 'in_progress' || this.isSessionActive(session)) return 'active-session';
+      return 'planned-session';
+    },
+
+    getModuleName(moduleId) {
+      const module = this.userModules.find(m => m.id === moduleId);
+      return module ? module.name : 'Unknown Module';
+    },
+
+    async markSessionCompleted(session) {
+      // Show feedback modal to collect session feedback
+      this.sessionToComplete = session;
+      this.sessionFeedback = {
+        productivity: 3,
+        difficulty: 3,
+        notes: '',
+        topics: []
+      };
+      this.topicInput = '';
+      this.showSessionFeedbackModal = true;
+    },
+
+    async markSessionMissed(session) {
+      try {
+        await axios.post(`${API_URL}/study/sessions/${session.id}/miss`, {}, {
+          withCredentials: true
+        });
+
+        // Update session in upcomingSessions array
+        const index = this.upcomingSessions.findIndex(s => s.id === session.id);
+        if (index !== -1) {
+          this.upcomingSessions[index].status = 'missed';
+          this.upcomingSessions[index].missed = true;
+        }
+
+        // Refresh completion stats
+        await this.calculateCompletionStats();
+
+        notify({ type: 'success', message: 'Session marked as missed' });
+      } catch (error) {
+        console.error('Error marking session as missed:', error);
+        notify({ type: 'error', message: 'Failed to update session status' });
+      }
+    },
+
+    rescheduleSession(session) {
+      this.sessionToReschedule = session;
+
+      // Initialize the form with the session's current date and time
+      this.rescheduleForm = {
+        date: session.date,
+        startTime: session.startTime,
+        endTime: session.endTime
+      };
+
+      // Set the date to tomorrow by default
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      this.rescheduleForm.date = this.formatDateISO(tomorrow);
+
+      this.showRescheduleModal = true;
+    },
+
+    async submitReschedule() {
+      if (!this.sessionToReschedule) return;
+
+      try {
+        this.rescheduleLoading = true;
+
+        // Prepare the data for the API
+        const rescheduleData = {
+          date: this.rescheduleForm.date,
+          startTime: this.rescheduleForm.startTime,
+          endTime: this.rescheduleForm.endTime
+        };
+
+        // Call the API to reschedule the session
+        await axios.post(
+            `${API_URL}/study/sessions/${this.sessionToReschedule.id}/reschedule`,
+            rescheduleData,
+            { withCredentials: true }
+        );
+
+        // Refresh sessions and stats
+        await this.fetchUpcomingSessions();
+        await this.calculateCompletionStats();
+
+        notify({ type: 'success', message: 'Session rescheduled successfully!' });
+        this.closeRescheduleModal();
+      } catch (error) {
+        console.error('Error rescheduling session:', error);
+        notify({ type: 'error', message: 'Failed to reschedule session. Please try again.' });
+      } finally {
+        this.rescheduleLoading = false;
+      }
+    },
+
+    closeRescheduleModal() {
+      this.showRescheduleModal = false;
+      this.sessionToReschedule = null;
+      this.rescheduleForm = {
+        date: '',
+        startTime: '',
+        endTime: ''
+      };
+    },
+
+    closeSessionFeedbackModal() {
+      this.showSessionFeedbackModal = false;
+      this.sessionToComplete = null;
+    },
+
+    async submitSessionFeedback() {
+      if (!this.sessionToComplete) return;
+
+      try {
+        this.submitFeedbackLoading = true;
+
+        await axios.post(`${API_URL}/study/sessions/${this.sessionToComplete.id}/complete`,
+            this.sessionFeedback,
+            { withCredentials: true }
+        );
+
+        // Update session in upcomingSessions array
+        const index = this.upcomingSessions.findIndex(s => s.id === this.sessionToComplete.id);
+        if (index !== -1) {
+          this.upcomingSessions[index].status = 'completed';
+          this.upcomingSessions[index].completed = true;
+          this.upcomingSessions[index].completed_at = new Date().toISOString();
+        }
+
+        // Refresh completion stats
+        await this.calculateCompletionStats();
+
+        notify({ type: 'success', message: 'Session completed successfully!' });
+        this.closeSessionFeedbackModal();
+      } catch (error) {
+        console.error('Error completing session:', error);
+        notify({ type: 'error', message: 'Failed to complete session' });
+      } finally {
+        this.submitFeedbackLoading = false;
+      }
+    },
+
+    addTopic() {
+      if (!this.topicInput.trim()) return;
+
+      // Prevent duplicates
+      if (!this.sessionFeedback.topics.includes(this.topicInput.trim())) {
+        this.sessionFeedback.topics.push(this.topicInput.trim());
+      }
+
+      this.topicInput = '';
+    },
+
+    removeTopic(index) {
+      this.sessionFeedback.topics.splice(index, 1);
+    },
+
+    refreshSessions() {
+      this.fetchUpcomingSessions();
+      this.updateSessionStatuses();
+      notify({ type: 'info', message: 'Refreshing sessions...' });
+    },
+
+    changeSchedule() {
+      // Emit event to parent component to open schedule selection modal
+      this.$emit('change-schedule');
+
+      // Navigate to schedules tab
+      this.$emit('navigate', 'schedule');
+    },
+
+    viewAllSessions() {
+      // Navigate to schedule tab
+      this.$emit('navigate', 'schedule');
+    },
+
+    formatCompletionTime(timestamp) {
+      if (!timestamp) return '';
+
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    },
+
     applyCalendarTheme() {
       // Get the dark mode state from parent or localStorage
       const isDarkMode = document.body.classList.contains('dark-mode');
@@ -472,6 +1241,10 @@ export default {
           calendarElement.classList.remove('vc-dark');
         }
       }
+    },
+
+    onDarkModeChange() {
+      this.applyCalendarTheme();
     },
 
     onDayClick({ date }) {
@@ -709,6 +1482,14 @@ export default {
       });
     },
 
+    formatDateShort(date) {
+      if (!date) return '';
+      return new Date(date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+      });
+    },
+
     formatMonthYear(date) {
       if (!date) return '';
       return new Date(date).toLocaleDateString('en-US', {
@@ -763,7 +1544,7 @@ export default {
       const eventsArray = this.events.length > 0 ? this.events : this.internalEvents;
 
       // Calculate study hours for today
-      return eventsArray
+      const eventsHours = eventsArray
           .filter(event => event.type === 'study' && !event.all_day)
           .reduce((total, event) => {
             if (!event.start_time || !event.end_time) return total;
@@ -772,8 +1553,23 @@ export default {
             const end = event.end_time.split(':').map(Number);
             const hours = end[0] - start[0] + (end[1] - start[1]) / 60;
             return total + (hours > 0 ? hours : 0);
-          }, 0)
-          .toFixed(1);
+          }, 0);
+
+      // Calculate study hours from sessions
+      const today = this.formatDateISO(new Date());
+      const sessionsHours = this.upcomingSessions
+          .filter(session => session.date === today)
+          .reduce((total, session) => {
+            if (!session.startTime || !session.endTime) return total;
+
+            const start = session.startTime.split(':').map(Number);
+            const end = session.endTime.split(':').map(Number);
+            const hours = end[0] - start[0] + (end[1] - start[1]) / 60;
+            return total + (hours > 0 ? hours : 0);
+          }, 0);
+
+      // Return total study hours
+      return (eventsHours + sessionsHours).toFixed(1);
     },
 
     previousMonth() {
@@ -816,18 +1612,18 @@ export default {
 </script>
 
 <style scoped>
-/* Enhanced Calendar Sidebar Styles */
-/* Enhanced Calendar Sidebar Styles */
+/* Enhanced Study Hub Sidebar Styles */
 :root {
-  --primary-color: #673ab7;
-  --primary-dark: #512da8;
-  --primary-light: #9575cd;
-  --primary-color-transparent: rgba(103, 58, 183, 0.15);
+  --primary-color: #9e78ff;
+  --primary-dark: #7b49ff;
+  --primary-light: #b59dff;
+  --primary-color-transparent: rgba(158, 120, 255, 0.15);
   --primary-gradient: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-  --text-primary: #333333;
-  --text-secondary: #666666;
-  --text-muted: #888888;
-  --border-color: #e0e0e0;
+  --text-primary: #343a40;
+  --text-secondary: #6c757d;
+  --text-muted: #adb5bd;
+  --border-color: #dee2e6;
+  --border-color-light: #e9ecef;
   --bg-light: #ffffff;
   --bg-card: #ffffff;
   --bg-input: #f5f7fa;
@@ -842,94 +1638,130 @@ export default {
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
   --border-radius: 12px;
   --border-radius-lg: 16px;
-  --font-family: 'Montserrat', sans-serif;
+  --font-family: 'Inter', sans-serif;
 }
 
 /* Dark mode variables */
 .dark-mode {
-  --text-primary: #f5f7fa;
-  --text-secondary: #d0d0d0;
-  --text-muted: #a0a0a0;
-  --border-color: #3f4156;
-  --bg-light: #232535;
-  --bg-card: #2a2d3e;
-  --bg-input: #1e2030;
-  --bg-muted: #323546;
-  --bg-hover: #3c4052;
+  --text-primary: #f8f9fa;
+  --text-secondary: #adb5bd;
+  --text-muted: #6c757d;
+  --border-color: #444444;
+  --border-color-light: #555555;
+  --bg-light: #121212;
+  --bg-card: #1e1e1e;
+  --bg-input: #2c2c2c;
+  --bg-muted: #333333;
+  --bg-hover: #333333;
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
-.calendar-sidebar {
+.study-hub-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: 1.5rem;
-  background-color: var(--bg-light);
-  border-radius: var(--border-radius);
-  box-shadow: var(--shadow-md);
   height: 100%;
-  overflow-y: auto;
+  width: 320px;
+  background-color: var(--bg-light);
+  border-right: 1px solid var(--border-color);
   transition: all 0.3s ease;
   position: relative;
+  overflow: hidden;
+}
+
+/* Collapsed state */
+.study-hub-sidebar.collapsed {
+  width: 60px;
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  gap: 1.5rem;
+  display: flex;
+  flex-direction: column;
   scrollbar-width: thin;
   scrollbar-color: var(--border-color) transparent;
 }
 
-.calendar-sidebar::-webkit-scrollbar {
+.sidebar-content::-webkit-scrollbar {
   width: 6px;
 }
 
-.calendar-sidebar::-webkit-scrollbar-track {
+.sidebar-content::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.calendar-sidebar::-webkit-scrollbar-thumb {
+.sidebar-content::-webkit-scrollbar-thumb {
   background-color: var(--border-color);
   border-radius: 6px;
 }
 
-.calendar-sidebar::before {
-  content: '';
+/* Collapse toggle button */
+.collapse-toggle {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: var(--primary-gradient);
-  border-top-left-radius: var(--border-radius);
-  border-top-right-radius: var(--border-radius);
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.3s ease;
 }
 
-/* Header styling */
+.collapse-toggle:hover {
+  background-color: var(--bg-hover);
+  color: var(--primary-color);
+  transform: scale(1.1);
+}
+
+/* Hide sidebar content when collapsed */
+.study-hub-sidebar.collapsed .sidebar-content > * {
+  display: none;
+}
+
+.study-hub-sidebar.collapsed .sidebar-content::after {
+  content: 'Study Hub';
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+  text-align: center;
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  margin: auto;
+  height: 100%;
+  padding: 1rem 0;
+}
+
+/* Header Section */
 .sidebar-header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  position: relative;
+  margin-bottom: 1rem;
 }
 
 .sidebar-header h2 {
-  margin: 0;
-  font-size: 1.75rem;
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
   font-weight: 700;
-  color: var(--primary-dark);
-  transition: all 0.3s ease;
+  color: var(--primary-color);
   position: relative;
   display: inline-block;
-  width: fit-content;
-}
-
-.dark-mode .sidebar-header h2 {
-  color: var(--primary-light);
 }
 
 .sidebar-header h2::after {
   content: '';
   position: absolute;
   left: 0;
-  bottom: -4px;
+  bottom: -5px;
   width: 40px;
   height: 3px;
   background: var(--primary-gradient);
@@ -940,7 +1772,6 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0.5rem 0 1rem;
   background-color: var(--bg-card);
   border-radius: var(--border-radius);
   padding: 0.5rem;
@@ -950,74 +1781,33 @@ export default {
 
 .month-navigator:hover {
   box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
 }
 
 .current-month {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--primary-dark);
-  transition: color 0.3s ease;
   padding: 0.25rem 0.75rem;
   background-color: var(--bg-input);
   border-radius: 20px;
-}
-
-.dark-mode .current-month {
-  color: var(--primary-light);
 }
 
 .nav-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border: none;
   background-color: var(--bg-input);
   color: var(--primary-color);
   border-radius: 50%;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  position: relative;
-  overflow: hidden;
-}
-
-.nav-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle, rgba(103, 58, 183, 0.2) 0%, rgba(255, 255, 255, 0) 70%);
-  opacity: 0;
-  transform: scale(0);
-  transition: transform 0.4s ease, opacity 0.4s ease;
-}
-
-.nav-btn:hover::before {
-  transform: scale(1.5);
-  opacity: 1;
+  transition: all 0.3s ease;
 }
 
 .nav-btn:hover {
   background-color: var(--primary-color-transparent);
-  transform: scale(1.15);
-  box-shadow: 0 4px 10px rgba(103, 58, 183, 0.15);
-}
-
-.nav-btn:active {
-  transform: scale(0.95);
-}
-
-.nav-btn svg {
-  position: relative;
-  z-index: 1;
-  transition: transform 0.3s ease;
-}
-
-.nav-btn:hover svg {
   transform: scale(1.1);
 }
 
@@ -1027,10 +1817,8 @@ export default {
   background-color: var(--bg-card);
   border-radius: var(--border-radius);
   box-shadow: var(--shadow-sm);
+  margin-bottom: 1.5rem;
   transition: all 0.3s ease;
-  overflow: hidden;
-  display: flex;
-  justify-content: center; /* Center calendar horizontally */
 }
 
 .calendar-wrapper:hover {
@@ -1043,11 +1831,10 @@ export default {
   border: none;
   border-radius: var(--border-radius);
   overflow: hidden;
-  margin: 0 auto; /* Center the calendar */
 }
 
-/* Dark mode calendar adjustments */
-.dark-mode .vc-container {
+/* V-Calendar customization */
+:deep(.vc-container) {
   --gray-900: var(--text-primary);
   --gray-800: var(--text-primary);
   --gray-700: var(--text-secondary);
@@ -1059,107 +1846,89 @@ export default {
   --gray-100: var(--bg-card);
   --blue-500: var(--primary-color);
   --blue-600: var(--primary-dark);
-  background-color: var(--bg-card);
-  border-color: var(--border-color);
+  border: none;
+  font-family: var(--font-family);
 }
 
-.dark-mode .vc-day-content:hover {
-  background-color: var(--bg-hover);
+:deep(.vc-highlight-content-light) {
+  color: white !important;
+  background-color: var(--primary-color) !important;
 }
 
-.dark-mode .vc-day {
-  color: var(--text-primary);
+:deep(.vc-day-content:hover) {
+  background-color: var(--primary-color-transparent);
+  color: var(--primary-dark);
 }
 
-.dark-mode .vc-highlight {
+:deep(.vc-day-content:focus) {
   background-color: var(--primary-color-transparent);
 }
 
-.dark-mode .vc-header {
-  color: var(--text-primary);
+:deep(.vc-weeks) {
+  padding: 0;
 }
 
-.dark-mode .vc-weekday {
+:deep(.vc-weekday) {
   color: var(--text-secondary);
+  font-weight: 600;
+}
+
+:deep(.vc-day) {
+  min-height: 30px;
+}
+
+:deep(.vc-nav-title) {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+:deep(.vc-nav-arrow) {
+  color: var(--primary-color);
+}
+
+:deep(.vc-nav-popover-container) {
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-md);
+}
+
+:deep(.vc-day-box-center-center) {
+  font-size: 0.9rem;
+}
+
+:deep(.vc-dot) {
+  width: 6px;
+  height: 6px;
+  margin: 1px 3px;
+}
+
+:deep(.event-dot-highlight) {
+  width: 8px;
+  height: 8px;
 }
 
 /* Today's summary styling */
 .today-summary {
-  /* Make the gradient darker and more saturated in light mode */
-  background: linear-gradient(135deg, #5a2ca0 0%, #3f1f7a 100%);
+  background: var(--primary-gradient);
   border-radius: var(--border-radius);
   padding: 1.25rem;
-  box-shadow: 0 8px 20px rgba(103, 58, 183, 0.3);
+  box-shadow: 0 8px 20px rgba(158, 120, 255, 0.2);
+  color: white;
   position: relative;
   overflow: hidden;
+  margin-bottom: 1.5rem;
   transition: all 0.3s ease;
-}
-
-/* Stronger contrast for the stats */
-.today-summary .stat-value {
-  color: white !important;
-  font-weight: 700;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); /* Stronger shadow */
-  font-size: 2rem; /* Slightly larger font for better visibility */
-}
-
-.today-summary .stat-label {
-  color: white !important;
-  font-weight: 600; /* Bolder text */
-  opacity: 1;
-  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.4); /* Stronger shadow */
-}
-
-/* Ensure text is visible in both dark and light modes */
-.calendar-sidebar .today-summary,
-.dark-mode .calendar-sidebar .today-summary {
-  color: white;
-}
-
-.today-summary::before {
-  content: '';
-  position: absolute;
-  top: -100px;
-  right: -100px;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 70%);
-  border-radius: 50%;
-  opacity: 0;
-  transition: opacity 0.5s ease;
-}
-
-.today-summary::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.15); /* Subtle dark overlay */
-  pointer-events: none;
-}
-
-
-.dark-mode .today-summary {
-  background: linear-gradient(135deg, #673ab7 0%, #512da8 100%);
-}
-
-.dark-mode .today-summary::after {
-  background: transparent; /* No overlay needed in dark mode */
 }
 
 .today-summary:hover {
   transform: translateY(-5px);
-  box-shadow: 0 12px 28px rgba(103, 58, 183, 0.25);
-}
-
-.today-summary:hover::before {
-  opacity: 1;
+  box-shadow: 0 12px 28px rgba(158, 120, 255, 0.25);
 }
 
 .date-pill {
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.2);
   border-radius: 20px;
   padding: 0.4rem 1rem;
   font-size: 0.85rem;
@@ -1167,16 +1936,6 @@ export default {
   display: inline-block;
   margin-bottom: 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(5px);
-  transition: all 0.3s ease;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-}
-
-.today-summary:hover .date-pill {
-  background-color: rgba(255, 255, 255, 0.3);
-  transform: scale(1.05);
 }
 
 .quick-stats {
@@ -1187,31 +1946,21 @@ export default {
 
 .stat-item {
   text-align: center;
-  background-color: rgba(255, 255, 255, 0.15);
+  background-color: rgba(255, 255, 255, 0.1);
   padding: 0.75rem 1rem;
   border-radius: var(--border-radius);
   flex: 1;
   transition: all 0.3s ease;
-  backdrop-filter: blur(5px);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: 80px; /* Fixed height for consistency */
-  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .stat-item:hover {
-  background-color: rgba(255, 255, 255, 0.25);
-  transform: translateY(-2px);
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
 .stat-value {
   font-size: 1.75rem;
   font-weight: 700;
-  line-height: 1.2;
   margin-bottom: 0.25rem;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  color: white;
 }
 
 .stat-label {
@@ -1219,39 +1968,461 @@ export default {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-weight: 500;
-  opacity: 0.9;
-  color: white;
+  opacity: 0.8;
+}
+
+/* Active Schedule Card & Upcoming Sessions Styling */
+.active-schedule, .upcoming-sessions {
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.active-schedule:hover, .upcoming-sessions:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-3px);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.card-header h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  position: relative;
+  display: inline-block;
+}
+
+.card-header h3::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 30px;
+  height: 2px;
+  background: var(--primary-gradient);
+  border-radius: 2px;
+}
+
+.badge {
+  background-color: var(--primary-color-transparent);
+  color: var(--primary-color);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.change-schedule-btn, .view-all-btn {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.8rem;
+  background-color: var(--bg-input);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.3s ease;
+}
+
+.change-schedule-btn:hover, .view-all-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--primary-color);
+  border-color: var(--primary-color-transparent);
+}
+
+.change-schedule-btn svg, .view-all-btn svg {
+  transition: transform 0.3s ease;
+}
+
+.change-schedule-btn:hover svg, .view-all-btn:hover svg {
+  transform: scale(1.2);
+}
+
+.refresh-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-input);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.refresh-btn:hover {
+  background-color: var(--primary-color-transparent);
+  color: var(--primary-color);
+  transform: rotate(180deg);
+  border-color: var(--primary-color-transparent);
+}
+
+.schedule-info {
+  margin-bottom: 1rem;
+}
+
+.schedule-name {
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.schedule-dates {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+
+/* Progress bar */
+.progress-container {
+  margin-bottom: 1rem;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.progress-bar {
+  height: 8px;
+  background-color: var(--bg-input);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-value {
+  height: 100%;
+  background: var(--primary-gradient);
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.schedule-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  background-color: var(--bg-input);
+  padding: 0.75rem;
+  border-radius: var(--border-radius);
+}
+
+.stat {
+  text-align: center;
+  flex: 1;
+}
+
+.stat .value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.stat .label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Sessions List Styling */
+.sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-height: 450px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.sessions-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sessions-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sessions-list::-webkit-scrollbar-thumb {
+  background-color: var(--primary-color-transparent);
+  border-radius: 4px;
+}
+
+.session-card {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border-radius: var(--border-radius);
+  background-color: var(--bg-light);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+  position: relative;
+  border-left: 3px solid var(--border-color);
+}
+
+.planned-session {
+  border-left-color: var(--text-secondary);
+}
+
+.active-session, .session-card.active-now {
+  border-left-color: var(--warning-color);
+  background-color: rgba(255, 152, 0, 0.05);
+}
+
+.completed-session {
+  border-left-color: var(--success-color);
+  opacity: 0.8;
+}
+
+.missed-session {
+  border-left-color: var(--error-color);
+  opacity: 0.7;
+}
+
+.session-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.session-time {
+  min-width: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.session-date {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.session-hours {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background-color: var(--bg-input);
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.session-countdown {
+  font-size: 0.7rem;
+  color: var(--warning-color);
+  margin-top: 0.35rem;
+  font-weight: 600;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.7; }
+  50% { opacity: 1; }
+  100% { opacity: 0.7; }
+}
+
+.session-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.session-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-module {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  opacity: 0;
+  transform: translateX(10px);
+  transition: all 0.3s ease;
+}
+
+.session-card:hover .session-actions {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-input);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.complete-btn {
+  color: var(--success-color);
+}
+
+.complete-btn:hover, .complete-btn.completed {
+  background-color: rgba(76, 175, 80, 0.15);
+  color: var(--success-color);
+  border-color: var(--success-color);
+}
+
+.missed-btn {
+  color: var(--error-color);
+}
+
+.missed-btn:hover {
+  background-color: rgba(244, 67, 54, 0.15);
+  color: var(--error-color);
+  border-color: var(--error-color);
+}
+
+.reschedule-btn {
+  color: var(--warning-color);
+}
+
+.reschedule-btn:hover {
+  background-color: rgba(255, 152, 0, 0.15);
+  color: var(--warning-color);
+  border-color: var(--warning-color);
+}
+
+.edit-btn {
+  color: var(--primary-color);
+}
+
+.edit-btn:hover {
+  background-color: var(--primary-color-transparent);
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.delete-btn {
+  color: var(--error-color);
+}
+
+.delete-btn:hover {
+  background-color: rgba(244, 67, 54, 0.15);
+  color: var(--error-color);
+  border-color: var(--error-color);
+}
+
+.session-status {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+.status {
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+}
+
+.status.planned {
+  background-color: var(--bg-input);
+  color: var(--text-secondary);
+}
+
+.status.active, .status.in-progress {
+  background-color: rgba(255, 152, 0, 0.15);
+  color: var(--warning-color);
+}
+
+.status.completed {
+  background-color: rgba(76, 175, 80, 0.15);
+  color: var(--success-color);
+}
+
+.status.missed {
+  background-color: rgba(244, 67, 54, 0.15);
+  color: var(--error-color);
+}
+
+.completion-time {
+  font-size: 0.6rem;
+  margin-left: 0.35rem;
+  opacity: 0.8;
+}
+
+/* More sessions button */
+.more-sessions {
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.more-btn {
+  border: none;
+  background: transparent;
+  color: var(--primary-color);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--border-radius);
+}
+
+.more-btn:hover {
+  background-color: var(--primary-color-transparent);
+  text-decoration: underline;
 }
 
 /* Events section styling */
 .events-container {
   background-color: var(--bg-card);
   border-radius: var(--border-radius);
-  padding: 1.5rem;
+  padding: 1.25rem;
   box-shadow: var(--shadow-sm);
+  margin-bottom: 1.5rem;
   transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.events-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 4px;
-  height: 100%;
-  background: var(--primary-gradient);
-  opacity: 0;
-  transition: opacity 0.3s ease;
 }
 
 .events-container:hover {
   box-shadow: var(--shadow-md);
-}
-
-.events-container:hover::before {
-  opacity: 1;
 }
 
 .events-header {
@@ -1266,33 +2437,11 @@ export default {
   font-size: 1.15rem;
   font-weight: 600;
   color: var(--primary-dark);
-  transition: all 0.3s ease;
-  position: relative;
-  display: inline-block;
-}
-
-.dark-mode .events-header h3 {
-  color: var(--primary-light);
-}
-
-.events-header h3::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  bottom: -4px;
-  width: 0;
-  height: 2px;
-  background: var(--primary-gradient);
-  transition: width 0.3s ease;
-}
-
-.events-container:hover .events-header h3::after {
-  width: 100%;
 }
 
 .add-event-btn {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1301,42 +2450,14 @@ export default {
   border: none;
   border-radius: 50%;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  box-shadow: 0 4px 10px rgba(103, 58, 183, 0.2);
-  position: relative;
-  overflow: hidden;
-}
-
-.add-event-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 70%);
-  transform: scale(0);
-  transition: transform 0.4s ease;
-}
-
-.add-event-btn:hover::before {
-  transform: scale(1.5);
+  box-shadow: 0 4px 10px rgba(158, 120, 255, 0.2);
+  transition: all 0.3s ease;
 }
 
 .add-event-btn:hover {
   background-color: var(--primary-dark);
-  transform: scale(1.1) rotate(90deg);
-  box-shadow: 0 6px 15px rgba(103, 58, 183, 0.3);
-}
-
-.add-event-btn:active {
-  transform: scale(0.95);
-}
-
-.add-event-btn svg {
-  position: relative;
-  z-index: 1;
-  transition: transform 0.3s ease;
+  transform: scale(1.1);
+  box-shadow: 0 6px 15px rgba(158, 120, 255, 0.3);
 }
 
 /* Loading state */
@@ -1352,27 +2473,16 @@ export default {
 .loading-spinner {
   width: 36px;
   height: 36px;
-  border: 3px solid rgba(103, 58, 183, 0.15);
+  border: 3px solid var(--primary-color-transparent);
   border-radius: 50%;
   border-top-color: var(--primary-color);
-  animation: spin 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+  animation: spin 1.2s ease infinite;
   margin-bottom: 1rem;
 }
 
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-
-.loading-events p {
-  font-size: 0.95rem;
-  opacity: 0.8;
-  animation: pulse 1.5s infinite alternate;
-}
-
-@keyframes pulse {
-  0% { opacity: 0.5; }
-  100% { opacity: 1; }
 }
 
 /* Empty state styling */
@@ -1390,49 +2500,25 @@ export default {
   color: var(--primary-color);
   opacity: 0.6;
   margin-bottom: 0.5rem;
-  transition: all 0.3s ease;
-  animation: float 3s ease-in-out infinite;
-}
-
-@keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
-}
-
-.no-events p {
-  font-size: 0.95rem;
-  max-width: 80%;
 }
 
 .schedule-btn {
   background-color: var(--primary-color-transparent);
   color: var(--primary-color);
-  border: none;
+  border: 1px solid var(--border-color);
   border-radius: 30px;
   padding: 0.75rem 1.5rem;
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: var(--shadow-sm);
-  margin-top: 0.5rem;
-}
-
-.dark-mode .schedule-btn {
-  background-color: rgba(149, 117, 205, 0.2);
-  color: var(--primary-light);
 }
 
 .schedule-btn:hover {
   background-color: var(--primary-color);
   color: white;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(103, 58, 183, 0.2);
-}
-
-.schedule-btn:active {
-  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(158, 120, 255, 0.2);
 }
 
 /* Event cards styling */
@@ -1447,7 +2533,7 @@ export default {
   gap: 0.85rem;
   padding: 1rem;
   border-radius: var(--border-radius);
-  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: all 0.3s ease;
   position: relative;
   background-color: var(--bg-light);
   box-shadow: var(--shadow-sm);
@@ -1455,7 +2541,7 @@ export default {
 }
 
 .event-card:hover {
-  transform: translateY(-3px) translateX(2px);
+  transform: translateY(-3px);
   box-shadow: var(--shadow-md);
 }
 
@@ -1597,60 +2683,6 @@ export default {
   transform: translateX(0);
 }
 
-.action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  background-color: var(--bg-input);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: var(--shadow-sm);
-}
-
-.edit-btn {
-  color: var(--primary-color);
-}
-
-.edit-btn:hover {
-  background-color: var(--primary-color-transparent);
-  transform: scale(1.1);
-}
-
-.delete-btn {
-  color: var(--error-color);
-}
-
-.delete-btn:hover {
-  background-color: rgba(244, 67, 54, 0.15);
-  transform: scale(1.1);
-}
-
-.complete-btn {
-  color: var(--success-color);
-}
-
-.complete-btn:hover {
-  background-color: rgba(76, 175, 80, 0.15);
-  transform: scale(1.1);
-}
-
-.complete-btn.completed {
-  background-color: var(--success-color);
-  color: white;
-}
-
-.action-btn svg {
-  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.action-btn:hover svg {
-  transform: scale(1.2);
-}
-
 /* Modal styles */
 .modal-overlay {
   position: fixed;
@@ -1740,10 +2772,6 @@ export default {
   color: var(--primary-dark);
   position: relative;
   display: inline-block;
-}
-
-.dark-mode .modal-header h2 {
-  color: var(--primary-light);
 }
 
 .modal-header h2::after {
@@ -1917,12 +2945,12 @@ export default {
   background: var(--primary-gradient);
   color: white;
   border: none;
-  box-shadow: 0 4px 10px rgba(103, 58, 183, 0.2);
+  box-shadow: 0 4px 10px rgba(158, 120, 255, 0.2);
 }
 
 .save-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 15px rgba(103, 58, 183, 0.3);
+  box-shadow: 0 6px 15px rgba(158, 120, 255, 0.3);
 }
 
 .save-btn:active {
@@ -1995,37 +3023,147 @@ export default {
   margin-top: 1.5rem;
 }
 
-/* Responsive styles */
-@media (max-width: 992px) {
-  .sidebar-header h2 {
-    font-size: 1.6rem;
-  }
-
-  .calendar-sidebar {
-    padding: 1.25rem;
-    gap: 1.25rem;
-  }
+/* Session details */
+.session-details {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: var(--bg-input);
+  border-radius: var(--border-radius);
+  border-left: 3px solid var(--primary-color);
 }
 
-@media (max-width: 768px) {
-  .calendar-sidebar {
-    padding: 1rem;
-    gap: 1rem;
-    border-radius: var(--border-radius);
+.session-details .session-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.session-details .session-time {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  min-width: auto;
+}
+
+/* Rating buttons */
+.rating-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.rating-btn {
+  flex: 1;
+  padding: 0.65rem 0;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-input);
+  color: var(--text-secondary);
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rating-btn:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.rating-btn.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+/* Tags input */
+.tags-input {
+  margin-top: 0.5rem;
+}
+
+.tags-input input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  transition: all 0.3s ease;
+}
+
+.tags-input input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--primary-color-transparent);
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  background-color: var(--primary-color-transparent);
+  color: var(--primary-color);
+  border-radius: 20px;
+  font-size: 0.85rem;
+}
+
+.remove-tag {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  padding: 0;
+  margin: 0;
+}
+
+/* Responsive styles */
+@media (max-width: 992px) {
+  .study-hub-sidebar {
+    width: 280px;
   }
 
   .sidebar-header h2 {
     font-size: 1.4rem;
   }
 
+  .sidebar-content {
+    padding: 1.25rem;
+    gap: 1.25rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .study-hub-sidebar {
+    width: 250px;
+  }
+
+  .sidebar-content {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .sidebar-header h2 {
+    font-size: 1.3rem;
+  }
+
   .current-month {
-    font-size: 1rem;
+    font-size: 0.9rem;
     padding: 0.2rem 0.6rem;
   }
 
   .nav-btn {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
   }
 
   .form-row {
@@ -2040,7 +3178,7 @@ export default {
 
   .cancel-btn, .save-btn, .delete-confirm-btn {
     width: 100%;
-    padding: 1rem;
+    padding: 0.75rem;
   }
 
   .confirmation-actions {
@@ -2050,23 +3188,15 @@ export default {
 
   /* Improved Quick Stats for mobile */
   .quick-stats {
-    gap: 0.75rem;
-    flex-direction: row; /* Keep as row, but with better spacing */
-    align-items: stretch;
+    gap: 0.5rem;
   }
 
   .stat-item {
-    padding: 0.75rem 0.5rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-height: 80px;
+    padding: 0.6rem 0.4rem;
   }
 
   .stat-value {
-    font-size: 1.5rem;
-    line-height: 1.2;
-    margin-bottom: 0.25rem;
+    font-size: 1.4rem;
   }
 
   .event-actions {
@@ -2075,20 +3205,16 @@ export default {
     flex-direction: row;
   }
 
-  .action-btn {
-    width: 30px;
-    height: 30px;
-  }
-
   .event-card {
     position: relative;
-    padding-right: 50px;
+    padding-right: 40px;
   }
 
   .event-actions {
     position: absolute;
-    right: 10px;
-    top: 10px;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
   }
 
   .modal-header h2 {
@@ -2099,35 +3225,28 @@ export default {
     padding: 1.25rem;
   }
 
-  .form-group label {
-    font-size: 0.85rem;
-  }
-
-  .form-group input,
-  .form-group textarea,
-  .form-group select {
-    padding: 0.8rem;
-    font-size: 16px; /* Prevents iOS zoom */
-  }
-
   .events-header h3 {
     font-size: 1.1rem;
   }
 
   .add-event-btn {
-    width: 38px;
-    height: 38px;
+    width: 32px;
+    height: 32px;
   }
 }
 
 @media (max-width: 480px) {
-  .calendar-sidebar {
+  .study-hub-sidebar {
+    width: 100%;  /* Full width on very small screens */
+  }
+
+  .sidebar-content {
     padding: 0.75rem;
     gap: 0.75rem;
   }
 
   .sidebar-header h2 {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
   }
 
   .month-navigator {
@@ -2136,12 +3255,12 @@ export default {
   }
 
   .nav-btn {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
   }
 
   .current-month {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     padding: 0.15rem 0.5rem;
   }
 
@@ -2149,8 +3268,13 @@ export default {
     padding: 1rem;
   }
 
+  .date-pill {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.75rem;
+  }
+
   .stat-value {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
   }
 
   .stat-label {
@@ -2158,7 +3282,7 @@ export default {
   }
 
   .events-container {
-    padding: 1.25rem 1rem;
+    padding: 1rem;
   }
 
   .modal-header {
@@ -2171,7 +3295,6 @@ export default {
 
   .event-card {
     padding: 0.75rem;
-    padding-right: 45px;
     gap: 0.6rem;
   }
 
@@ -2202,19 +3325,9 @@ export default {
     width: 26px;
     height: 26px;
   }
-}
 
-/* iOS-specific fixes */
-@supports (-webkit-touch-callout: none) {
-  .form-group input,
-  .form-group select,
-  .form-group textarea {
-    font-size: 16px; /* Prevents zoom on input focus */
-  }
-
-  .checkbox-group input[type="checkbox"] {
-    width: 22px;
-    height: 22px;
+  .calendar-wrapper {
+    padding: 0.25rem;
   }
 }
 
@@ -2224,7 +3337,9 @@ export default {
   .nav-btn:active,
   .add-event-btn:active,
   .action-btn:active,
-  .schedule-btn:active {
+  .schedule-btn:active,
+  .save-btn:active,
+  .cancel-btn:active {
     transform: scale(0.92);
   }
 
@@ -2233,11 +3348,12 @@ export default {
   }
 
   /* Make event actions always visible but subtle until tapped */
-  .event-actions {
+  .event-actions, .session-actions {
     opacity: 0.7;
   }
 
-  .event-card:active .event-actions {
+  .event-card:active .event-actions,
+  .session-card:active .session-actions {
     opacity: 1;
   }
 }

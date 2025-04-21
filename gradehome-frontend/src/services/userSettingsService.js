@@ -26,6 +26,25 @@ export const userSettingsService = {
         }
     },
 
+    // Get user settings from localStorage (synchronous)
+    getUserSettings() {
+        const settingsJson = localStorage.getItem('userSettings');
+        if (settingsJson) {
+            try {
+                return JSON.parse(settingsJson);
+            } catch (e) {
+                console.error("Error parsing user settings from localStorage:", e);
+                return null;
+            }
+        }
+        return null;
+    },
+
+    // Get settings (for backward compatibility)
+    getSettings() {
+        return this.getUserSettings();
+    },
+
     // Apply settings to the app
     applySettings(settings) {
         if (!settings) return;

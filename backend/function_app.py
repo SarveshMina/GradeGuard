@@ -2,11 +2,11 @@ import azure.functions as func
 import json
 import sys
 import os
-import datetime
 import logging
 
 # Add the current directory to the Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 
 from user_routes import (
     register_user,
@@ -50,7 +50,9 @@ from study_routes import (
     get_sessions, start_session, complete_session, reschedule_session,
     get_achievements, get_streak,
     get_analytics,
-    get_tips, accept_tip, reject_tip
+    get_tips, accept_tip, reject_tip,
+    get_completion_analytics_route, get_completion_insights_route,
+    rate_ai_schedule, analyze_schedule_modifications, get_schedule_explanations
 )
 
 from user_routes import verify_session, logout_user
@@ -677,4 +679,91 @@ def reject_tip_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
     response = reject_tip(req)
+    return add_cors_headers(response, req)
+
+
+from study_routes import (
+    get_current_sessions, get_sidebar_data_route, 
+    mark_session_completed, mark_session_missed,
+    update_session_statuses
+)
+
+# Add these routes to the existing function_app.py routes
+
+@app.route(route="study/sessions/current", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def current_sessions_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = get_current_sessions(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="study/sidebar-data", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def sidebar_data_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = get_sidebar_data_route(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="study/sessions/{id}/complete/done", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def mark_session_completed_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = mark_session_completed(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="study/sessions/{id}/miss", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def mark_session_missed_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = mark_session_missed(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="study/sessions/update-statuses", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def update_statuses_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = update_session_statuses(req)
+    return add_cors_headers(response, req)
+
+# Also add the timer trigger for the session tracker
+@app.schedule(schedule="0 */5 * * * *", arg_name="timer", run_on_startup=True)
+def session_tracker_timer(timer: func.TimerRequest) -> None:
+    """Timer trigger that runs every 5 minutes to update session statuses"""
+    from session_tracker import main as session_tracker_main
+    session_tracker_main(timer)
+
+
+@app.route(route="study/analytics/completion", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def completion_analytics_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = get_completion_analytics_route(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="study/insights/completion", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def completion_insights_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = get_completion_insights_route(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="study/schedules/{id}/rate", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def rate_schedule_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = rate_ai_schedule(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="study/schedules/analyze-modifications", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def analyze_modifications_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = analyze_schedule_modifications(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="study/schedules/{id}/explanations", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def schedule_explanations_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = get_schedule_explanations(req)
     return add_cors_headers(response, req)

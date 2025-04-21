@@ -95,6 +95,101 @@
           </div>
         </div>
 
+        <!-- Schedules List Section -->
+        <div class="schedules-list-section">
+          <h3>Your Schedules</h3>
+          <div v-if="isLoading" class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>Loading your schedules...</p>
+          </div>
+          <div v-else-if="error" class="error-message">
+            <p>{{ error }}</p>
+            <button @click="fetchData" class="retry-btn">Try Again</button>
+          </div>
+          <div v-else-if="schedules.length === 0" class="empty-state">
+            <p>You don't have any schedules yet. Create your first schedule to get started.</p>
+          </div>
+          <div v-else class="schedules-list">
+            <div v-for="schedule in schedules" :key="schedule.id" class="schedule-card" :class="{'active-schedule': schedule.is_active}">
+              <div class="schedule-card-header">
+                <h4>{{ schedule.name }}</h4>
+                <div class="schedule-badges">
+                  <span v-if="schedule.is_ai_generated" class="ai-badge">AI</span>
+                  <span v-if="schedule.is_active" class="active-badge">Active</span>
+                </div>
+              </div>
+              <div class="schedule-card-content">
+                <div class="schedule-details">
+                  <div class="schedule-detail-item">
+                    <span class="detail-label">Date Range:</span>
+                    <span class="detail-value">{{ formatDate(schedule.start_date) }} to {{ formatDate(schedule.end_date) }}</span>
+                  </div>
+                  <div class="schedule-detail-item">
+                    <span class="detail-label">Modules:</span>
+                    <span class="detail-value">{{ getModuleNames(schedule.modules).join(', ') }}</span>
+                  </div>
+                  <div class="schedule-detail-item">
+                    <span class="detail-label">Study Days:</span>
+                    <span class="detail-value">{{ formatDays(schedule.available_days) }}</span>
+                  </div>
+                </div>
+                <div class="schedule-card-actions">
+                  <button
+                      v-if="!schedule.is_active"
+                      @click="activateSchedule(schedule.id)"
+                      class="activate-btn"
+                      title="Set as Active Schedule"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="9 11 12 14 22 4"></polyline>
+                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                    </svg>
+                    Activate
+                  </button>
+                  <button
+                      v-if="!schedule.events_created"
+                      @click="showCalendarConfirmation(schedule)"
+                      class="calendar-btn"
+                      title="Add to Calendar"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                      <line x1="12" y1="15" x2="12" y2="19"></line>
+                      <line x1="10" y1="17" x2="14" y2="17"></line>
+                    </svg>
+                    Add to Calendar
+                  </button>
+                  <button
+                      @click="editSchedule(schedule)"
+                      class="edit-btn"
+                      title="Edit Schedule"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    Edit
+                  </button>
+                  <button
+                      @click="confirmDeleteSchedule(schedule)"
+                      class="delete-btn"
+                      title="Delete Schedule"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div v-if="isLoading" class="loading-container">
           <div class="loading-spinner"></div>
           <p>Loading your study schedule...</p>
@@ -324,7 +419,7 @@
         </div>
 
         <!-- No Schedule Placeholder -->
-        <div v-if="!isLoading && !error && studySessions.length === 0" class="no-schedule-placeholder">
+        <div v-if="!isLoading && !error && !activeSchedule && schedules.length === 0" class="no-schedule-placeholder">
           <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
             <line x1="16" y1="2" x2="16" y2="6"></line>
@@ -341,6 +436,7 @@
       </div>
 
       <!-- ANALYTICS & INSIGHTS TAB -->
+      <!-- [Rest of the Analytics tab code remains the same] -->
       <div v-if="activeTab === 'analytics'" class="analytics-tab animate-fade-in">
         <h2>Study Analytics & Insights</h2>
 
@@ -447,6 +543,7 @@
       </div>
 
       <!-- ACHIEVEMENTS TAB -->
+      <!-- [Rest of the Achievements tab code remains the same] -->
       <div v-if="activeTab === 'achievements'" class="achievements-tab animate-fade-in">
         <h2>Your Achievements</h2>
 
@@ -570,7 +667,8 @@
         </div>
       </div>
 
-      <!-- PROFILE TAB - Updated to display user's profile data -->
+      <!-- PROFILE TAB -->
+      <!-- [Rest of the Profile tab code remains the same] -->
       <div v-if="activeTab === 'profile'" class="profile-tab animate-fade-in">
         <h2>Your Profile</h2>
 
@@ -813,7 +911,7 @@
     <div v-if="showCreateScheduleModal" class="modal-overlay" @click.self="showCreateScheduleModal = false">
       <div class="modal-container">
         <div class="modal-header">
-          <h3>Create Study Schedule</h3>
+          <h3>{{ isEditMode ? 'Edit Study Schedule' : 'Create Study Schedule' }}</h3>
           <button @click="showCreateScheduleModal = false" class="close-modal-btn">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -926,11 +1024,23 @@
                 </label>
               </div>
             </div>
+
+            <div v-if="isEditMode" class="form-group">
+              <label class="checkbox-label">
+                <input
+                    type="checkbox"
+                    v-model="scheduleForm.isActive"
+                />
+                Set as active schedule
+              </label>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
           <button @click="showCreateScheduleModal = false" class="cancel-btn">Cancel</button>
-          <button @click="createSchedule" class="create-btn">Create Schedule</button>
+          <button @click="saveSchedule" class="create-btn">
+            {{ isEditMode ? 'Save Changes' : 'Create Schedule' }}
+          </button>
         </div>
       </div>
     </div>
@@ -1249,11 +1359,84 @@
         </div>
       </div>
     </div>
+
+    <!-- ADD TO CALENDAR CONFIRMATION MODAL -->
+    <div v-if="showCalendarModal" class="modal-overlay" @click.self="showCalendarModal = false">
+      <div class="modal-container calendar-confirm-modal">
+        <div class="modal-header">
+          <h3>Add to Calendar</h3>
+          <button @click="showCalendarModal = false" class="close-modal-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="confirmation-message">
+            <div class="confirmation-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+                <line x1="12" y1="15" x2="12" y2="19"></line>
+                <line x1="10" y1="17" x2="14" y2="17"></line>
+              </svg>
+            </div>
+            <p>You're about to add <strong>{{ selectedSchedule?.name }}</strong> to your calendar.</p>
+            <p>This will create {{ studySessionCount }} study session events from {{ formatDate(selectedSchedule?.start_date) }} to {{ formatDate(selectedSchedule?.end_date) }}.</p>
+            <p>All events will be marked as <strong>Study Session</strong> type.</p>
+            <p class="confirmation-note">Note: This action cannot be undone. You can delete individual events later if needed.</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="showCalendarModal = false" class="cancel-btn">Cancel</button>
+          <button @click="addToCalendar" class="confirm-btn">Add to Calendar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DELETE SCHEDULE CONFIRMATION MODAL -->
+    <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
+      <div class="modal-container delete-confirm-modal">
+        <div class="modal-header">
+          <h3>Delete Schedule</h3>
+          <button @click="showDeleteModal = false" class="close-modal-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="confirmation-message">
+            <div class="confirmation-icon delete-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+            </div>
+            <p>Are you sure you want to delete <strong>{{ selectedSchedule?.name }}</strong>?</p>
+            <p>This will permanently remove this schedule and all its associated study sessions.</p>
+            <p v-if="selectedSchedule?.events_created" class="warning-text">Note: Calendar events created from this schedule will not be automatically deleted.</p>
+            <p class="confirmation-note">This action cannot be undone.</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="showDeleteModal = false" class="cancel-btn">Cancel</button>
+          <button @click="deleteSchedule" class="delete-confirm-btn">Delete Schedule</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import { getDarkModePreference } from "@/services/darkModeService.js";
+import { userSettingsService } from '@/services/userSettingsService.js'; // Import the settings service
 import DashboardNavBar from "@/components/DashboardNavBar.vue";
 import ModuleTimeDistributionChart from "@/components/charts/ModuleTimeDistributionChart.vue";
 import StudySessionsTimelineChart from "@/components/charts/StudySessionsTimelineChart.vue";
@@ -1278,6 +1461,32 @@ export default {
       calendarView: 'month',
       isLoading: false,
       error: null,
+
+      // User settings
+      userSettings: {
+        appearance: {
+          accentColor: 'purple',
+          fontSize: 'medium',
+          highContrast: false,
+          enableAnimations: true
+        },
+        calendar: {
+          firstDayOfWeek: 'sunday',
+          timeFormat: '12h',
+          dateFormat: 'MM/DD/YYYY',
+          showWeekNumbers: false,
+          defaultView: 'month',
+          showCompleted: true,
+          highlightToday: true
+        },
+        accessibility: {
+          screenReaderOptimized: false,
+          reduceMotion: false,
+          colorBlindMode: 'none',
+          keyboardShortcuts: true,
+          focusMode: false
+        }
+      },
 
       // Tutorial state
       showTutorial: false,
@@ -1314,6 +1523,10 @@ export default {
         maxSessionsPerDay: 3
       },
 
+      // Schedule edit/create related states
+      isEditMode: false,
+      editingScheduleId: null,
+
       // Schedule creation form
       scheduleForm: {
         name: 'My Study Schedule',
@@ -1324,7 +1537,8 @@ export default {
         sessionDuration: 60,
         breakDuration: 15,
         maxSessionsPerDay: 3,
-        modules: []
+        modules: [],
+        isActive: true
       },
 
       // Study session feedback form
@@ -1338,6 +1552,7 @@ export default {
 
       // Study data
       schedules: [],
+      activeSchedule: null,
       studySessions: [],
       aiTips: [],
       studyStats: {},
@@ -1381,9 +1596,13 @@ export default {
       showAIScheduleModal: false,
       showEventDetails: false,
       showCompletionModal: false,
+      showCalendarModal: false,
+      showDeleteModal: false,
 
-      // Currently selected event
+      // Currently selected items
       selectedEvent: null,
+      selectedSchedule: null,
+      studySessionCount: 0,
 
       // Achievement categories
       achievementCategories: [
@@ -1400,6 +1619,14 @@ export default {
   },
 
   computed: {
+    // Format weekdays list based on first day of week setting
+    formattedWeekdays() {
+      if (this.userSettings.calendar.firstDayOfWeek === 'monday') {
+        return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      }
+      return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    },
+
     // Check if we have any analytics data to display
     hasAnalyticsData() {
       return this.studySessions.length > 0 && this.studySessions.some(s => s.completed);
@@ -1412,7 +1639,12 @@ export default {
 
       // First day of current month
       const firstDay = new Date(year, month, 1);
-      const firstDayOfWeek = firstDay.getDay();
+
+      // Adjust for first day of week setting
+      let firstDayOfWeek = firstDay.getDay(); // 0 for Sunday
+      if (this.userSettings.calendar.firstDayOfWeek === 'monday') {
+        firstDayOfWeek = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1; // Adjust for Monday start (0=Mon, 6=Sun)
+      }
 
       // Last day of current month
       const lastDay = new Date(year, month + 1, 0);
@@ -1495,16 +1727,19 @@ export default {
     this.scheduleForm.startDate = this.formatDateISO(new Date());
     this.scheduleForm.endDate = this.formatDateISO(this.getDatePlusDays(new Date(), 7));
 
-    // Get dark mode preference
+    // Load all user settings
+    this.loadUserSettings();
+
+    // Get dark mode preference (directly handled for initial render)
     this.darkMode = getDarkModePreference();
     this.checkMobile();
 
-    // Initialize calendar data
+    // Initialize calendar data based on settings
+    this.initializeCalendarView();
     this.generateWeekDays();
 
     // Set up event listeners
-    window.addEventListener("resize", this.checkMobile);
-    window.addEventListener('darkModeChange', this.onDarkModeChange);
+    this.setupEventListeners();
 
     // Set up the current time updater for the calendar
     this.startCurrentTimeUpdates();
@@ -1515,8 +1750,7 @@ export default {
 
   beforeUnmount() {
     // Clean up event listeners
-    window.removeEventListener("resize", this.checkMobile);
-    window.removeEventListener('darkModeChange', this.onDarkModeChange);
+    this.removeEventListeners();
 
     // Clear time updater interval
     if (this.timeIndicatorInterval) {
@@ -1525,6 +1759,372 @@ export default {
   },
 
   methods: {
+    // Settings management methods
+    loadUserSettings() {
+      try {
+        // Get settings from the service
+        const settings = userSettingsService.getUserSettings();
+
+        if (settings) {
+          // Merge received settings with defaults
+          if (settings.appearance) {
+            this.userSettings.appearance = { ...this.userSettings.appearance, ...settings.appearance };
+          }
+          if (settings.calendar) {
+            this.userSettings.calendar = { ...this.userSettings.calendar, ...settings.calendar };
+          }
+          if (settings.accessibility) {
+            this.userSettings.accessibility = { ...this.userSettings.accessibility, ...settings.accessibility };
+          }
+          if (settings.academic) {
+            // Cache academic settings for profile display
+            this.userProfile.academicLevel = settings.academic.academicLevel || this.userProfile.academicLevel;
+            this.userProfile.enrollmentType = settings.academic.enrollmentType || this.userProfile.enrollmentType;
+            this.userProfile.currentYear = settings.academic.currentYear || this.userProfile.currentYear;
+          }
+        }
+
+        // Apply all settings
+        this.applySettings();
+      } catch (error) {
+        console.error("Error loading user settings:", error);
+        // Continue with defaults if settings can't be loaded
+      }
+    },
+
+    applySettings() {
+      // Apply dark mode
+      document.documentElement.classList.toggle('dark-mode', this.darkMode);
+
+      // Apply accent color
+      this.applyAccentColor(this.userSettings.appearance.accentColor);
+
+      // Apply font size
+      this.applyFontSize(this.userSettings.appearance.fontSize);
+
+      // Apply high contrast if enabled
+      document.documentElement.classList.toggle('high-contrast', this.userSettings.appearance.highContrast);
+
+      // Apply animations settings
+      document.documentElement.classList.toggle('disable-animations', !this.userSettings.appearance.enableAnimations);
+
+      // Apply accessibility settings
+      this.applyAccessibilitySettings();
+
+      // Apply calendar settings
+      this.applyCalendarSettings();
+    },
+
+    applyAccentColor(colorId) {
+      // Lookup the actual color value
+      const accentColors = [
+        { id: 'purple', value: '#7b49ff' },
+        { id: 'blue', value: '#2196f3' },
+        { id: 'green', value: '#4caf50' },
+        { id: 'red', value: '#f44336' },
+        { id: 'orange', value: '#ff9800' },
+        { id: 'pink', value: '#e91e63' },
+        { id: 'teal', value: '#009688' }
+      ];
+
+      const color = accentColors.find(c => c.id === colorId);
+      if (color) {
+        // Set primary color CSS variables
+        document.documentElement.style.setProperty('--primary-color', color.value);
+
+        // Calculate darker variant for hover states
+        const darkerColor = this.adjustColor(color.value, -20);
+        document.documentElement.style.setProperty('--primary-dark', darkerColor);
+
+        // Calculate lighter variant
+        const lighterColor = this.adjustColor(color.value, 20);
+        document.documentElement.style.setProperty('--primary-light', lighterColor);
+
+        // Set RGB values for transparency
+        const rgb = this.hexToRgb(color.value);
+        if (rgb) {
+          document.documentElement.style.setProperty('--primary-color-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+        }
+      }
+    },
+
+    // Helper to convert hex to RGB
+    hexToRgb(hex) {
+      // Remove # if present
+      hex = hex.replace(/^#/, '');
+
+      // Parse hex values
+      const bigint = parseInt(hex, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+
+      return { r, g, b };
+    },
+
+    adjustColor(hex, amount) {
+      // Convert hex to RGB
+      let r = parseInt(hex.slice(1, 3), 16);
+      let g = parseInt(hex.slice(3, 5), 16);
+      let b = parseInt(hex.slice(5, 7), 16);
+
+      // In dark mode, we might want slightly different adjustment logic
+      if (this.darkMode && amount < 0) {
+        // For dark mode, make darker colors even more distinct
+        amount = amount * 1.5;
+      } else if (this.darkMode && amount > 0) {
+        // For dark mode, make lighter colors more pronounced
+        amount = amount * 1.2;
+      }
+
+      // Adjust colors
+      r = Math.max(0, Math.min(255, r + amount));
+      g = Math.max(0, Math.min(255, g + amount));
+      b = Math.max(0, Math.min(255, b + amount));
+
+      // Store RGB values as CSS variables for easier alpha adjustments
+      const rgbValue = `${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}`;
+      document.documentElement.style.setProperty('--primary-color-rgb', rgbValue);
+
+      // Convert back to hex
+      return `#${Math.round(r).toString(16).padStart(2, '0')}${Math.round(g).toString(16).padStart(2, '0')}${Math.round(b).toString(16).padStart(2, '0')}`;
+    },
+
+    applyFontSize(size) {
+      const sizeMap = {
+        'small': '14px',
+        'medium': '16px',
+        'large': '18px'
+      };
+
+      document.documentElement.style.setProperty('--font-size-base', sizeMap[size] || '16px');
+    },
+
+    applyAccessibilitySettings() {
+      // Apply screen reader optimization if enabled
+      document.documentElement.classList.toggle('sr-optimized', this.userSettings.accessibility.screenReaderOptimized);
+
+      // Apply reduce motion if enabled
+      document.documentElement.classList.toggle('reduce-motion', this.userSettings.accessibility.reduceMotion);
+
+      // Apply focus mode if enabled
+      document.documentElement.classList.toggle('focus-mode', this.userSettings.accessibility.focusMode);
+
+      // Apply color blind mode if enabled
+      this.applyColorBlindMode();
+    },
+
+    applyColorBlindMode() {
+      // Remove any existing filters
+      const existingFilter = document.getElementById('color-blind-filter');
+      if (existingFilter) {
+        existingFilter.remove();
+      }
+
+      // If no color blind mode selected, we're done
+      if (this.userSettings.accessibility.colorBlindMode === 'none') {
+        document.documentElement.style.filter = '';
+        return;
+      }
+
+      // Create SVG filter element
+      const svgFilter = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svgFilter.setAttribute('id', 'color-blind-filter');
+      svgFilter.style.position = 'absolute';
+      svgFilter.style.height = '0';
+      svgFilter.style.width = '0';
+      svgFilter.style.overflow = 'hidden';
+
+      // Add filter definitions based on selected mode
+      let filterContent = '';
+
+      switch (this.userSettings.accessibility.colorBlindMode) {
+        case 'protanopia':
+          // Red-blind
+          filterContent = `
+            <filter id="protanopia">
+              <feColorMatrix
+                type="matrix"
+                values="0.567, 0.433, 0,     0, 0
+                        0.558, 0.442, 0,     0, 0
+                        0,     0.242, 0.758, 0, 0
+                        0,     0,     0,     1, 0"/>
+            </filter>
+          `;
+          break;
+        case 'deuteranopia':
+          // Green-blind
+          filterContent = `
+            <filter id="deuteranopia">
+              <feColorMatrix
+                type="matrix"
+                values="0.625, 0.375, 0,   0, 0
+                        0.7,   0.3,   0,   0, 0
+                        0,     0.3,   0.7, 0, 0
+                        0,     0,     0,   1, 0"/>
+            </filter>
+          `;
+          break;
+        case 'tritanopia':
+          // Blue-blind
+          filterContent = `
+            <filter id="tritanopia">
+              <feColorMatrix
+                type="matrix"
+                values="0.95, 0.05,  0,     0, 0
+                        0,    0.433, 0.567, 0, 0
+                        0,    0.475, 0.525, 0, 0
+                        0,    0,     0,     1, 0"/>
+            </filter>
+          `;
+          break;
+        case 'achromatopsia':
+          // Monochrome
+          filterContent = `
+            <filter id="achromatopsia">
+              <feColorMatrix
+                type="matrix"
+                values="0.299, 0.587, 0.114, 0, 0
+                        0.299, 0.587, 0.114, 0, 0
+                        0.299, 0.587, 0.114, 0, 0
+                        0,     0,     0,     1, 0"/>
+            </filter>
+          `;
+          break;
+      }
+
+      svgFilter.innerHTML = filterContent;
+      document.body.appendChild(svgFilter);
+
+      // Apply filter to the entire document
+      document.documentElement.style.filter = `url(#${this.userSettings.accessibility.colorBlindMode})`;
+    },
+
+    applyCalendarSettings() {
+      // Apply calendar view setting
+      if (this.userSettings.calendar.defaultView) {
+        // Only set on initial load, not during view changes
+        if (this.calendarView === 'month') {
+          this.calendarView = this.userSettings.calendar.defaultView;
+        }
+      }
+
+      // Regenerate weekdays based on first day of week setting
+      this.weekdays = this.formattedWeekdays;
+
+      // Re-generate week days for current view
+      this.generateWeekDays();
+    },
+
+    // Event listeners setup
+    setupEventListeners() {
+      window.addEventListener("resize", this.checkMobile);
+      window.addEventListener('darkModeChange', this.onDarkModeChange);
+
+      // Listen for settings changes
+      window.addEventListener('fontSizeChanged', this.onFontSizeChanged);
+      window.addEventListener('highContrastChanged', this.onHighContrastChanged);
+      window.addEventListener('animationsChanged', this.onAnimationsChanged);
+      window.addEventListener('colorBlindModeChanged', this.onColorBlindModeChanged);
+      window.addEventListener('reduceMotionChanged', this.onReduceMotionChanged);
+      window.addEventListener('calendarSettingsChanged', this.onCalendarSettingsChanged);
+      window.addEventListener('focusModeChanged', this.onFocusModeChanged);
+      window.addEventListener('yearSettingsUpdated', this.onYearSettingsUpdated);
+    },
+
+    removeEventListeners() {
+      window.removeEventListener("resize", this.checkMobile);
+      window.removeEventListener('darkModeChange', this.onDarkModeChange);
+
+      // Remove settings change listeners
+      window.removeEventListener('fontSizeChanged', this.onFontSizeChanged);
+      window.removeEventListener('highContrastChanged', this.onHighContrastChanged);
+      window.removeEventListener('animationsChanged', this.onAnimationsChanged);
+      window.removeEventListener('colorBlindModeChanged', this.onColorBlindModeChanged);
+      window.removeEventListener('reduceMotionChanged', this.onReduceMotionChanged);
+      window.removeEventListener('calendarSettingsChanged', this.onCalendarSettingsChanged);
+      window.removeEventListener('focusModeChanged', this.onFocusModeChanged);
+      window.removeEventListener('yearSettingsUpdated', this.onYearSettingsUpdated);
+    },
+
+    // Settings change event handlers
+    onDarkModeChange(event) {
+      this.darkMode = event.detail.isDark;
+
+      // When dark mode changes, reapply the accent color
+      this.$nextTick(() => {
+        this.applyAccentColor(this.userSettings.appearance.accentColor);
+        // Reapply color blind adjustments if needed
+        if (this.userSettings.accessibility.colorBlindMode !== 'none') {
+          this.applyColorBlindMode();
+        }
+      });
+    },
+
+    onFontSizeChanged(event) {
+      this.userSettings.appearance.fontSize = event.detail.size;
+      this.applyFontSize(event.detail.size);
+    },
+
+    onHighContrastChanged(event) {
+      this.userSettings.appearance.highContrast = event.detail.enabled;
+      document.documentElement.classList.toggle('high-contrast', event.detail.enabled);
+    },
+
+    onAnimationsChanged(event) {
+      this.userSettings.appearance.enableAnimations = event.detail.enabled;
+      document.documentElement.classList.toggle('disable-animations', !event.detail.enabled);
+    },
+
+    onColorBlindModeChanged(event) {
+      this.userSettings.accessibility.colorBlindMode = event.detail.mode;
+      this.applyColorBlindMode();
+    },
+
+    onReduceMotionChanged(event) {
+      this.userSettings.accessibility.reduceMotion = event.detail.enabled;
+      document.documentElement.classList.toggle('reduce-motion', event.detail.enabled);
+    },
+
+    onCalendarSettingsChanged(event) {
+      const calendarSettings = event.detail;
+
+      // Update local settings
+      this.userSettings.calendar = {
+        ...this.userSettings.calendar,
+        ...calendarSettings
+      };
+
+      // Apply calendar settings
+      this.applyCalendarSettings();
+
+      // Refresh calendar data if needed
+      this.fetchSessions();
+    },
+
+    onFocusModeChanged(event) {
+      this.userSettings.accessibility.focusMode = event.detail.enabled;
+      document.documentElement.classList.toggle('focus-mode', event.detail.enabled);
+    },
+
+    onYearSettingsUpdated(event) {
+      // Update academic year settings if needed
+      if (event.detail.yearWeights) {
+        this.$nextTick(() => {
+          // Refresh profile data
+          this.fetchUserProfile();
+        });
+      }
+    },
+
+    // Initialize calendar view based on settings
+    initializeCalendarView() {
+      // Set initial calendar view based on settings
+      if (this.userSettings.calendar.defaultView) {
+        this.calendarView = this.userSettings.calendar.defaultView;
+      }
+    },
+
     // Fetch all data from API
     async fetchData() {
       try {
@@ -1570,7 +2170,18 @@ export default {
         });
 
         if (response.data) {
-          this.userProfile = response.data;
+          this.userProfile = {
+            ...this.userProfile,
+            ...response.data
+          };
+
+          // Keep academic settings consistency if they exist
+          const settings = userSettingsService.getSettings();
+          if (settings && settings.academic) {
+            this.userProfile.academicLevel = settings.academic.academicLevel || this.userProfile.academicLevel;
+            this.userProfile.enrollmentType = settings.academic.enrollmentType || this.userProfile.enrollmentType;
+            this.userProfile.currentYear = settings.academic.currentYear || this.userProfile.currentYear;
+          }
         }
       } catch (error) {
         console.error("Error fetching user profile:", error);
@@ -1605,6 +2216,9 @@ export default {
 
         if (response.data) {
           this.schedules = response.data;
+
+          // Find active schedule if any
+          this.activeSchedule = this.schedules.find(s => s.is_active) || null;
         }
       } catch (error) {
         console.error("Error fetching schedules:", error);
@@ -1633,11 +2247,15 @@ export default {
           endDate = this.selectedDate;
         }
 
+        // Query for active schedule sessions
+        const params = {
+          start_date: this.formatDateISO(startDate),
+          end_date: this.formatDateISO(endDate),
+          active_only: 'true'  // Only get sessions from active schedule
+        };
+
         const response = await axios.get(`${API_URL}/study/sessions`, {
-          params: {
-            start_date: this.formatDateISO(startDate),
-            end_date: this.formatDateISO(endDate)
-          },
+          params,
           withCredentials: true
         });
 
@@ -1659,9 +2277,39 @@ export default {
         if (response.data) {
           this.studyStats = response.data.studyStats || {};
           this.moduleStudyStats = response.data.moduleStudyStats || [];
-          this.moduleTimeDistribution = response.data.moduleTimeDistribution || { labels: [], datasets: [{ data: [], backgroundColor: [] }] };
-          this.sessionsTimeline = response.data.sessionsTimeline || { labels: [], datasets: [{ label: 'Study Sessions', data: [], borderColor: '#9e78ff', backgroundColor: 'rgba(158, 120, 255, 0.2)', tension: 0.4 }] };
-          this.productivityPatterns = response.data.productivityPatterns || { labels: [], datasets: [{ label: 'Productivity', data: [], backgroundColor: '#9e78ff' }] };
+
+          // Apply accent color to charts
+          const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim();
+          const accentLightColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-light').trim();
+
+          // Update chart colors based on theme
+          this.moduleTimeDistribution = response.data.moduleTimeDistribution || {
+            labels: [],
+            datasets: [{
+              data: [],
+              backgroundColor: []
+            }]
+          };
+
+          this.sessionsTimeline = response.data.sessionsTimeline || {
+            labels: [],
+            datasets: [{
+              label: 'Study Sessions',
+              data: [],
+              borderColor: accentColor,
+              backgroundColor: `${accentLightColor}33`, // With transparency
+              tension: 0.4
+            }]
+          };
+
+          this.productivityPatterns = response.data.productivityPatterns || {
+            labels: [],
+            datasets: [{
+              label: 'Productivity',
+              data: [],
+              backgroundColor: accentColor
+            }]
+          };
         }
       } catch (error) {
         console.error("Error fetching analytics:", error);
@@ -1730,11 +2378,6 @@ export default {
       this.tutorialStep = 1;
     },
 
-    // Handle dark mode changes
-    onDarkModeChange(event) {
-      this.darkMode = event.detail.isDark;
-    },
-
     // Check for mobile screen size
     checkMobile() {
       this.isMobile = window.innerWidth <= 768;
@@ -1759,7 +2402,8 @@ export default {
 
     // Generate week days for week view
     generateWeekDays() {
-      const startOfWeek = this.getStartOfWeek(this.currentDate);
+      // Get start of week based on settings
+      const startOfWeek = this.getStartOfWeek(this.currentDate, this.userSettings.calendar.firstDayOfWeek);
       const days = [];
 
       for (let i = 0; i < 7; i++) {
@@ -1885,9 +2529,14 @@ export default {
     },
 
     formatHour(hour) {
-      const displayHour = hour % 12 || 12;
-      const ampm = hour < 12 ? 'AM' : 'PM';
-      return `${displayHour} ${ampm}`;
+      // Use 12h or 24h format based on settings
+      if (this.userSettings.calendar.timeFormat === '24h') {
+        return `${hour}:00`;
+      } else {
+        const displayHour = hour % 12 || 12;
+        const ampm = hour < 12 ? 'AM' : 'PM';
+        return `${displayHour} ${ampm}`;
+      }
     },
 
     formatDate(date) {
@@ -1898,12 +2547,43 @@ export default {
       } else {
         d = date;
       }
-      return d.toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-      });
+
+      // Format date according to user settings
+      try {
+        // Simple date format implementation - should be expanded in a real app
+        if (this.userSettings.calendar.dateFormat === 'DD/MM/YYYY') {
+          return d.toLocaleDateString('en-GB', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          });
+        } else if (this.userSettings.calendar.dateFormat === 'YYYY-MM-DD') {
+          const options = {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          };
+          return d.toLocaleDateString('en-CA', options);
+        } else {
+          // Default MM/DD/YYYY
+          return d.toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric'
+          });
+        }
+      } catch (e) {
+        // Fallback if formatting fails
+        return d.toLocaleDateString('en-US', {
+          weekday: 'long',
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric'
+        });
+      }
     },
 
     formatCurrentPeriod() {
@@ -1913,13 +2593,24 @@ export default {
         const start = this.weekDays[0].date;
         const end = this.weekDays[6].date;
 
-        // Format like "Mar 1 - Mar 7, 2023"
-        const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        // Format according to user date format preference
+        let startStr, endStr;
+
+        if (this.userSettings.calendar.dateFormat === 'DD/MM/YYYY') {
+          startStr = start.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' });
+          endStr = end.toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' });
+        } else if (this.userSettings.calendar.dateFormat === 'YYYY-MM-DD') {
+          startStr = start.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+          endStr = end.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' });
+        } else {
+          // Default MM/DD/YYYY
+          startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
 
         return `${startStr} - ${endStr}`;
       } else if (this.calendarView === 'day') {
-        return this.currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        return this.formatDate(this.currentDate);
       }
 
       return '';
@@ -1935,11 +2626,17 @@ export default {
       if (!event.startTime || !event.endTime) return 'All Day';
 
       const formatTime = (timeStr) => {
-        const [hours, minutes] = timeStr.split(':');
+        const [hours, minutes] = timeStr.split(':').map(Number);
         const hour = parseInt(hours, 10);
-        const period = hour >= 12 ? 'PM' : 'AM';
-        const hour12 = hour % 12 || 12;
-        return `${hour12}:${minutes} ${period}`;
+
+        // Use 12h or 24h format based on settings
+        if (this.userSettings.calendar.timeFormat === '24h') {
+          return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        } else {
+          const period = hour >= 12 ? 'PM' : 'AM';
+          const hour12 = hour % 12 || 12;
+          return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
+        }
       };
 
       return `${formatTime(event.startTime)} - ${formatTime(event.endTime)}`;
@@ -1996,17 +2693,34 @@ export default {
       return days.map(day => dayMap[day] || day).join(', ');
     },
 
+    formatDays(days) {
+      if (!days || !days.length) return 'None';
+
+      // Capitalize first letter of each day
+      return days.map(day => day.charAt(0).toUpperCase() + day.slice(1)).join(', ');
+    },
+
     getDatePlusDays(date, days) {
       const newDate = new Date(date);
       newDate.setDate(newDate.getDate() + days);
       return newDate;
     },
 
-    getStartOfWeek(date) {
+    getStartOfWeek(date, startDay = 'sunday') {
       const d = new Date(date);
-      const day = d.getDay(); // 0 for Sunday, 1 for Monday, etc.
-      const diff = d.getDate() - day;
-      return new Date(d.setDate(diff));
+      const day = d.getDay(); // 0 for Sunday
+
+      let diff;
+      if (startDay === 'monday') {
+        // If we want Monday as first day
+        diff = day === 0 ? -6 : 1 - day; // Handle Sunday case
+      } else {
+        // Default Sunday as first day
+        diff = -day;
+      }
+
+      d.setDate(d.getDate() + diff);
+      return d;
     },
 
     // User profile helpers
@@ -2015,6 +2729,16 @@ export default {
       if (firstName) initials += firstName.charAt(0).toUpperCase();
       if (lastName) initials += lastName.charAt(0).toUpperCase();
       return initials || 'U';
+    },
+
+    // Module helpers
+    getModuleNames(moduleIds) {
+      if (!moduleIds || !moduleIds.length) return ['No modules'];
+
+      return moduleIds.map(id => {
+        const module = this.availableModules.find(m => m.id === id);
+        return module ? module.name : id;
+      });
     },
 
     // Level title based on level number
@@ -2069,6 +2793,11 @@ export default {
         className += ' event-in-progress';
       } else if (event.status === 'missed') {
         className += ' event-missed';
+      }
+
+      // Add study session specific class
+      if (event.type === 'study_session') {
+        className += ' event-study-session';
       }
 
       return className;
@@ -2139,40 +2868,135 @@ export default {
       return `${position}%`;
     },
 
-    // Create event at specific time
-    createEventAtTime(date, hour) {
-      console.log(`Create event on ${this.formatDate(date)} at ${hour}:00`);
+    // Schedule management
+    editSchedule(schedule) {
+      this.isEditMode = true;
+      this.editingScheduleId = schedule.id;
 
-      // Prepare default end time (1 hour later)
-      const endHour = hour + 1;
+      // Populate form with schedule data
+      this.scheduleForm = {
+        name: schedule.name,
+        startDate: schedule.start_date,
+        endDate: schedule.end_date,
+        preferredTimes: schedule.preferred_times || [],
+        availableDays: schedule.available_days || [],
+        sessionDuration: schedule.session_duration || 60,
+        breakDuration: schedule.break_duration || 15,
+        maxSessionsPerDay: schedule.max_sessions_per_day || 3,
+        modules: schedule.modules || [],
+        isActive: schedule.is_active
+      };
 
-      // Open create schedule modal with pre-filled date and time
-      this.selectedDate = new Date(date);
       this.showCreateScheduleModal = true;
     },
 
-    // Show event details
-    showEventDetails(event) {
-      this.selectedEvent = event;
-      this.showEventDetails = true;
+    confirmDeleteSchedule(schedule) {
+      this.selectedSchedule = schedule;
+      this.showDeleteModal = true;
     },
 
-    // Close event details modal
-    closeEventDetails() {
-      this.showEventDetails = false;
-      this.selectedEvent = null;
-    },
-
-    // Show more events for a day
-    showMoreEvents(date) {
-      this.selectedDate = date;
-      this.calendarView = 'day';
-    },
-
-    // Schedule creation and management
-    async createSchedule() {
+    async deleteSchedule() {
       try {
-        // Convert form data to API format
+        await axios.delete(`${API_URL}/study/schedules/${this.selectedSchedule.id}`, {
+          withCredentials: true
+        });
+
+        notify({
+          type: "success",
+          message: "Schedule deleted successfully",
+          duration: 3000
+        });
+
+        // Refresh schedules list
+        await this.fetchSchedules();
+        await this.fetchSessions();
+
+        this.showDeleteModal = false;
+      } catch (error) {
+        console.error('Error deleting schedule:', error);
+        notify({
+          type: "error",
+          message: error.response?.data?.error || "Failed to delete schedule",
+          duration: 3000
+        });
+      }
+    },
+
+    async activateSchedule(scheduleId) {
+      try {
+        await axios.post(`${API_URL}/study/schedules/${scheduleId}/activate`, {}, {
+          withCredentials: true
+        });
+
+        notify({
+          type: "success",
+          message: "Schedule activated successfully",
+          duration: 3000
+        });
+
+        // Refresh schedules and sessions
+        await this.fetchSchedules();
+        await this.fetchSessions();
+      } catch (error) {
+        console.error('Error activating schedule:', error);
+        notify({
+          type: "error",
+          message: error.response?.data?.error || "Failed to activate schedule",
+          duration: 3000
+        });
+      }
+    },
+
+    showCalendarConfirmation(schedule) {
+      this.selectedSchedule = schedule;
+
+      // Get session count (could be fetched from backend or estimated)
+      // For now, we'll estimate based on date range and available days
+      const startDate = new Date(schedule.start_date);
+      const endDate = new Date(schedule.end_date);
+      const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+      const availableDaysCount = schedule.available_days.length;
+      const maxSessionsPerDay = schedule.max_sessions_per_day;
+
+      // Rough estimate of sessions
+      this.studySessionCount = Math.min(
+          days * availableDaysCount / 7 * maxSessionsPerDay,
+          days * maxSessionsPerDay
+      ).toFixed(0);
+
+      this.showCalendarModal = true;
+    },
+
+    async addToCalendar() {
+      try {
+        await axios.post(`${API_URL}/study/schedules/${this.selectedSchedule.id}/create-events`, {}, {
+          withCredentials: true
+        });
+
+        notify({
+          type: "success",
+          message: "Study sessions added to calendar successfully",
+          duration: 3000
+        });
+
+        // Refresh schedules and sessions
+        await this.fetchSchedules();
+        await this.fetchSessions();
+
+        this.showCalendarModal = false;
+      } catch (error) {
+        console.error('Error adding to calendar:', error);
+        notify({
+          type: "error",
+          message: error.response?.data?.error || "Failed to add study sessions to calendar",
+          duration: 3000
+        });
+      }
+    },
+
+    async saveSchedule() {
+      try {
+        // Prepare data for API
         const scheduleData = {
           name: this.scheduleForm.name,
           start_date: this.scheduleForm.startDate,
@@ -2182,43 +3006,80 @@ export default {
           session_duration: parseInt(this.scheduleForm.sessionDuration),
           break_duration: parseInt(this.scheduleForm.breakDuration),
           max_sessions_per_day: parseInt(this.scheduleForm.maxSessionsPerDay),
-          modules: this.scheduleForm.modules
+          modules: this.scheduleForm.modules,
+          is_active: this.scheduleForm.isActive
         };
 
-        // Submit to API
-        const response = await axios.post(
-            `${API_URL}/study/schedules/create`,
-            scheduleData,
-            { withCredentials: true }
-        );
+        if (this.isEditMode) {
+          // Update existing schedule
+          await axios.put(
+              `${API_URL}/study/schedules/${this.editingScheduleId}`,
+              scheduleData,
+              { withCredentials: true }
+          );
 
-        notify({
-          type: "success",
-          message: "Schedule created successfully!",
-          duration: 3000
-        });
+          notify({
+            type: "success",
+            message: "Schedule updated successfully",
+            duration: 3000
+          });
+        } else {
+          // Create new schedule
+          await axios.post(
+              `${API_URL}/study/schedules/create`,
+              scheduleData,
+              { withCredentials: true }
+          );
+
+          notify({
+            type: "success",
+            message: "Schedule created successfully",
+            duration: 3000
+          });
+        }
 
         // Refresh schedules and sessions
         await this.fetchSchedules();
         await this.fetchSessions();
 
+        // Reset form and close modal
+        this.resetScheduleForm();
         this.showCreateScheduleModal = false;
       } catch (error) {
-        console.error('Error creating schedule:', error);
+        console.error('Error saving schedule:', error);
         notify({
           type: "error",
-          message: error.response?.data?.error || "Failed to create schedule",
+          message: error.response?.data?.error || "Failed to save schedule",
           duration: 3000
         });
       }
     },
 
+    resetScheduleForm() {
+      this.scheduleForm = {
+        name: 'My Study Schedule',
+        startDate: this.formatDateISO(new Date()),
+        endDate: this.formatDateISO(this.getDatePlusDays(new Date(), 7)),
+        preferredTimes: ['afternoon', 'evening'],
+        availableDays: ['monday', 'tuesday', 'wednesday', 'friday'],
+        sessionDuration: 60,
+        breakDuration: 15,
+        maxSessionsPerDay: 3,
+        modules: this.availableModules.map(m => m.id),
+        isActive: true
+      };
+
+      this.isEditMode = false;
+      this.editingScheduleId = null;
+    },
+
+    // AI schedule generation
     async generateAISchedule() {
       try {
         // Show loading state
         this.isLoading = true;
 
-        // Convert form data to API format
+        // Prepare data for API
         const scheduleData = {
           name: this.scheduleForm.name || "AI Generated Schedule",
           start_date: this.scheduleForm.startDate,
@@ -2232,7 +3093,7 @@ export default {
         };
 
         // Submit to AI generation API
-        const response = await axios.post(
+        await axios.post(
             `${API_URL}/study/schedules/generate`,
             scheduleData,
             { withCredentials: true }
@@ -2262,6 +3123,26 @@ export default {
     },
 
     // Session management
+    createEventAtTime(date, hour) {
+      console.log(`Create event on ${this.formatDate(date)} at ${hour}:00`);
+      // Implementation for creating a new event at a specific time
+    },
+
+    showEventDetails(event) {
+      this.selectedEvent = event;
+      this.showEventDetails = true;
+    },
+
+    closeEventDetails() {
+      this.showEventDetails = false;
+      this.selectedEvent = null;
+    },
+
+    showMoreEvents(date) {
+      this.selectedDate = date;
+      this.calendarView = 'day';
+    },
+
     async startSession(event) {
       try {
         // Call start session API
@@ -2295,7 +3176,7 @@ export default {
       }
     },
 
-    async completeSession(event) {
+    completeSession(event) {
       try {
         // Set up feedback form with default values
         this.feedbackForm = {
@@ -2320,7 +3201,7 @@ export default {
       }
     },
 
-    async rescheduleSession(event) {
+    rescheduleSession(event) {
       try {
         // Show reschedule modal or form
         notify({
@@ -2448,9 +3329,13 @@ export default {
 <style>
 /* ========== Base Styles & CSS Variables ========== */
 :root {
+  /* These variables will be dynamically updated by the settings */
   --primary-color: #9e78ff;
   --primary-dark: #7b49ff;
   --primary-light: #b59dff;
+  --primary-color-rgb: 158, 120, 255;
+
+  /* Base colors */
   --bg-light: #f8f9fa;
   --bg-card: #ffffff;
   --bg-input: #f1f3f5;
@@ -2460,8 +3345,13 @@ export default {
   --border-color: #dee2e6;
   --border-color-light: #e9ecef;
   --error-color: #f44336;
+  --error-color-rgb: 244, 67, 54;
   --success-color: #4CAF50;
+  --success-color-rgb: 76, 175, 80;
   --warning-color: #ff9800;
+  --warning-color-rgb: 255, 152, 0;
+
+  /* UI elements */
   --box-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
   --box-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
   --box-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
@@ -2473,9 +3363,15 @@ export default {
   --shadow-md: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
   --shadow-lg: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
   --shadow-xl: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
+  --font-size-base: 16px;
+
+  /* Event colors */
   --event-cs101: #4ecdc4;
   --event-cs202: #ff6b6b;
   --event-math201: #ffd166;
+
+  /* Focus outline for accessibility */
+  --focus-outline: 2px solid rgba(var(--primary-color-rgb), 0.5);
 }
 
 .study-hub {
@@ -2487,6 +3383,7 @@ export default {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Dark mode variables - will be applied via .dark-mode class */
 .dark-mode {
   --bg-light: #121212;
   --bg-card: #1e1e1e;
@@ -2499,6 +3396,95 @@ export default {
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
   --shadow-md: 0 3px 6px rgba(0,0,0,0.4);
   --shadow-lg: 0 10px 20px rgba(0,0,0,0.5);
+  --focus-outline: 2px solid rgba(var(--primary-color-rgb), 0.6);
+}
+
+/* High contrast mode variables */
+:root.high-contrast {
+  --primary-color: #0050c8;
+  --primary-dark: #003b94;
+  --primary-light: #4d89f0;
+  --error-color: #d50000;
+  --success-color: #008a00;
+  --warning-color: #e65100;
+  --text-primary: #000000;
+  --text-secondary: #333333;
+  --bg-light: #ffffff;
+  --bg-card: #f8f8f8;
+  --bg-input: #ffffff;
+  --bg-hover: #e6e6e6;
+  --border-color: #000000;
+  --focus-outline: 3px solid #000000;
+}
+
+:root.high-contrast.dark-mode {
+  --primary-color: #82b1ff;
+  --primary-dark: #448aff;
+  --primary-light: #bbdefb;
+  --text-primary: #ffffff;
+  --text-secondary: #dddddd;
+  --bg-light: #000000;
+  --bg-card: #121212;
+  --bg-input: #1e1e1e;
+  --bg-hover: #2a2a2a;
+  --border-color: #ffffff;
+  --focus-outline: 3px solid #ffffff;
+}
+
+/* Animation settings */
+.disable-animations * {
+  transition: none !important;
+  animation: none !important;
+}
+
+.reduce-motion * {
+  transition-duration: 0.001s !important;
+  animation-duration: 0.001s !important;
+}
+
+/* Focus mode styles */
+:root.focus-mode .settings-navigation,
+:root.focus-mode .mobile-settings-dropdown,
+:root.focus-mode .tab-controls,
+:root.focus-mode .study-hub-header {
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+:root.focus-mode .settings-navigation:hover,
+:root.focus-mode .mobile-settings-dropdown:hover,
+:root.focus-mode .tab-controls:hover,
+:root.focus-mode .study-hub-header:hover {
+  opacity: 1;
+}
+
+:root.focus-mode .settings-panel,
+:root.focus-mode .calendar-container,
+:root.focus-mode .analytics-card,
+:root.focus-mode .streak-card,
+:root.focus-mode .level-card,
+:root.focus-mode .achievements-section,
+:root.focus-mode .profile-card {
+  box-shadow: 0 0 0 4px rgba(var(--primary-color-rgb), 0.2);
+}
+
+:root.focus-mode .setting-group:not(:hover),
+:root.focus-mode .achievement-card:not(:hover),
+:root.focus-mode .schedule-card:not(:hover) {
+  opacity: 0.85;
+}
+
+/* Screen reader optimization */
+.sr-optimized .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
 /* ========== Animation Classes ========== */
@@ -2768,6 +3754,176 @@ export default {
   background-color: var(--primary-dark);
   transform: translateY(-2px);
   box-shadow: 0 4px 10px rgba(123, 73, 255, 0.3);
+}
+
+/* ========== Schedules List Section ========== */
+.schedules-list-section {
+  margin-bottom: 2rem;
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-md);
+}
+
+.schedules-list-section h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color-light);
+  padding-bottom: 0.75rem;
+}
+
+.schedules-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.schedule-card {
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.schedule-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-md);
+}
+
+.schedule-card.active-schedule {
+  border: 2px solid var(--primary-color);
+  box-shadow: 0 0 0 1px rgba(123, 73, 255, 0.2), var(--shadow-md);
+}
+
+.schedule-card-header {
+  background-color: var(--bg-input);
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.schedule-card-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.schedule-badges {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ai-badge, .active-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-badge {
+  background-color: rgba(123, 73, 255, 0.1);
+  color: var(--primary-color);
+  border: 1px solid rgba(123, 73, 255, 0.2);
+}
+
+.active-badge {
+  background-color: rgba(76, 175, 80, 0.1);
+  color: var(--success-color);
+  border: 1px solid rgba(76, 175, 80, 0.2);
+}
+
+.schedule-card-content {
+  padding: 1rem;
+}
+
+.schedule-details {
+  margin-bottom: 1rem;
+}
+
+.schedule-detail-item {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.detail-label {
+  color: var(--text-secondary);
+  margin-right: 0.5rem;
+}
+
+.detail-value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.schedule-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.activate-btn, .calendar-btn, .edit-btn, .delete-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  border-radius: var(--border-radius);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 1;
+  justify-content: center;
+}
+
+.activate-btn {
+  background-color: var(--success-color);
+  color: white;
+  border: none;
+}
+
+.activate-btn:hover {
+  background-color: #3d8b40;
+}
+
+.calendar-btn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+}
+
+.calendar-btn:hover {
+  background-color: var(--primary-dark);
+}
+
+.edit-btn {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.edit-btn:hover {
+  background-color: var(--bg-hover);
+}
+
+.delete-btn {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: var(--error-color);
+  border: 1px solid rgba(244, 67, 54, 0.2);
+}
+
+.delete-btn:hover {
+  background-color: rgba(244, 67, 54, 0.2);
 }
 
 /* Calendar container */
@@ -4086,61 +5242,6 @@ export default {
   transform: translateY(-2px);
 }
 
-/* Tutorial Styles */
-.tutorial-modal {
-  max-width: 650px;
-}
-
-.tutorial-step {
-  margin-bottom: 20px;
-}
-
-.tutorial-step h4 {
-  font-size: 1.2rem;
-  margin-bottom: 10px;
-  color: var(--primary-color);
-}
-
-.tutorial-step ul,
-.tutorial-step ol {
-  margin-left: 20px;
-  margin-bottom: 15px;
-}
-
-.tutorial-step li {
-  margin-bottom: 8px;
-}
-
-.tutorial-icon {
-  display: flex;
-  justify-content: center;
-  margin: 20px 0;
-}
-
-.tutorial-icon svg {
-  color: var(--primary-color);
-}
-
-.tutorial-nav-btn {
-  padding: 8px 16px;
-  border-radius: var(--border-radius);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.prev-btn {
-  background-color: var(--bg-input);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-}
-
-.next-btn, .done-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-}
-
 /* ========== Modal Styles ========== */
 .modal-overlay {
   position: fixed;
@@ -4600,6 +5701,74 @@ textarea:focus {
   color: var(--error-color);
 }
 
+/* Calendar and Delete Confirmation Modals */
+.calendar-confirm-modal,
+.delete-confirm-modal {
+  max-width: 500px;
+}
+
+.confirmation-message {
+  text-align: center;
+}
+
+.confirmation-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+}
+
+.delete-icon {
+  color: var(--error-color);
+}
+
+.confirmation-message p {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.confirmation-note {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 1rem;
+}
+
+.warning-text {
+  color: var(--warning-color);
+  font-weight: 500;
+}
+
+.confirm-btn,
+.delete-confirm-btn {
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--border-radius);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 100px;
+}
+
+.confirm-btn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+}
+
+.confirm-btn:hover {
+  background-color: var(--primary-dark);
+}
+
+.delete-confirm-btn {
+  background-color: var(--error-color);
+  color: white;
+  border: none;
+}
+
+.delete-confirm-btn:hover {
+  background-color: #d32f2f;
+}
+
 /* Modal footer buttons */
 .cancel-btn,
 .create-btn,
@@ -4647,6 +5816,61 @@ textarea:focus {
 
 .ai-generate-btn svg {
   color: white;
+}
+
+/* Tutorial Styles */
+.tutorial-modal {
+  max-width: 650px;
+}
+
+.tutorial-step {
+  margin-bottom: 20px;
+}
+
+.tutorial-step h4 {
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  color: var(--primary-color);
+}
+
+.tutorial-step ul,
+.tutorial-step ol {
+  margin-left: 20px;
+  margin-bottom: 15px;
+}
+
+.tutorial-step li {
+  margin-bottom: 8px;
+}
+
+.tutorial-icon {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.tutorial-icon svg {
+  color: var(--primary-color);
+}
+
+.tutorial-nav-btn {
+  padding: 8px 16px;
+  border-radius: var(--border-radius);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.prev-btn {
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.next-btn, .done-btn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
 }
 
 /* No data placeholder */
@@ -4708,6 +5932,14 @@ textarea:focus {
   .schedule-actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .schedules-list {
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-card-actions {
+    flex-direction: column;
   }
 
   .calendar-controls {
@@ -4929,7 +6161,7 @@ textarea:focus {
     flex-direction: column;
   }
 
-  .cancel-btn, .create-btn, .ai-generate-btn, .submit-btn {
+  .cancel-btn, .create-btn, .ai-generate-btn, .submit-btn, .confirm-btn, .delete-confirm-btn {
     width: 100%;
   }
 
