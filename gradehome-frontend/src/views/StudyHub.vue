@@ -9,315 +9,386 @@
         @logout="handleLogout"
     />
 
-    <div class="study-hub-container">
-      <div class="study-hub-header">
-        <h1>Study Hub</h1>
-        <div class="tab-controls">
-          <button
-              :class="{ active: activeTab === 'schedule' }"
-              @click="activeTab = 'schedule'"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            Study Schedule
-          </button>
-          <button
-              :class="{ active: activeTab === 'analytics' }"
-              @click="activeTab = 'analytics'"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="20" x2="18" y2="10"></line>
-              <line x1="12" y1="20" x2="12" y2="4"></line>
-              <line x1="6" y1="20" x2="6" y2="14"></line>
-            </svg>
-            Analytics & Insights
-          </button>
-          <button
-              :class="{ active: activeTab === 'achievements' }"
-              @click="activeTab = 'achievements'"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="8" r="7"></circle>
-              <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
-            </svg>
-            Achievements
-          </button>
-          <button
-              :class="{ active: activeTab === 'profile' }"
-              @click="activeTab = 'profile'"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            Your Profile
-          </button>
-        </div>
+    <div class="study-hub-layout">
+      <!-- Add the Calendar Sidebar component -->
+      <CalendarSideBar
+          v-if="showSidebar"
+          :events="studySessions"
+          :selectedDate="selectedDate"
+          @day-click="selectDate"
+          @add-event="openCreateEventModal"
+          @edit-event="openEditEventModal"
+          @delete-event="confirmDeleteSchedule"
+          @toggle-completion="toggleEventCompletion"
+          @change-schedule="showScheduleSelectionModal"
+          @navigate="navigateToTab"
+          @toggle-collapse="handleSidebarCollapse"
+      />
 
-        <!-- Tutorial/Help Button -->
-        <button @click="showTutorial = true" class="help-button" title="What is this?">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-          </svg>
-          What is this?
-        </button>
-      </div>
-
-      <!-- STUDY SCHEDULE TAB -->
-      <div v-if="activeTab === 'schedule'" class="study-schedule-tab animate-fade-in">
-        <div class="schedule-header">
-          <h2>Your Study Schedule</h2>
-          <div class="schedule-actions">
-            <button @click="showCreateScheduleModal = true" class="schedule-btn">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
+      <div class="study-hub-container" :class="{ 'with-sidebar': showSidebar && !sidebarCollapsed }">
+        <div class="study-hub-header">
+          <h1>Study Hub</h1>
+          <div class="tab-controls">
+            <button
+                :class="{ active: activeTab === 'schedule' }"
+                @click="activeTab = 'schedule'"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
               </svg>
-              Create Schedule
+              Study Schedule
             </button>
-            <button @click="showAIScheduleModal = true" class="ai-schedule-btn">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
-                <polyline points="7.5 19.79 7.5 14.6 3 12"></polyline>
-                <polyline points="21 12 16.5 14.6 16.5 19.79"></polyline>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            <button
+                :class="{ active: activeTab === 'analytics' }"
+                @click="activeTab = 'analytics'"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
               </svg>
-              Generate with AI
+              Analytics & Insights
+            </button>
+            <button
+                :class="{ active: activeTab === 'achievements' }"
+                @click="activeTab = 'achievements'"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="8" r="7"></circle>
+                <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+              </svg>
+              Achievements
+            </button>
+            <button
+                :class="{ active: activeTab === 'profile' }"
+                @click="activeTab = 'profile'"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              Your Profile
+            </button>
+          </div>
+
+          <!-- Tutorial/Help Button -->
+          <div class="header-actions">
+            <button @click="toggleSidebar" class="toggle-sidebar-btn" :title="showSidebar ? 'Hide sidebar' : 'Show sidebar'">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="9" y1="3" x2="9" y2="21"></line>
+              </svg>
+              {{ showSidebar ? 'Hide Calendar' : 'Show Calendar' }}
+            </button>
+            <button @click="showTutorial = true" class="help-button" title="What is this?">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              What is this?
             </button>
           </div>
         </div>
 
-        <!-- Schedules List Section -->
-        <div class="schedules-list-section">
-          <h3>Your Schedules</h3>
+        <!-- STUDY SCHEDULE TAB -->
+        <div v-if="activeTab === 'schedule'" class="study-schedule-tab animate-fade-in">
+          <div class="schedule-header">
+            <h2>Your Study Schedule</h2>
+            <div class="schedule-actions">
+              <button @click="showCreateScheduleModal = true" class="schedule-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Create Schedule
+              </button>
+              <button @click="showAIScheduleModal = true" class="ai-schedule-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                  <polyline points="7.5 4.21 12 6.81 16.5 4.21"></polyline>
+                  <polyline points="7.5 19.79 7.5 14.6 3 12"></polyline>
+                  <polyline points="21 12 16.5 14.6 16.5 19.79"></polyline>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                  <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+                Generate with AI
+              </button>
+            </div>
+          </div>
+
+          <!-- Schedules List Section -->
+          <div class="schedules-list-section">
+            <h3>Your Schedules</h3>
+            <div v-if="isLoading" class="loading-container">
+              <div class="loading-spinner"></div>
+              <p>Loading your schedules...</p>
+            </div>
+            <div v-else-if="error" class="error-message">
+              <p>{{ error }}</p>
+              <button @click="fetchData" class="retry-btn">Try Again</button>
+            </div>
+            <div v-else-if="schedules.length === 0" class="empty-state">
+              <p>You don't have any schedules yet. Create your first schedule to get started.</p>
+            </div>
+            <div v-else class="schedules-list">
+              <div v-for="schedule in schedules" :key="schedule.id" class="schedule-card" :class="{'active-schedule': schedule.is_active}">
+                <div class="schedule-card-header">
+                  <h4>{{ schedule.name }}</h4>
+                  <div class="schedule-badges">
+                    <span v-if="schedule.is_ai_generated" class="ai-badge">AI</span>
+                    <span v-if="schedule.is_active" class="active-badge">Active</span>
+                  </div>
+                </div>
+                <div class="schedule-card-content">
+                  <div class="schedule-details">
+                    <div class="schedule-detail-item">
+                      <span class="detail-label">Date Range:</span>
+                      <span class="detail-value">{{ formatDate(schedule.start_date) }} to {{ formatDate(schedule.end_date) }}</span>
+                    </div>
+                    <div class="schedule-detail-item">
+                      <span class="detail-label">Modules:</span>
+                      <span class="detail-value">{{ getModuleNames(schedule.modules).join(', ') }}</span>
+                    </div>
+                    <div class="schedule-detail-item">
+                      <span class="detail-label">Study Days:</span>
+                      <span class="detail-value">{{ formatDays(schedule.available_days) }}</span>
+                    </div>
+                  </div>
+                  <div class="schedule-card-actions">
+                    <button
+                        v-if="!schedule.is_active"
+                        @click="activateSchedule(schedule.id)"
+                        class="activate-btn"
+                        title="Set as Active Schedule"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 11 12 14 22 4"></polyline>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                      </svg>
+                      Activate
+                    </button>
+                    <button
+                        v-if="!schedule.events_created"
+                        @click="showCalendarConfirmation(schedule)"
+                        class="calendar-btn"
+                        title="Add to Calendar"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                        <line x1="12" y1="15" x2="12" y2="19"></line>
+                        <line x1="10" y1="17" x2="14" y2="17"></line>
+                      </svg>
+                      Add to Calendar
+                    </button>
+                    <button
+                        @click="editSchedule(schedule)"
+                        class="edit-btn"
+                        title="Edit Schedule"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                      Edit
+                    </button>
+                    <button
+                        @click="confirmDeleteSchedule(schedule)"
+                        class="delete-btn"
+                        title="Delete Schedule"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div v-if="isLoading" class="loading-container">
             <div class="loading-spinner"></div>
-            <p>Loading your schedules...</p>
+            <p>Loading your study schedule...</p>
           </div>
+
           <div v-else-if="error" class="error-message">
             <p>{{ error }}</p>
             <button @click="fetchData" class="retry-btn">Try Again</button>
           </div>
-          <div v-else-if="schedules.length === 0" class="empty-state">
-            <p>You don't have any schedules yet. Create your first schedule to get started.</p>
-          </div>
-          <div v-else class="schedules-list">
-            <div v-for="schedule in schedules" :key="schedule.id" class="schedule-card" :class="{'active-schedule': schedule.is_active}">
-              <div class="schedule-card-header">
-                <h4>{{ schedule.name }}</h4>
-                <div class="schedule-badges">
-                  <span v-if="schedule.is_ai_generated" class="ai-badge">AI</span>
-                  <span v-if="schedule.is_active" class="active-badge">Active</span>
-                </div>
-              </div>
-              <div class="schedule-card-content">
-                <div class="schedule-details">
-                  <div class="schedule-detail-item">
-                    <span class="detail-label">Date Range:</span>
-                    <span class="detail-value">{{ formatDate(schedule.start_date) }} to {{ formatDate(schedule.end_date) }}</span>
-                  </div>
-                  <div class="schedule-detail-item">
-                    <span class="detail-label">Modules:</span>
-                    <span class="detail-value">{{ getModuleNames(schedule.modules).join(', ') }}</span>
-                  </div>
-                  <div class="schedule-detail-item">
-                    <span class="detail-label">Study Days:</span>
-                    <span class="detail-value">{{ formatDays(schedule.available_days) }}</span>
-                  </div>
-                </div>
-                <div class="schedule-card-actions">
-                  <button
-                      v-if="!schedule.is_active"
-                      @click="activateSchedule(schedule.id)"
-                      class="activate-btn"
-                      title="Set as Active Schedule"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="9 11 12 14 22 4"></polyline>
-                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-                    </svg>
-                    Activate
-                  </button>
-                  <button
-                      v-if="!schedule.events_created"
-                      @click="showCalendarConfirmation(schedule)"
-                      class="calendar-btn"
-                      title="Add to Calendar"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                      <line x1="16" y1="2" x2="16" y2="6"></line>
-                      <line x1="8" y1="2" x2="8" y2="6"></line>
-                      <line x1="3" y1="10" x2="21" y2="10"></line>
-                      <line x1="12" y1="15" x2="12" y2="19"></line>
-                      <line x1="10" y1="17" x2="14" y2="17"></line>
-                    </svg>
-                    Add to Calendar
-                  </button>
-                  <button
-                      @click="editSchedule(schedule)"
-                      class="edit-btn"
-                      title="Edit Schedule"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                    </svg>
-                    Edit
-                  </button>
-                  <button
-                      @click="confirmDeleteSchedule(schedule)"
-                      class="delete-btn"
-                      title="Delete Schedule"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="3 6 5 6 21 6"></polyline>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <div v-if="isLoading" class="loading-container">
-          <div class="loading-spinner"></div>
-          <p>Loading your study schedule...</p>
-        </div>
-
-        <div v-else-if="error" class="error-message">
-          <p>{{ error }}</p>
-          <button @click="fetchData" class="retry-btn">Try Again</button>
-        </div>
-
-        <div v-else class="calendar-container">
-          <!-- Calendar View Controls -->
-          <div class="calendar-controls">
-            <div class="view-selector">
-              <button
-                  class="view-btn"
-                  :class="{ active: calendarView === 'month' }"
-                  @click="calendarView = 'month'"
-              >
-                Month
-              </button>
-              <button
-                  class="view-btn"
-                  :class="{ active: calendarView === 'week' }"
-                  @click="calendarView = 'week'"
-              >
-                Week
-              </button>
-              <button
-                  class="view-btn"
-                  :class="{ active: calendarView === 'day' }"
-                  @click="calendarView = 'day'"
-              >
-                Day
-              </button>
-            </div>
-            <div class="month-navigator">
-              <button @click="navigatePrevious" class="nav-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M15 18l-6-6 6-6" />
-                </svg>
-              </button>
-              <button @click="navigateToday" class="today-btn">
-                Today
-              </button>
-              <button @click="navigateNext" class="nav-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 18l6-6-6-6" />
-                </svg>
-              </button>
-              <span class="current-period">{{ formatCurrentPeriod() }}</span>
-            </div>
-          </div>
-
-          <!-- Calendar Views -->
-          <div class="calendar-view">
-            <!-- Month View -->
-            <div v-if="calendarView === 'month'" class="month-view">
-              <div class="month-grid-header">
-                <div class="day-header" v-for="day in weekdays" :key="day">{{ day }}</div>
-              </div>
-              <div class="month-grid">
-                <div
-                    v-for="(day, index) in monthDays"
-                    :key="index"
-                    class="day-cell"
-                    :class="{
-                    'today': isToday(day.date),
-                    'different-month': !day.isCurrentMonth,
-                    'selected': isSelectedDate(day.date),
-                    'has-events': getEventsForDay(day.date).length > 0
-                  }"
-                    @click="selectDate(day.date)"
+          <div v-else class="calendar-container">
+            <!-- Calendar View Controls -->
+            <div class="calendar-controls">
+              <div class="view-selector">
+                <button
+                    class="view-btn"
+                    :class="{ active: calendarView === 'month' }"
+                    @click="calendarView = 'month'"
                 >
-                  <div class="day-number">{{ formatDayNumber(day.date) }}</div>
-                  <div class="day-events">
-                    <div
-                        v-for="(event, eventIndex) in getEventsForDay(day.date).slice(0, 3)"
-                        :key="eventIndex"
-                        class="day-event-pill"
-                        :class="getEventClass(event)"
-                        @click.stop="showEventDetails(event)"
-                    >
-                      <span class="event-title">{{ event.title }}</span>
-                      <span v-if="event.module" class="event-module">{{ getModuleName(event.module) }}</span>
-                    </div>
-                    <div
-                        v-if="getEventsForDay(day.date).length > 3"
-                        class="more-events"
-                        @click.stop="showMoreEvents(day.date)"
-                    >
-                      +{{ getEventsForDay(day.date).length - 3 }} more
-                    </div>
-                  </div>
-                </div>
+                  Month
+                </button>
+                <button
+                    class="view-btn"
+                    :class="{ active: calendarView === 'week' }"
+                    @click="calendarView = 'week'"
+                >
+                  Week
+                </button>
+                <button
+                    class="view-btn"
+                    :class="{ active: calendarView === 'day' }"
+                    @click="calendarView = 'day'"
+                >
+                  Day
+                </button>
+              </div>
+              <div class="month-navigator">
+                <button @click="navigatePrevious" class="nav-btn">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 18l-6-6 6-6" />
+                  </svg>
+                </button>
+                <button @click="navigateToday" class="today-btn">
+                  Today
+                </button>
+                <button @click="navigateNext" class="nav-btn">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </button>
+                <span class="current-period">{{ formatCurrentPeriod() }}</span>
               </div>
             </div>
 
-            <!-- Week View -->
-            <div v-if="calendarView === 'week'" class="week-view">
-              <div class="week-grid-header">
-                <div class="time-column-header"></div>
-                <div
-                    class="day-column-header"
-                    v-for="(day, index) in weekDays"
-                    :key="index"
-                    :class="{ 'today': isToday(day.date) }"
-                >
-                  <div class="day-name">{{ formatDayName(day.date) }}</div>
-                  <div class="day-number">{{ formatDayNumber(day.date) }}</div>
+            <!-- Calendar Views -->
+            <div class="calendar-view">
+              <!-- Month View -->
+              <div v-if="calendarView === 'month'" class="month-view">
+                <div class="month-grid-header">
+                  <div class="day-header" v-for="day in weekdays" :key="day">{{ day }}</div>
                 </div>
-              </div>
-              <div class="week-grid">
-                <div class="time-column">
-                  <div class="time-cell" v-for="hour in displayHours" :key="hour">
-                    {{ formatHour(hour) }}
-                  </div>
-                </div>
-                <div class="day-columns">
+                <div class="month-grid">
                   <div
-                      class="day-column"
-                      v-for="(day, dayIndex) in weekDays"
-                      :key="dayIndex"
+                      v-for="(day, index) in monthDays"
+                      :key="index"
+                      class="day-cell"
+                      :class="{
+                      'today': isToday(day.date),
+                      'different-month': !day.isCurrentMonth,
+                      'selected': isSelectedDate(day.date),
+                      'has-events': getEventsForDay(day.date).length > 0
+                    }"
+                      @click="selectDate(day.date)"
+                  >
+                    <div class="day-number">{{ formatDayNumber(day.date) }}</div>
+                    <div class="day-events">
+                      <div
+                          v-for="(event, eventIndex) in getEventsForDay(day.date).slice(0, 3)"
+                          :key="eventIndex"
+                          class="day-event-pill"
+                          :class="getEventClass(event)"
+                          @click.stop="showEventDetails(event)"
+                      >
+                        <span class="event-title">{{ event.title }}</span>
+                        <span v-if="event.module" class="event-module">{{ getModuleName(event.module) }}</span>
+                      </div>
+                      <div
+                          v-if="getEventsForDay(day.date).length > 3"
+                          class="more-events"
+                          @click.stop="showMoreEvents(day.date)"
+                      >
+                        +{{ getEventsForDay(day.date).length - 3 }} more
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Week View -->
+              <div v-if="calendarView === 'week'" class="week-view">
+                <div class="week-grid-header">
+                  <div class="time-column-header"></div>
+                  <div
+                      class="day-column-header"
+                      v-for="(day, index) in weekDays"
+                      :key="index"
                       :class="{ 'today': isToday(day.date) }"
                   >
+                    <div class="day-name">{{ formatDayName(day.date) }}</div>
+                    <div class="day-number">{{ formatDayNumber(day.date) }}</div>
+                  </div>
+                </div>
+                <div class="week-grid">
+                  <div class="time-column">
+                    <div class="time-cell" v-for="hour in displayHours" :key="hour">
+                      {{ formatHour(hour) }}
+                    </div>
+                  </div>
+                  <div class="day-columns">
+                    <div
+                        class="day-column"
+                        v-for="(day, dayIndex) in weekDays"
+                        :key="dayIndex"
+                        :class="{ 'today': isToday(day.date) }"
+                    >
+                      <!-- Current time indicator -->
+                      <div
+                          v-if="isToday(day.date)"
+                          class="current-time-indicator"
+                          :style="{ top: calculateCurrentTimePosition() }"
+                      >
+                        <div class="time-dot"></div>
+                        <div class="time-line"></div>
+                      </div>
+
+                      <div
+                          class="time-cell"
+                          v-for="hour in displayHours"
+                          :key="`${dayIndex}-${hour}`"
+                          @click="createEventAtTime(day.date, hour)"
+                      ></div>
+                      <div
+                          v-for="(event, eventIndex) in getEventsForDay(day.date)"
+                          :key="eventIndex"
+                          class="week-event"
+                          :class="getEventClass(event)"
+                          :style="calculateEventPosition(event)"
+                          @click="showEventDetails(event)"
+                      >
+                        <div class="event-time">{{ formatEventTime(event) }}</div>
+                        <div class="event-title">{{ event.title }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Day View -->
+              <div v-if="calendarView === 'day'" class="day-view">
+                <div class="day-view-header">
+                  <div class="current-day">
+                    {{ formatDate(selectedDate) }}
+                  </div>
+                </div>
+                <div class="day-view-grid">
+                  <div class="time-column">
+                    <div class="time-cell" v-for="hour in displayHours" :key="hour">
+                      {{ formatHour(hour) }}
+                    </div>
+                  </div>
+                  <div class="events-column">
                     <!-- Current time indicator -->
                     <div
-                        v-if="isToday(day.date)"
+                        v-if="isToday(selectedDate)"
                         class="current-time-indicator"
                         :style="{ top: calculateCurrentTimePosition() }"
                     >
@@ -328,581 +399,533 @@
                     <div
                         class="time-cell"
                         v-for="hour in displayHours"
-                        :key="`${dayIndex}-${hour}`"
-                        @click="createEventAtTime(day.date, hour)"
+                        :key="hour"
+                        @click="createEventAtTime(selectedDate, hour)"
                     ></div>
                     <div
-                        v-for="(event, eventIndex) in getEventsForDay(day.date)"
+                        v-for="(event, eventIndex) in getEventsForDay(selectedDate)"
                         :key="eventIndex"
-                        class="week-event"
+                        class="day-event"
                         :class="getEventClass(event)"
                         :style="calculateEventPosition(event)"
                         @click="showEventDetails(event)"
                     >
                       <div class="event-time">{{ formatEventTime(event) }}</div>
                       <div class="event-title">{{ event.title }}</div>
+                      <div class="event-description">{{ event.description }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Schedule Tips Section -->
+          <div class="ai-tips-section" v-if="aiTips.length > 0">
+            <h3>AI Schedule Tips</h3>
+            <div class="tips-list">
+              <div class="tip-card" v-for="(tip, index) in aiTips" :key="index">
+                <div class="tip-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <circle cx="12" cy="12" r="4"></circle>
+                  </svg>
+                </div>
+                <div class="tip-content">
+                  <div class="tip-title">{{ tip.title }}</div>
+                  <div class="tip-text">{{ tip.text }}</div>
+                </div>
+                <div class="tip-actions">
+                  <button @click="acceptTip(tip.id)" class="accept-tip-btn">Apply</button>
+                  <button @click="rejectTip(tip.id)" class="reject-tip-btn">Ignore</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- No Schedule Placeholder -->
+          <div v-if="!isLoading && !error && !activeSchedule && schedules.length === 0" class="no-schedule-placeholder">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <h3>No Study Schedule Yet</h3>
+            <p>Create your first study schedule to get started. You can create one manually or let AI generate a personalized schedule based on your preferences.</p>
+            <div class="placeholder-actions">
+              <button @click="showCreateScheduleModal = true" class="schedule-btn">Create Schedule</button>
+              <button @click="showAIScheduleModal = true" class="ai-schedule-btn">Generate with AI</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ANALYTICS & INSIGHTS TAB -->
+        <div v-if="activeTab === 'analytics'" class="analytics-tab animate-fade-in">
+          <h2>Study Analytics & Insights</h2>
+
+          <div v-if="isLoading" class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>Loading your analytics data...</p>
+          </div>
+
+          <div v-else-if="error" class="error-message">
+            <p>{{ error }}</p>
+            <button @click="fetchData" class="retry-btn">Try Again</button>
+          </div>
+
+          <div v-else-if="!hasAnalyticsData" class="no-data-placeholder">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <h3>No Analytics Data Yet</h3>
+            <p>Complete some study sessions to see your analytics data here. This will help you track your progress and improve your study habits.</p>
+          </div>
+
+          <div v-else class="analytics-grid">
+            <!-- Study Overview Card -->
+            <div class="analytics-card">
+              <h3>Study Overview</h3>
+              <div class="stats-overview">
+                <div class="stat-item">
+                  <div class="stat-value">{{ studyStats.total_sessions_completed || 0 }}</div>
+                  <div class="stat-label">Sessions Completed</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">{{ studyStats.total_study_hours || 0 }}</div>
+                  <div class="stat-label">Study Hours</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">{{ studyStats.completion_rate || 0 }}%</div>
+                  <div class="stat-label">Completion Rate</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-value">{{ studyStats.avg_productivity_rating || 0 }}/5</div>
+                  <div class="stat-label">Avg. Productivity</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Study Time Distribution by Module -->
+            <div class="analytics-card">
+              <h3>Study Time by Module</h3>
+              <div class="chart-container">
+                <ModuleTimeDistributionChart :chartData="moduleTimeDistribution" />
+              </div>
+            </div>
+
+            <!-- Study Sessions Timeline -->
+            <div class="analytics-card">
+              <h3>Study Sessions Timeline</h3>
+              <div class="chart-container">
+                <StudySessionsTimelineChart :chartData="sessionsTimeline" />
+              </div>
+            </div>
+
+            <!-- Productivity Patterns -->
+            <div class="analytics-card">
+              <h3>Productivity Patterns</h3>
+              <div class="chart-container">
+                <ProductivityPatternsChart :chartData="productivityPatterns" />
+              </div>
+            </div>
+
+            <!-- Detailed Module Stats -->
+            <div class="analytics-card full-width">
+              <h3>Module Study Statistics</h3>
+              <div v-if="moduleStudyStats.length === 0" class="empty-state">
+                <p>No module statistics available yet. Complete more study sessions to see data here.</p>
+              </div>
+              <div v-else class="module-stats-table">
+                <div class="module-stats-header">
+                  <div class="module-name-cell">Module</div>
+                  <div class="module-stat-cell">Study Sessions</div>
+                  <div class="module-stat-cell">Total Hours</div>
+                  <div class="module-stat-cell">Weekly Average</div>
+                  <div class="module-stat-cell">Avg. Productivity</div>
+                  <div class="module-stat-cell">Progress</div>
+                </div>
+                <div v-for="module in moduleStudyStats" :key="module.id" class="module-stats-row">
+                  <div class="module-name-cell">{{ module.name }}</div>
+                  <div class="module-stat-cell">{{ module.sessions }}</div>
+                  <div class="module-stat-cell">{{ module.hours }} hrs</div>
+                  <div class="module-stat-cell">{{ module.weeklyAvg }} hrs</div>
+                  <div class="module-stat-cell">{{ module.productivity }}/5</div>
+                  <div class="module-stat-cell">
+                    <div class="progress-bar-small">
+                      <div class="progress-value" :style="{ width: module.progress + '%' }">
+                        {{ module.progress }}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ACHIEVEMENTS TAB -->
+        <div v-if="activeTab === 'achievements'" class="achievements-tab animate-fade-in">
+          <h2>Your Achievements</h2>
+
+          <div v-if="isLoading" class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>Loading your achievements...</p>
+          </div>
+
+          <div v-else-if="error" class="error-message">
+            <p>{{ error }}</p>
+            <button @click="fetchData" class="retry-btn">Try Again</button>
+          </div>
+
+          <div v-else>
+            <!-- Study Streak Card -->
+            <div class="streak-section">
+              <div class="streak-card">
+                <h3>Current Study Streak</h3>
+                <div class="streak-display">
+                  <div class="streak-circle">
+                    <div class="streak-value">{{ studyStreak.current_streak || 0 }}</div>
+                    <div class="streak-label">days</div>
+                  </div>
+                  <div class="streak-stats">
+                    <div class="streak-stat">
+                      <div class="stat-label">Longest Streak</div>
+                      <div class="stat-value">{{ studyStreak.longest_streak || 0 }} days</div>
+                    </div>
+                    <div class="streak-stat">
+                      <div class="stat-label">Last Study Session</div>
+                      <div class="stat-value">{{ formatDate(studyStreak.last_study_date) || 'None yet' }}</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="streak-calendar">
+                  <div v-for="(day, index) in recentDays" :key="index" class="calendar-day">
+                    <div class="day-date">{{ formatDayDate(day.date) }}</div>
+                    <div class="day-indicator" :class="{ studied: day.studied }">
+                      <svg v-if="day.studied" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 6L9 17l-5-5"></path>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="level-card">
+                <h3>Study Level</h3>
+                <div class="level-display">
+                  <div class="level-badge">
+                    <div class="level-value">{{ studyStats.level || 1 }}</div>
+                    <div class="level-title">{{ getLevelTitle(studyStats.level || 1) }}</div>
+                  </div>
+                  <div class="xp-info">
+                    <div class="xp-progress-bar">
+                      <div class="xp-progress" :style="{ width: (studyStats.level_progress_percent || 0) + '%' }">
+                        {{ studyStats.level_progress_percent || 0 }}%
+                      </div>
+                    </div>
+                    <div class="xp-text">
+                      <span class="xp-current">{{ studyStats.total_xp || 0 }} XP</span>
+                      <span class="xp-next">{{ studyStats.xp_for_next_level || 100 }} XP to level {{ (studyStats.level || 1) + 1 }}</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Day View -->
-            <div v-if="calendarView === 'day'" class="day-view">
-              <div class="day-view-header">
-                <div class="current-day">
-                  {{ formatDate(selectedDate) }}
-                </div>
-              </div>
-              <div class="day-view-grid">
-                <div class="time-column">
-                  <div class="time-cell" v-for="hour in displayHours" :key="hour">
-                    {{ formatHour(hour) }}
-                  </div>
-                </div>
-                <div class="events-column">
-                  <!-- Current time indicator -->
-                  <div
-                      v-if="isToday(selectedDate)"
-                      class="current-time-indicator"
-                      :style="{ top: calculateCurrentTimePosition() }"
+            <!-- Achievements List -->
+            <div class="achievements-section">
+              <div class="achievements-header">
+                <h3>Achievements</h3>
+                <div class="achievements-filter">
+                  <button
+                      v-for="category in achievementCategories"
+                      :key="category.value"
+                      :class="{ active: selectedAchievementCategory === category.value }"
+                      @click="selectedAchievementCategory = category.value"
                   >
-                    <div class="time-dot"></div>
-                    <div class="time-line"></div>
-                  </div>
-
-                  <div
-                      class="time-cell"
-                      v-for="hour in displayHours"
-                      :key="hour"
-                      @click="createEventAtTime(selectedDate, hour)"
-                  ></div>
-                  <div
-                      v-for="(event, eventIndex) in getEventsForDay(selectedDate)"
-                      :key="eventIndex"
-                      class="day-event"
-                      :class="getEventClass(event)"
-                      :style="calculateEventPosition(event)"
-                      @click="showEventDetails(event)"
-                  >
-                    <div class="event-time">{{ formatEventTime(event) }}</div>
-                    <div class="event-title">{{ event.title }}</div>
-                    <div class="event-description">{{ event.description }}</div>
-                  </div>
+                    {{ category.label }}
+                  </button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- AI Schedule Tips Section -->
-        <div class="ai-tips-section" v-if="aiTips.length > 0">
-          <h3>AI Schedule Tips</h3>
-          <div class="tips-list">
-            <div class="tip-card" v-for="(tip, index) in aiTips" :key="index">
-              <div class="tip-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                  <circle cx="12" cy="12" r="4"></circle>
-                </svg>
+              <div v-if="achievements.length === 0" class="empty-state">
+                <p>Complete study sessions to earn achievements.</p>
               </div>
-              <div class="tip-content">
-                <div class="tip-title">{{ tip.title }}</div>
-                <div class="tip-text">{{ tip.text }}</div>
-              </div>
-              <div class="tip-actions">
-                <button @click="acceptTip(tip.id)" class="accept-tip-btn">Apply</button>
-                <button @click="rejectTip(tip.id)" class="reject-tip-btn">Ignore</button>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- No Schedule Placeholder -->
-        <div v-if="!isLoading && !error && !activeSchedule && schedules.length === 0" class="no-schedule-placeholder">
-          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
-          <h3>No Study Schedule Yet</h3>
-          <p>Create your first study schedule to get started. You can create one manually or let AI generate a personalized schedule based on your preferences.</p>
-          <div class="placeholder-actions">
-            <button @click="showCreateScheduleModal = true" class="schedule-btn">Create Schedule</button>
-            <button @click="showAIScheduleModal = true" class="ai-schedule-btn">Generate with AI</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- ANALYTICS & INSIGHTS TAB -->
-      <!-- [Rest of the Analytics tab code remains the same] -->
-      <div v-if="activeTab === 'analytics'" class="analytics-tab animate-fade-in">
-        <h2>Study Analytics & Insights</h2>
-
-        <div v-if="isLoading" class="loading-container">
-          <div class="loading-spinner"></div>
-          <p>Loading your analytics data...</p>
-        </div>
-
-        <div v-else-if="error" class="error-message">
-          <p>{{ error }}</p>
-          <button @click="fetchData" class="retry-btn">Try Again</button>
-        </div>
-
-        <div v-else-if="!hasAnalyticsData" class="no-data-placeholder">
-          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="20" x2="18" y2="10"></line>
-            <line x1="12" y1="20" x2="12" y2="4"></line>
-            <line x1="6" y1="20" x2="6" y2="14"></line>
-          </svg>
-          <h3>No Analytics Data Yet</h3>
-          <p>Complete some study sessions to see your analytics data here. This will help you track your progress and improve your study habits.</p>
-        </div>
-
-        <div v-else class="analytics-grid">
-          <!-- Study Overview Card -->
-          <div class="analytics-card">
-            <h3>Study Overview</h3>
-            <div class="stats-overview">
-              <div class="stat-item">
-                <div class="stat-value">{{ studyStats.total_sessions_completed || 0 }}</div>
-                <div class="stat-label">Sessions Completed</div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-value">{{ studyStats.total_study_hours || 0 }}</div>
-                <div class="stat-label">Study Hours</div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-value">{{ studyStats.completion_rate || 0 }}%</div>
-                <div class="stat-label">Completion Rate</div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-value">{{ studyStats.avg_productivity_rating || 0 }}/5</div>
-                <div class="stat-label">Avg. Productivity</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Study Time Distribution by Module -->
-          <div class="analytics-card">
-            <h3>Study Time by Module</h3>
-            <div class="chart-container">
-              <ModuleTimeDistributionChart :chartData="moduleTimeDistribution" />
-            </div>
-          </div>
-
-          <!-- Study Sessions Timeline -->
-          <div class="analytics-card">
-            <h3>Study Sessions Timeline</h3>
-            <div class="chart-container">
-              <StudySessionsTimelineChart :chartData="sessionsTimeline" />
-            </div>
-          </div>
-
-          <!-- Productivity Patterns -->
-          <div class="analytics-card">
-            <h3>Productivity Patterns</h3>
-            <div class="chart-container">
-              <ProductivityPatternsChart :chartData="productivityPatterns" />
-            </div>
-          </div>
-
-          <!-- Detailed Module Stats -->
-          <div class="analytics-card full-width">
-            <h3>Module Study Statistics</h3>
-            <div v-if="moduleStudyStats.length === 0" class="empty-state">
-              <p>No module statistics available yet. Complete more study sessions to see data here.</p>
-            </div>
-            <div v-else class="module-stats-table">
-              <div class="module-stats-header">
-                <div class="module-name-cell">Module</div>
-                <div class="module-stat-cell">Study Sessions</div>
-                <div class="module-stat-cell">Total Hours</div>
-                <div class="module-stat-cell">Weekly Average</div>
-                <div class="module-stat-cell">Avg. Productivity</div>
-                <div class="module-stat-cell">Progress</div>
-              </div>
-              <div v-for="module in moduleStudyStats" :key="module.id" class="module-stats-row">
-                <div class="module-name-cell">{{ module.name }}</div>
-                <div class="module-stat-cell">{{ module.sessions }}</div>
-                <div class="module-stat-cell">{{ module.hours }} hrs</div>
-                <div class="module-stat-cell">{{ module.weeklyAvg }} hrs</div>
-                <div class="module-stat-cell">{{ module.productivity }}/5</div>
-                <div class="module-stat-cell">
-                  <div class="progress-bar-small">
-                    <div class="progress-value" :style="{ width: module.progress + '%' }">
-                      {{ module.progress }}%
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ACHIEVEMENTS TAB -->
-      <!-- [Rest of the Achievements tab code remains the same] -->
-      <div v-if="activeTab === 'achievements'" class="achievements-tab animate-fade-in">
-        <h2>Your Achievements</h2>
-
-        <div v-if="isLoading" class="loading-container">
-          <div class="loading-spinner"></div>
-          <p>Loading your achievements...</p>
-        </div>
-
-        <div v-else-if="error" class="error-message">
-          <p>{{ error }}</p>
-          <button @click="fetchData" class="retry-btn">Try Again</button>
-        </div>
-
-        <div v-else>
-          <!-- Study Streak Card -->
-          <div class="streak-section">
-            <div class="streak-card">
-              <h3>Current Study Streak</h3>
-              <div class="streak-display">
-                <div class="streak-circle">
-                  <div class="streak-value">{{ studyStreak.current_streak || 0 }}</div>
-                  <div class="streak-label">days</div>
-                </div>
-                <div class="streak-stats">
-                  <div class="streak-stat">
-                    <div class="stat-label">Longest Streak</div>
-                    <div class="stat-value">{{ studyStreak.longest_streak || 0 }} days</div>
-                  </div>
-                  <div class="streak-stat">
-                    <div class="stat-label">Last Study Session</div>
-                    <div class="stat-value">{{ formatDate(studyStreak.last_study_date) || 'None yet' }}</div>
-                  </div>
-                </div>
-              </div>
-              <div class="streak-calendar">
-                <div v-for="(day, index) in recentDays" :key="index" class="calendar-day">
-                  <div class="day-date">{{ formatDayDate(day.date) }}</div>
-                  <div class="day-indicator" :class="{ studied: day.studied }">
-                    <svg v-if="day.studied" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M20 6L9 17l-5-5"></path>
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="level-card">
-              <h3>Study Level</h3>
-              <div class="level-display">
-                <div class="level-badge">
-                  <div class="level-value">{{ studyStats.level || 1 }}</div>
-                  <div class="level-title">{{ getLevelTitle(studyStats.level || 1) }}</div>
-                </div>
-                <div class="xp-info">
-                  <div class="xp-progress-bar">
-                    <div class="xp-progress" :style="{ width: (studyStats.level_progress_percent || 0) + '%' }">
-                      {{ studyStats.level_progress_percent || 0 }}%
-                    </div>
-                  </div>
-                  <div class="xp-text">
-                    <span class="xp-current">{{ studyStats.total_xp || 0 }} XP</span>
-                    <span class="xp-next">{{ studyStats.xp_for_next_level || 100 }} XP to level {{ (studyStats.level || 1) + 1 }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Achievements List -->
-          <div class="achievements-section">
-            <div class="achievements-header">
-              <h3>Achievements</h3>
-              <div class="achievements-filter">
-                <button
-                    v-for="category in achievementCategories"
-                    :key="category.value"
-                    :class="{ active: selectedAchievementCategory === category.value }"
-                    @click="selectedAchievementCategory = category.value"
-                >
-                  {{ category.label }}
-                </button>
-              </div>
-            </div>
-
-            <div v-if="achievements.length === 0" class="empty-state">
-              <p>Complete study sessions to earn achievements.</p>
-            </div>
-
-            <div v-else class="achievements-grid">
-              <div
-                  v-for="achievement in filteredAchievements"
-                  :key="achievement.id"
-                  class="achievement-card"
-                  :class="{
+              <div v-else class="achievements-grid">
+                <div
+                    v-for="achievement in filteredAchievements"
+                    :key="achievement.id"
+                    class="achievement-card"
+                    :class="{
                   'completed': achievement.status === 'completed',
                   'in-progress': achievement.status === 'in-progress',
                   'locked': achievement.status === 'locked'
                 }"
-              >
-                <div class="achievement-icon">
-                  <img :src="achievement.icon" :alt="achievement.name">
-                </div>
-                <div class="achievement-info">
-                  <h4>{{ achievement.name }}</h4>
-                  <p>{{ achievement.description }}</p>
-                  <div class="achievement-progress">
-                    <div class="progress-bar">
-                      <div class="progress" :style="{ width: `${achievement.progressPercent}%` }"></div>
+                >
+                  <div class="achievement-icon">
+                    <img :src="achievement.icon" :alt="achievement.name">
+                  </div>
+                  <div class="achievement-info">
+                    <h4>{{ achievement.name }}</h4>
+                    <p>{{ achievement.description }}</p>
+                    <div class="achievement-progress">
+                      <div class="progress-bar">
+                        <div class="progress" :style="{ width: `${achievement.progressPercent}%` }"></div>
+                      </div>
+                      <div class="progress-text">{{ achievement.progress }} / {{ achievement.target }}</div>
                     </div>
-                    <div class="progress-text">{{ achievement.progress }} / {{ achievement.target }}</div>
+                  </div>
+                  <div class="achievement-badge">
+                    <span v-if="achievement.status === 'completed'">Completed</span>
+                    <span v-else-if="achievement.status === 'in-progress'">In Progress</span>
+                    <span v-else>Locked</span>
                   </div>
                 </div>
-                <div class="achievement-badge">
-                  <span v-if="achievement.status === 'completed'">Completed</span>
-                  <span v-else-if="achievement.status === 'in-progress'">In Progress</span>
-                  <span v-else>Locked</span>
-                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- PROFILE TAB -->
-      <!-- [Rest of the Profile tab code remains the same] -->
-      <div v-if="activeTab === 'profile'" class="profile-tab animate-fade-in">
-        <h2>Your Profile</h2>
+        <!-- PROFILE TAB -->
+        <div v-if="activeTab === 'profile'" class="profile-tab animate-fade-in">
+          <h2>Your Profile</h2>
 
-        <!-- Profile Loading State -->
-        <div v-if="isLoading" class="loading-container">
-          <div class="loading-spinner"></div>
-          <p>Loading your profile...</p>
-        </div>
+          <!-- Profile Loading State -->
+          <div v-if="isLoading" class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>Loading your profile...</p>
+          </div>
 
-        <!-- Profile Error State -->
-        <div v-else-if="error" class="error-message">
-          <p>{{ error }}</p>
-          <button @click="fetchData" class="retry-btn">Try Again</button>
-        </div>
+          <!-- Profile Error State -->
+          <div v-else-if="error" class="error-message">
+            <p>{{ error }}</p>
+            <button @click="fetchData" class="retry-btn">Try Again</button>
+          </div>
 
-        <!-- Profile Content -->
-        <div v-else class="profile-content">
-          <div class="profile-card">
-            <div class="profile-header">
-              <div class="profile-avatar">
-                <img v-if="userProfile.avatar" :src="userProfile.avatar" alt="User Avatar">
-                <div v-else class="avatar-placeholder">
-                  {{ getInitials(userProfile.firstName, userProfile.lastName) }}
+          <!-- Profile Content -->
+          <div v-else class="profile-content">
+            <div class="profile-card">
+              <div class="profile-header">
+                <div class="profile-avatar">
+                  <img v-if="userProfile.avatar" :src="userProfile.avatar" alt="User Avatar">
+                  <div v-else class="avatar-placeholder">
+                    {{ getInitials(userProfile.firstName, userProfile.lastName) }}
+                  </div>
+                </div>
+                <div class="profile-info">
+                  <h3>{{ userProfile.firstName }} {{ userProfile.lastName }}</h3>
+                  <p class="user-email">{{ userProfile.email }}</p>
+                  <p class="user-role">{{ userProfile.role || 'Student' }}</p>
+                  <p class="user-details">
+                    {{ userProfile.university || 'University not set' }} | {{ userProfile.degree || 'Degree not set' }}
+                  </p>
                 </div>
               </div>
-              <div class="profile-info">
-                <h3>{{ userProfile.firstName }} {{ userProfile.lastName }}</h3>
-                <p class="user-email">{{ userProfile.email }}</p>
-                <p class="user-role">{{ userProfile.role || 'Student' }}</p>
-                <p class="user-details">
-                  {{ userProfile.university || 'University not set' }} | {{ userProfile.degree || 'Degree not set' }}
-                </p>
-              </div>
-            </div>
-            <div class="profile-details">
-              <!-- Enrolled Modules Section -->
-              <h4>Your Enrolled Modules</h4>
-              <div v-if="enrolledModules.length > 0">
-                <ul class="module-list">
-                  <li v-for="module in enrolledModules" :key="module.id" class="module-list-item">
-                    <div class="module-info">
-                      <span class="module-name">{{ module.name }}</span>
-                      <span class="module-code">{{ module.code }}</span>
-                    </div>
-                    <span class="enrolled-badge">Currently Enrolled</span>
-                  </li>
-                </ul>
-              </div>
-              <div v-else class="empty-state">
-                <p>You are not currently enrolled in any modules.</p>
-                <p v-if="availableModules.length > 0" class="empty-state-tip">
-                  Tip: Add modules in the Dashboard and mark them as "Currently Enrolled" to see them here.
-                </p>
-              </div>
+              <div class="profile-details">
+                <!-- Enrolled Modules Section -->
+                <h4>Your Enrolled Modules</h4>
+                <div v-if="enrolledModules.length > 0">
+                  <ul class="module-list">
+                    <li v-for="module in enrolledModules" :key="module.id" class="module-list-item">
+                      <div class="module-info">
+                        <span class="module-name">{{ module.name }}</span>
+                        <span class="module-code">{{ module.code }}</span>
+                      </div>
+                      <span class="enrolled-badge">Currently Enrolled</span>
+                    </li>
+                  </ul>
+                </div>
+                <div v-else class="empty-state">
+                  <p>You are not currently enrolled in any modules.</p>
+                  <p v-if="availableModules.length > 0" class="empty-state-tip">
+                    Tip: Add modules in the Dashboard and mark them as "Currently Enrolled" to see them here.
+                  </p>
+                </div>
 
-              <h4>Study Preferences</h4>
-              <div class="preference-item">
-                <span class="preference-label">Preferred Study Times:</span>
-                <span class="preference-value">{{ formatPreferredTimes(studyPreferences.preferredTimes) }}</span>
-              </div>
-              <div class="preference-item">
-                <span class="preference-label">Preferred Session Duration:</span>
-                <span class="preference-value">{{ formatDuration(studyPreferences.sessionDuration) }}</span>
-              </div>
-              <div class="preference-item">
-                <span class="preference-label">Available Study Days:</span>
-                <span class="preference-value">{{ formatStudyDays(studyPreferences.availableDays) }}</span>
-              </div>
+                <h4>Study Preferences</h4>
+                <div class="preference-item">
+                  <span class="preference-label">Preferred Study Times:</span>
+                  <span class="preference-value">{{ formatPreferredTimes(studyPreferences.preferredTimes) }}</span>
+                </div>
+                <div class="preference-item">
+                  <span class="preference-label">Preferred Session Duration:</span>
+                  <span class="preference-value">{{ formatDuration(studyPreferences.sessionDuration) }}</span>
+                </div>
+                <div class="preference-item">
+                  <span class="preference-label">Available Study Days:</span>
+                  <span class="preference-value">{{ formatStudyDays(studyPreferences.availableDays) }}</span>
+                </div>
 
-              <!-- Academic Information Section - Enhanced -->
-              <h4>Academic Information</h4>
-              <div class="preference-item">
-                <span class="preference-label">Academic Level:</span>
-                <span class="preference-value" :class="{'preference-value-set': userProfile.academicLevel !== 'Not set'}">
+                <!-- Academic Information Section - Enhanced -->
+                <h4>Academic Information</h4>
+                <div class="preference-item">
+                  <span class="preference-label">Academic Level:</span>
+                  <span class="preference-value" :class="{'preference-value-set': userProfile.academicLevel !== 'Not set'}">
                   {{ userProfile.academicLevel || 'Not set' }}
                 </span>
-              </div>
-              <div class="preference-item">
-                <span class="preference-label">Enrollment Type:</span>
-                <span class="preference-value" :class="{'preference-value-set': userProfile.enrollmentType !== 'Not set'}">
+                </div>
+                <div class="preference-item">
+                  <span class="preference-label">Enrollment Type:</span>
+                  <span class="preference-value" :class="{'preference-value-set': userProfile.enrollmentType !== 'Not set'}">
                   {{ userProfile.enrollmentType || 'Not set' }}
                 </span>
+                </div>
+                <div class="preference-item">
+                  <span class="preference-label">Current Year:</span>
+                  <span class="preference-value preference-value-set">Year {{ userProfile.currentYear || '1' }}</span>
+                </div>
               </div>
-              <div class="preference-item">
-                <span class="preference-label">Current Year:</span>
-                <span class="preference-value preference-value-set">Year {{ userProfile.currentYear || '1' }}</span>
+              <div class="profile-actions">
+                <router-link to="/settings?section=academic" class="update-preferences-btn">Update Study Preferences</router-link>
+                <router-link to="/profile" class="edit-profile-btn">Edit Profile</router-link>
               </div>
-            </div>
-            <div class="profile-actions">
-              <router-link to="/settings?section=academic" class="update-preferences-btn">Update Study Preferences</router-link>
-              <router-link to="/profile" class="edit-profile-btn">Edit Profile</router-link>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Tutorial Modal (without images) -->
-    <div v-if="showTutorial" class="modal-overlay" @click.self="closeTutorial">
-      <div class="modal-container tutorial-modal">
-        <div class="modal-header">
-          <h3>Study Hub Tutorial</h3>
-          <button @click="closeTutorial" class="close-modal-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="tutorial-step" v-if="tutorialStep === 1">
-            <h4>Welcome to Study Hub!</h4>
-            <p>Study Hub helps you organize your study sessions, track your progress, and improve your study habits.</p>
-            <div class="tutorial-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
+      <!-- Tutorial Modal (without images) -->
+      <div v-if="showTutorial" class="modal-overlay" @click.self="closeTutorial">
+        <div class="modal-container tutorial-modal">
+          <div class="modal-header">
+            <h3>Study Hub Tutorial</h3>
+            <button @click="closeTutorial" class="close-modal-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
-            </div>
-            <p>This tutorial will guide you through the main features of Study Hub.</p>
+            </button>
           </div>
+          <div class="modal-body">
+            <div class="tutorial-step" v-if="tutorialStep === 1">
+              <h4>Welcome to Study Hub!</h4>
+              <p>Study Hub helps you organize your study sessions, track your progress, and improve your study habits.</p>
+              <div class="tutorial-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+              </div>
+              <p>This tutorial will guide you through the main features of Study Hub.</p>
+            </div>
 
-          <div class="tutorial-step" v-if="tutorialStep === 2">
-            <h4>Study Schedule</h4>
-            <div class="tutorial-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
+            <div class="tutorial-step" v-if="tutorialStep === 2">
+              <h4>Study Schedule</h4>
+              <div class="tutorial-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+              </div>
+              <p>The Study Schedule tab allows you to:</p>
+              <ul>
+                <li>Create and manage your study schedules</li>
+                <li>Generate AI-powered personalized study plans</li>
+                <li>View your study sessions in a calendar</li>
+                <li>Track your upcoming and completed sessions</li>
+              </ul>
             </div>
-            <p>The Study Schedule tab allows you to:</p>
-            <ul>
-              <li>Create and manage your study schedules</li>
-              <li>Generate AI-powered personalized study plans</li>
-              <li>View your study sessions in a calendar</li>
-              <li>Track your upcoming and completed sessions</li>
-            </ul>
-          </div>
 
-          <div class="tutorial-step" v-if="tutorialStep === 3">
-            <h4>Analytics & Insights</h4>
-            <div class="tutorial-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="20" x2="18" y2="10"></line>
-                <line x1="12" y1="20" x2="12" y2="4"></line>
-                <line x1="6" y1="20" x2="6" y2="14"></line>
-              </svg>
+            <div class="tutorial-step" v-if="tutorialStep === 3">
+              <h4>Analytics & Insights</h4>
+              <div class="tutorial-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"></line>
+                  <line x1="12" y1="20" x2="12" y2="4"></line>
+                  <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+              </div>
+              <p>The Analytics tab provides valuable insights about your study habits:</p>
+              <ul>
+                <li>Track total study hours and completed sessions</li>
+                <li>Analyze your productivity patterns</li>
+                <li>View time distribution across modules</li>
+                <li>Identify your strengths and areas for improvement</li>
+              </ul>
             </div>
-            <p>The Analytics tab provides valuable insights about your study habits:</p>
-            <ul>
-              <li>Track total study hours and completed sessions</li>
-              <li>Analyze your productivity patterns</li>
-              <li>View time distribution across modules</li>
-              <li>Identify your strengths and areas for improvement</li>
-            </ul>
-          </div>
 
-          <div class="tutorial-step" v-if="tutorialStep === 4">
-            <h4>Achievements</h4>
-            <div class="tutorial-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="8" r="7"></circle>
-                <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
-              </svg>
+            <div class="tutorial-step" v-if="tutorialStep === 4">
+              <h4>Achievements</h4>
+              <div class="tutorial-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="8" r="7"></circle>
+                  <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+                </svg>
+              </div>
+              <p>The Achievements tab keeps you motivated:</p>
+              <ul>
+                <li>Earn achievements by completing study goals</li>
+                <li>Track your study streak</li>
+                <li>Level up by earning XP from study sessions</li>
+                <li>Challenge yourself to unlock all achievements</li>
+              </ul>
             </div>
-            <p>The Achievements tab keeps you motivated:</p>
-            <ul>
-              <li>Earn achievements by completing study goals</li>
-              <li>Track your study streak</li>
-              <li>Level up by earning XP from study sessions</li>
-              <li>Challenge yourself to unlock all achievements</li>
-            </ul>
-          </div>
 
-          <div class="tutorial-step" v-if="tutorialStep === 5">
-            <h4>Your Profile</h4>
-            <div class="tutorial-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
+            <div class="tutorial-step" v-if="tutorialStep === 5">
+              <h4>Your Profile</h4>
+              <div class="tutorial-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </div>
+              <p>The Profile tab shows your personal information:</p>
+              <ul>
+                <li>View your enrolled modules</li>
+                <li>See your study preferences</li>
+                <li>Access academic information</li>
+                <li>Update your profile and preferences</li>
+              </ul>
             </div>
-            <p>The Profile tab shows your personal information:</p>
-            <ul>
-              <li>View your enrolled modules</li>
-              <li>See your study preferences</li>
-              <li>Access academic information</li>
-              <li>Update your profile and preferences</li>
-            </ul>
-          </div>
 
-          <div class="tutorial-step" v-if="tutorialStep === 6">
-            <h4>Getting Started</h4>
-            <div class="tutorial-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-              </svg>
+            <div class="tutorial-step" v-if="tutorialStep === 6">
+              <h4>Getting Started</h4>
+              <div class="tutorial-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </div>
+              <p>To get started with Study Hub:</p>
+              <ol>
+                <li>Go to the Study Schedule tab</li>
+                <li>Click "Create Schedule" to create a manual schedule or "Generate with AI" for an AI-powered schedule</li>
+                <li>Add your modules and preferences</li>
+                <li>Start tracking your study sessions!</li>
+              </ol>
+              <p>You can always access this tutorial again by clicking the "What is this?" button in the top right corner.</p>
             </div>
-            <p>To get started with Study Hub:</p>
-            <ol>
-              <li>Go to the Study Schedule tab</li>
-              <li>Click "Create Schedule" to create a manual schedule or "Generate with AI" for an AI-powered schedule</li>
-              <li>Add your modules and preferences</li>
-              <li>Start tracking your study sessions!</li>
-            </ol>
-            <p>You can always access this tutorial again by clicking the "What is this?" button in the top right corner.</p>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button
-              v-if="tutorialStep > 1"
-              @click="tutorialStep--"
-              class="tutorial-nav-btn prev-btn"
-          >
-            Previous
-          </button>
-          <button
-              v-if="tutorialStep < 6"
-              @click="tutorialStep++"
-              class="tutorial-nav-btn next-btn"
-          >
-            Next
-          </button>
-          <button
-              v-if="tutorialStep === 6"
-              @click="closeTutorial"
-              class="tutorial-nav-btn done-btn"
-          >
-            Get Started
-          </button>
+          <div class="modal-footer">
+            <button
+                v-if="tutorialStep > 1"
+                @click="tutorialStep--"
+                class="tutorial-nav-btn prev-btn"
+            >
+              Previous
+            </button>
+            <button
+                v-if="tutorialStep < 6"
+                @click="tutorialStep++"
+                class="tutorial-nav-btn next-btn"
+            >
+              Next
+            </button>
+            <button
+                v-if="tutorialStep === 6"
+                @click="closeTutorial"
+                class="tutorial-nav-btn done-btn"
+            >
+              Get Started
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1436,11 +1459,12 @@
 
 <script>
 import { getDarkModePreference } from "@/services/darkModeService.js";
-import { userSettingsService } from '@/services/userSettingsService.js'; // Import the settings service
+import { userSettingsService } from '@/services/userSettingsService.js';
 import DashboardNavBar from "@/components/DashboardNavBar.vue";
 import ModuleTimeDistributionChart from "@/components/charts/ModuleTimeDistributionChart.vue";
 import StudySessionsTimelineChart from "@/components/charts/StudySessionsTimelineChart.vue";
 import ProductivityPatternsChart from "@/components/charts/ProductivityPatternsChart.vue";
+import CalendarSideBar from "@/components/CalendarSideBar.vue"; // Import the sidebar component
 import { notify } from "@/services/toastService.js";
 import axios from 'axios';
 import { API_URL } from "@/config.js";
@@ -1451,7 +1475,8 @@ export default {
     DashboardNavBar,
     ModuleTimeDistributionChart,
     StudySessionsTimelineChart,
-    ProductivityPatternsChart
+    ProductivityPatternsChart,
+    CalendarSideBar // Add the sidebar component
   },
   data() {
     return {
@@ -1461,6 +1486,10 @@ export default {
       calendarView: 'month',
       isLoading: false,
       error: null,
+
+      // Sidebar control
+      showSidebar: true,
+      sidebarCollapsed: false,
 
       // User settings
       userSettings: {
@@ -1495,6 +1524,9 @@ export default {
       // Current date and selection
       currentDate: new Date(),
       selectedDate: new Date(),
+
+      // Schedule Selection Modal
+      showScheduleSelectionModal: false,
 
       // User data states
       userProfile: {
@@ -1722,6 +1754,18 @@ export default {
     }
   },
 
+  watch: {
+    // Watch for changes to the selectedDate to sync with sidebar
+    selectedDate(newDate, oldDate) {
+      // Sync with sidebar if dates are different
+      if (newDate.toDateString() !== (oldDate && oldDate.toDateString())) {
+        // The sidebar will be updated through the selectedDate prop
+        // Refresh events for the selected date
+        this.fetchEventsForDate(newDate);
+      }
+    }
+  },
+
   mounted() {
     // Initialize dates in schedule form
     this.scheduleForm.startDate = this.formatDateISO(new Date());
@@ -1746,6 +1790,9 @@ export default {
 
     // Fetch initial data
     this.fetchData();
+
+    // Load sidebar preferences from localStorage
+    this.loadSidebarPreferences();
   },
 
   beforeUnmount() {
@@ -1759,6 +1806,119 @@ export default {
   },
 
   methods: {
+    // New methods for sidebar integration
+    toggleSidebar() {
+      this.showSidebar = !this.showSidebar;
+      // Save preference to localStorage
+      localStorage.setItem('studyHubShowSidebar', this.showSidebar);
+    },
+
+    handleSidebarCollapse(isCollapsed) {
+      this.sidebarCollapsed = isCollapsed;
+    },
+
+    loadSidebarPreferences() {
+      // Load sidebar visibility preference
+      const sidebarVisible = localStorage.getItem('studyHubShowSidebar');
+      if (sidebarVisible !== null) {
+        this.showSidebar = sidebarVisible === 'true';
+      } else {
+        // Default to true for desktop, false for mobile
+        this.showSidebar = !this.isMobile;
+      }
+
+      // Load sidebar collapsed state
+      const sidebarCollapsed = localStorage.getItem('studyHubSidebarCollapsed');
+      if (sidebarCollapsed !== null) {
+        this.sidebarCollapsed = sidebarCollapsed === 'true';
+      }
+    },
+
+    navigateToTab(tabName) {
+      if (['schedule', 'analytics', 'achievements', 'profile'].includes(tabName)) {
+        this.activeTab = tabName;
+      }
+    },
+
+    showScheduleSelectionModal() {
+      // Show modal to select active schedule
+      this.showCreateScheduleModal = true;
+    },
+
+    toggleEventCompletion(event) {
+      // Handle toggling event completion status
+      try {
+        const updatedEvent = { ...event, completed: !event.completed };
+
+        // Call your API to update the event
+        axios.put(
+            `${API_URL}/calendar/events/${event.id}`,
+            updatedEvent,
+            { withCredentials: true }
+        ).then(() => {
+          // Update the event in local state
+          const index = this.studySessions.findIndex(e => e.id === event.id);
+          if (index !== -1) {
+            this.studySessions[index].completed = !event.completed;
+          }
+
+          notify({
+            type: 'success',
+            message: updatedEvent.completed ? 'Event marked as completed!' : 'Event marked as incomplete!'
+          });
+        }).catch(error => {
+          console.error('Error updating event:', error);
+          notify({
+            type: 'error',
+            message: 'Failed to update event status'
+          });
+        });
+      } catch (error) {
+        console.error('Error toggling event completion:', error);
+      }
+    },
+
+    openCreateEventModal(type = 'general') {
+      // Handle opening create event modal
+      this.isEditMode = false;
+      this.eventToEdit = null;
+
+      // Set default values for new event
+      const defaultEvent = {
+        title: '',
+        description: '',
+        date: this.formatDateISO(this.selectedDate),
+        type: type || 'general',
+        all_day: type !== 'study',
+        start_time: '09:00',
+        end_time: '10:00',
+        color: '#7b49ff',
+        completed: false
+      };
+
+      // Open event details with default data
+      this.selectedEvent = defaultEvent;
+      this.showEventDetails = true;
+    },
+
+    openEditEventModal(event) {
+      // Handle opening edit event modal
+      this.isEditMode = true;
+      this.eventToEdit = event;
+      this.selectedEvent = { ...event };
+      this.showEventDetails = true;
+    },
+
+    // New helper method to fetch events for a specific date
+    fetchEventsForDate(date) {
+      const dateStr = this.formatDateISO(date);
+      // Only fetch if we're in schedule tab
+      if (this.activeTab === 'schedule') {
+        // You can implement more specific fetching logic here if needed
+        this.fetchSessions();
+      }
+    },
+
     // Settings management methods
     loadUserSettings() {
       try {
@@ -2047,6 +2207,17 @@ export default {
       window.removeEventListener('yearSettingsUpdated', this.onYearSettingsUpdated);
     },
 
+    // Check for mobile screen size
+    checkMobile() {
+      this.isMobile = window.innerWidth <= 768;
+
+      // Adjust sidebar visibility based on screen size
+      if (this.isMobile && localStorage.getItem('studyHubShowSidebar') === null) {
+        // Default to hidden on mobile if no user preference is set
+        this.showSidebar = false;
+      }
+    },
+
     // Settings change event handlers
     onDarkModeChange(event) {
       this.darkMode = event.detail.isDark;
@@ -2159,6 +2330,118 @@ export default {
         this.error = "Failed to load data. Please try again.";
       } finally {
         this.isLoading = false;
+      }
+    },
+
+    // Handle logout event from the navbar
+    handleLogout() {
+      // Call logout API endpoint
+      axios.post(`${API_URL}/logout`, {}, { withCredentials: true })
+          .then(() => {
+            // Redirect to login page
+            window.location.href = '/login';
+          })
+          .catch(error => {
+            console.error('Logout error:', error);
+            notify({
+              type: "error",
+              message: "Failed to logout. Please try again."
+            });
+          });
+    },
+
+    // Generate week days for week view
+    generateWeekDays() {
+      // Get start of week based on settings
+      const startOfWeek = this.getStartOfWeek(this.currentDate, this.userSettings.calendar.firstDayOfWeek);
+      const days = [];
+
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(startOfWeek);
+        date.setDate(startOfWeek.getDate() + i);
+        days.push({ date });
+      }
+
+      this.weekDays = days;
+    },
+
+    // Start current time indicator updates
+    startCurrentTimeUpdates() {
+      // Update current time indicator position every minute
+      this.timeIndicatorInterval = setInterval(() => {
+        if ((this.calendarView === 'week' || this.calendarView === 'day') &&
+            this.isToday(this.calendarView === 'day' ? this.selectedDate : this.currentDate)) {
+          this.$forceUpdate();
+        }
+      }, 60000); // update every minute
+    },
+
+    // Calendar navigation methods
+    navigatePrevious() {
+      const date = new Date(this.currentDate);
+
+      if (this.calendarView === 'month') {
+        date.setMonth(date.getMonth() - 1);
+      } else if (this.calendarView === 'week') {
+        date.setDate(date.getDate() - 7);
+      } else if (this.calendarView === 'day') {
+        date.setDate(date.getDate() - 1);
+      }
+
+      this.currentDate = date;
+      this.generateWeekDays();
+
+      // Fetch new sessions for the current view
+      this.fetchSessions();
+    },
+
+    navigateNext() {
+      const date = new Date(this.currentDate);
+
+      if (this.calendarView === 'month') {
+        date.setMonth(date.getMonth() + 1);
+      } else if (this.calendarView === 'week') {
+        date.setDate(date.getDate() + 7);
+      } else if (this.calendarView === 'day') {
+        date.setDate(date.getDate() + 1);
+      }
+
+      this.currentDate = date;
+      this.generateWeekDays();
+
+      // Fetch new sessions for the current view
+      this.fetchSessions();
+    },
+
+    navigateToday() {
+      this.currentDate = new Date();
+      this.selectedDate = new Date();
+      this.generateWeekDays();
+
+      // Fetch sessions for current view
+      this.fetchSessions();
+    },
+
+    // Date selection
+    selectDate(date) {
+      this.selectedDate = new Date(date);
+
+      if (this.calendarView === 'month') {
+        // Update current month if selected date is in a different month
+        const currentMonth = this.currentDate.getMonth();
+        const selectedMonth = this.selectedDate.getMonth();
+
+        if (currentMonth !== selectedMonth) {
+          this.currentDate = new Date(this.selectedDate);
+          this.generateWeekDays();
+          this.fetchSessions();
+        }
+      }
+
+      // If day view, update the current date
+      if (this.calendarView === 'day') {
+        this.currentDate = new Date(this.selectedDate);
+        this.generateWeekDays();
       }
     },
 
@@ -2376,123 +2659,6 @@ export default {
     closeTutorial() {
       this.showTutorial = false;
       this.tutorialStep = 1;
-    },
-
-    // Check for mobile screen size
-    checkMobile() {
-      this.isMobile = window.innerWidth <= 768;
-    },
-
-    // Handle logout event from the navbar
-    handleLogout() {
-      // Call logout API endpoint
-      axios.post(`${API_URL}/logout`, {}, { withCredentials: true })
-          .then(() => {
-            // Redirect to login page
-            window.location.href = '/login';
-          })
-          .catch(error => {
-            console.error('Logout error:', error);
-            notify({
-              type: "error",
-              message: "Failed to logout. Please try again."
-            });
-          });
-    },
-
-    // Generate week days for week view
-    generateWeekDays() {
-      // Get start of week based on settings
-      const startOfWeek = this.getStartOfWeek(this.currentDate, this.userSettings.calendar.firstDayOfWeek);
-      const days = [];
-
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(startOfWeek);
-        date.setDate(startOfWeek.getDate() + i);
-        days.push({ date });
-      }
-
-      this.weekDays = days;
-    },
-
-    // Start current time indicator updates
-    startCurrentTimeUpdates() {
-      // Update current time indicator position every minute
-      this.timeIndicatorInterval = setInterval(() => {
-        if ((this.calendarView === 'week' || this.calendarView === 'day') &&
-            this.isToday(this.calendarView === 'day' ? this.selectedDate : this.currentDate)) {
-          this.$forceUpdate();
-        }
-      }, 60000); // update every minute
-    },
-
-    // Calendar navigation methods
-    navigatePrevious() {
-      const date = new Date(this.currentDate);
-
-      if (this.calendarView === 'month') {
-        date.setMonth(date.getMonth() - 1);
-      } else if (this.calendarView === 'week') {
-        date.setDate(date.getDate() - 7);
-      } else if (this.calendarView === 'day') {
-        date.setDate(date.getDate() - 1);
-      }
-
-      this.currentDate = date;
-      this.generateWeekDays();
-
-      // Fetch new sessions for the current view
-      this.fetchSessions();
-    },
-
-    navigateNext() {
-      const date = new Date(this.currentDate);
-
-      if (this.calendarView === 'month') {
-        date.setMonth(date.getMonth() + 1);
-      } else if (this.calendarView === 'week') {
-        date.setDate(date.getDate() + 7);
-      } else if (this.calendarView === 'day') {
-        date.setDate(date.getDate() + 1);
-      }
-
-      this.currentDate = date;
-      this.generateWeekDays();
-
-      // Fetch new sessions for the current view
-      this.fetchSessions();
-    },
-
-    navigateToday() {
-      this.currentDate = new Date();
-      this.selectedDate = new Date();
-      this.generateWeekDays();
-
-      // Fetch sessions for current view
-      this.fetchSessions();
-    },
-
-    // Date selection
-    selectDate(date) {
-      this.selectedDate = new Date(date);
-
-      if (this.calendarView === 'month') {
-        // Update current month if selected date is in a different month
-        const currentMonth = this.currentDate.getMonth();
-        const selectedMonth = this.selectedDate.getMonth();
-
-        if (currentMonth !== selectedMonth) {
-          this.currentDate = new Date(this.selectedDate);
-          this.generateWeekDays();
-          this.fetchSessions();
-        }
-      }
-
-      // If day view, update the current date
-      if (this.calendarView === 'day') {
-        this.currentDate = new Date(this.selectedDate);
-        this.generateWeekDays();
-      }
     },
 
     // Date helpers
@@ -3126,6 +3292,25 @@ export default {
     createEventAtTime(date, hour) {
       console.log(`Create event on ${this.formatDate(date)} at ${hour}:00`);
       // Implementation for creating a new event at a specific time
+      this.selectedDate = date;
+
+      // Set default values for new event
+      const defaultEvent = {
+        title: 'Study Session',
+        description: '',
+        date: this.formatDateISO(date),
+        type: 'study',
+        all_day: false,
+        start_time: `${hour}:00`,
+        end_time: `${hour + 1}:00`,
+        color: '#7b49ff',
+        completed: false
+      };
+
+      // Open event details with default data
+      this.selectedEvent = defaultEvent;
+      this.isEditMode = false;
+      this.showEventDetails = true;
     },
 
     showEventDetails(event) {
@@ -3141,131 +3326,6 @@ export default {
     showMoreEvents(date) {
       this.selectedDate = date;
       this.calendarView = 'day';
-    },
-
-    async startSession(event) {
-      try {
-        // Call start session API
-        const response = await axios.post(
-            `${API_URL}/study/sessions/${event.id}/start`,
-            {},
-            { withCredentials: true }
-        );
-
-        notify({
-          type: "success",
-          message: "Study session started!",
-          duration: 3000
-        });
-
-        // Update session in local state
-        const index = this.studySessions.findIndex(s => s.id === event.id);
-        if (index !== -1) {
-          this.studySessions[index].status = 'in_progress';
-          this.studySessions[index].started_at = new Date().toISOString();
-        }
-
-        this.closeEventDetails();
-      } catch (error) {
-        console.error('Error starting session:', error);
-        notify({
-          type: "error",
-          message: error.response?.data?.error || "Failed to start session",
-          duration: 3000
-        });
-      }
-    },
-
-    completeSession(event) {
-      try {
-        // Set up feedback form with default values
-        this.feedbackForm = {
-          productivity: 3,
-          difficulty: 3,
-          notes: '',
-          topics: event.topics || []
-        };
-        this.newTopic = '';
-
-        // Show completion feedback modal
-        this.closeEventDetails();
-        this.selectedEvent = event;
-        this.showCompletionModal = true;
-      } catch (error) {
-        console.error('Error preparing completion form:', error);
-        notify({
-          type: "error",
-          message: "Error preparing session completion form",
-          duration: 3000
-        });
-      }
-    },
-
-    rescheduleSession(event) {
-      try {
-        // Show reschedule modal or form
-        notify({
-          type: "info",
-          message: "Rescheduling feature coming soon",
-          duration: 3000
-        });
-
-        this.closeEventDetails();
-      } catch (error) {
-        console.error('Error rescheduling session:', error);
-        notify({
-          type: "error",
-          message: error.response?.data?.error || "Failed to reschedule session",
-          duration: 3000
-        });
-      }
-    },
-
-    // Feedback form management
-    addTopic() {
-      if (!this.newTopic.trim()) return;
-
-      if (!this.feedbackForm.topics.includes(this.newTopic.trim())) {
-        this.feedbackForm.topics.push(this.newTopic.trim());
-      }
-
-      this.newTopic = '';
-    },
-
-    removeTopic(index) {
-      this.feedbackForm.topics.splice(index, 1);
-    },
-
-    async submitFeedback() {
-      try {
-        // Submit feedback to API
-        const response = await axios.post(
-            `${API_URL}/study/sessions/${this.selectedEvent.id}/complete`,
-            this.feedbackForm,
-            { withCredentials: true }
-        );
-
-        notify({
-          type: "success",
-          message: "Session completed! You earned XP!",
-          duration: 3000
-        });
-
-        // Refresh sessions and analytics
-        await this.fetchSessions();
-        await this.fetchAnalytics();
-        await this.fetchAchievements();
-        await this.fetchStudyStreak();
-
-        this.showCompletionModal = false;
-      } catch (error) {
-        console.error('Error submitting feedback:', error);
-        notify({
-          type: "error",
-          message: error.response?.data?.error || "Failed to complete session",
-          duration: 3000
-        });
-      }
     },
 
     // AI tip management
@@ -3329,375 +3389,340 @@ export default {
 <style>
 /* ========== Base Styles & CSS Variables ========== */
 :root {
-  /* These variables will be dynamically updated by the settings */
-  --primary-color: #9e78ff;
-  --primary-dark: #7b49ff;
-  --primary-light: #b59dff;
-  --primary-color-rgb: 158, 120, 255;
+  /* Primary color with lighter/darker variants */
+  --primary-color: #7c4dff;
+  --primary-dark: #5e35b1;
+  --primary-light: #b39ddb;
+  --primary-color-rgb: 124, 77, 255;
+  --primary-gradient: linear-gradient(135deg, #7c4dff, #5e35b1);
 
-  /* Base colors */
+  /* Accent and semantic colors */
+  --success-color: #4CAF50;
+  --success-light: #e8f5e9;
+  --warning-color: #ff9800;
+  --warning-light: #fff3e0;
+  --error-color: #f44336;
+  --error-light: #ffebee;
+  --info-color: #2196F3;
+  --info-light: #e3f2fd;
+
+  /* Neutral colors */
   --bg-light: #f8f9fa;
   --bg-card: #ffffff;
-  --bg-input: #f1f3f5;
-  --bg-hover: #e9ecef;
-  --text-primary: #343a40;
+  --bg-input: #f5f7fa;
+  --bg-hover: #eef2f7;
+  --bg-muted: #f0f2f5;
+  --text-primary: #2c3e50;
   --text-secondary: #6c757d;
-  --border-color: #dee2e6;
-  --border-color-light: #e9ecef;
-  --error-color: #f44336;
-  --error-color-rgb: 244, 67, 54;
-  --success-color: #4CAF50;
-  --success-color-rgb: 76, 175, 80;
-  --warning-color: #ff9800;
-  --warning-color-rgb: 255, 152, 0;
+  --text-tertiary: #95a5a6;
+  --text-muted: #b4bcc2;
+  --border-color: #e9ecef;
+  --border-color-light: #f1f3f5;
 
-  /* UI elements */
-  --box-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
-  --box-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
-  --box-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
-  --transition-speed: 0.3s;
-  --border-radius: 6px;
-  --border-radius-lg: 12px;
-  --border-radius-xl: 16px;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-  --shadow-md: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
-  --shadow-lg: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
-  --shadow-xl: 0 14px 28px rgba(0,0,0,0.25), 0 10px 10px rgba(0,0,0,0.22);
-  --font-size-base: 16px;
+  /* UI elements & shadows */
+  --border-radius-sm: 6px;
+  --border-radius: 10px;
+  --border-radius-lg: 16px;
+  --border-radius-xl: 24px;
+  --shadow-sm: 0 2px 5px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+  --shadow-xl: 0 12px 32px rgba(0,0,0,0.16);
+  --shadow-focus: 0 0 0 3px rgba(124, 77, 255, 0.25);
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s ease;
+  --transition-slow: 0.4s ease;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* Event colors */
   --event-cs101: #4ecdc4;
   --event-cs202: #ff6b6b;
   --event-math201: #ffd166;
 
-  /* Focus outline for accessibility */
-  --focus-outline: 2px solid rgba(var(--primary-color-rgb), 0.5);
+  /* Focus outline */
+  --focus-outline: 0 0 0 3px rgba(124, 77, 255, 0.3);
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
 }
 
-.study-hub {
-  min-height: 100vh;
-  background-color: var(--bg-light);
-  color: var(--text-primary);
-  transition: background-color var(--transition-speed) ease,
-  color var(--transition-speed) ease;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-/* Dark mode variables - will be applied via .dark-mode class */
+/* Dark mode variables */
 .dark-mode {
+  --primary-color: #9575cd;
+  --primary-dark: #7e57c2;
+  --primary-light: #b39ddb;
+  --primary-gradient: linear-gradient(135deg, #9575cd, #7e57c2);
+
   --bg-light: #121212;
   --bg-card: #1e1e1e;
-  --bg-input: #2c2c2c;
+  --bg-input: #2a2a2a;
   --bg-hover: #333333;
-  --text-primary: #f8f9fa;
-  --text-secondary: #adb5bd;
-  --border-color: #444444;
-  --border-color-light: #555555;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
-  --shadow-md: 0 3px 6px rgba(0,0,0,0.4);
-  --shadow-lg: 0 10px 20px rgba(0,0,0,0.5);
-  --focus-outline: 2px solid rgba(var(--primary-color-rgb), 0.6);
+  --bg-muted: #252525;
+  --text-primary: #f5f5f5;
+  --text-secondary: #cccccc;
+  --text-tertiary: #9e9e9e;
+  --text-muted: #757575;
+  --border-color: #383838;
+  --border-color-light: #2c2c2c;
+
+  --shadow-sm: 0 2px 5px rgba(0,0,0,0.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+  --shadow-xl: 0 12px 32px rgba(0,0,0,0.5);
+  --shadow-focus: 0 0 0 3px rgba(149, 117, 205, 0.3);
+
+  --success-light: rgba(76, 175, 80, 0.15);
+  --warning-light: rgba(255, 152, 0, 0.15);
+  --error-light: rgba(244, 67, 54, 0.15);
+  --info-light: rgba(33, 150, 243, 0.15);
 }
 
-/* High contrast mode variables */
-:root.high-contrast {
-  --primary-color: #0050c8;
-  --primary-dark: #003b94;
-  --primary-light: #4d89f0;
-  --error-color: #d50000;
-  --success-color: #008a00;
-  --warning-color: #e65100;
-  --text-primary: #000000;
-  --text-secondary: #333333;
-  --bg-light: #ffffff;
-  --bg-card: #f8f8f8;
-  --bg-input: #ffffff;
-  --bg-hover: #e6e6e6;
-  --border-color: #000000;
-  --focus-outline: 3px solid #000000;
-}
-
-:root.high-contrast.dark-mode {
-  --primary-color: #82b1ff;
-  --primary-dark: #448aff;
-  --primary-light: #bbdefb;
-  --text-primary: #ffffff;
-  --text-secondary: #dddddd;
-  --bg-light: #000000;
-  --bg-card: #121212;
-  --bg-input: #1e1e1e;
-  --bg-hover: #2a2a2a;
-  --border-color: #ffffff;
-  --focus-outline: 3px solid #ffffff;
-}
-
-/* Animation settings */
-.disable-animations * {
-  transition: none !important;
-  animation: none !important;
-}
-
-.reduce-motion * {
-  transition-duration: 0.001s !important;
-  animation-duration: 0.001s !important;
-}
-
-/* Focus mode styles */
-:root.focus-mode .settings-navigation,
-:root.focus-mode .mobile-settings-dropdown,
-:root.focus-mode .tab-controls,
-:root.focus-mode .study-hub-header {
-  opacity: 0.7;
-  transition: opacity 0.3s ease;
-}
-
-:root.focus-mode .settings-navigation:hover,
-:root.focus-mode .mobile-settings-dropdown:hover,
-:root.focus-mode .tab-controls:hover,
-:root.focus-mode .study-hub-header:hover {
-  opacity: 1;
-}
-
-:root.focus-mode .settings-panel,
-:root.focus-mode .calendar-container,
-:root.focus-mode .analytics-card,
-:root.focus-mode .streak-card,
-:root.focus-mode .level-card,
-:root.focus-mode .achievements-section,
-:root.focus-mode .profile-card {
-  box-shadow: 0 0 0 4px rgba(var(--primary-color-rgb), 0.2);
-}
-
-:root.focus-mode .setting-group:not(:hover),
-:root.focus-mode .achievement-card:not(:hover),
-:root.focus-mode .schedule-card:not(:hover) {
-  opacity: 0.85;
-}
-
-/* Screen reader optimization */
-.sr-optimized .sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
+/* Base and reset styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
   padding: 0;
-  margin: -1px;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background-color: var(--bg-light);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+/* Remove default button styling */
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* ========== Main Layout Styles ========== */
+.study-hub {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-light);
+  color: var(--text-primary);
+  transition: background-color var(--transition-normal),
+  color var(--transition-normal);
+}
+
+:deep(.dashboard-navbar) {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  width: 100%;
+}
+
+.study-hub-layout {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 70px); /* Adjust for navbar height */
+  width: 100%;
+  margin-top: 70px; /* Adjust based on the actual navbar height */
+  position: relative;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
 }
 
-/* ========== Animation Classes ========== */
-.animate-fade-in {
-  animation: fadeIn 0.4s ease-out;
+:deep(.calendar-sidebar) {
+  position: fixed;
+  top: 70px; /* Match the top margin of study-hub-layout */
+  left: 0;
+  height: calc(100vh - 70px);
+  z-index: 40;
 }
 
-.animate-slide-down {
-  animation: slideDown 0.4s ease-out;
-}
-
-.animate-pop-in {
-  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-@keyframes fadeIn {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
-}
-
-@keyframes slideDown {
-  0% {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes popIn {
-  0% {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  70% {
-    transform: scale(1.05);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: -100% 0;
-  }
-  100% {
-    background-position: 100% 0;
-  }
-}
-
-/* ========== Layout Styles ========== */
 .study-hub-container {
+  flex: 1;
+  overflow-y: auto;
   padding: 2rem;
-  margin-top: 70px; /* Space for fixed navbar */
+  height: calc(100vh - 70px);
+  margin-left: 0;
+  transition: margin-left 0.3s ease;
 }
 
+.sidebar-content {
+  padding: 1.25rem;
+  gap: 1rem; /* Reduce gap between components */
+}
+
+.study-hub-container.with-sidebar {
+  margin-left: 50px; /* Adjust based on sidebar width */
+}
+
+/* Header styles */
 .study-hub-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: var(--space-md);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background-color: var(--bg-light);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-color-light);
 }
 
 .study-hub-header h1 {
   font-size: 2rem;
   font-weight: 700;
   margin: 0;
-  background: linear-gradient(to right, var(--primary-color), var(--primary-dark));
+  background: var(--primary-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   color: transparent;
+  letter-spacing: -0.02em;
 }
 
+/* Tab controls */
 .tab-controls {
   display: flex;
   background: var(--bg-card);
-  border-radius: 24px;
-  padding: 0.25rem;
+  border-radius: 28px;
+  padding: 0.3rem;
   box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color-light);
+  border: 1px solid var(--border-color);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.tab-controls::-webkit-scrollbar {
+  display: none;
 }
 
 .tab-controls button {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1.25rem;
+  padding: 0.75rem 1.25rem;
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  border-radius: 20px;
+  border-radius: 24px;
   cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  transition: all var(--transition-fast);
   font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .tab-controls button.active {
-  background: var(--primary-color);
+  background: var(--primary-gradient);
   color: white;
-  box-shadow: 0 2px 8px rgba(123, 73, 255, 0.25);
-}
-
-.tab-controls button:hover:not(.active) {
-  background: rgba(123, 73, 255, 0.1);
-  color: var(--primary-color);
-}
-
-/* Help Button */
-.help-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background-color: var(--bg-input);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.help-button:hover {
-  background-color: var(--bg-hover);
-  transform: translateY(-2px);
   box-shadow: var(--shadow-sm);
 }
 
-/* ========== Loading and Error States ========== */
-.loading-container {
+.tab-controls button:hover:not(.active) {
+  background: rgba(124, 77, 255, 0.1);
+  color: var(--primary-color);
+}
+
+.tab-controls button svg {
+  transition: transform var(--transition-fast);
+}
+
+.tab-controls button:hover svg {
+  transform: translateY(-1px);
+}
+
+/* Header actions */
+.header-actions {
   display: flex;
-  flex-direction: column;
+  gap: var(--space-md);
   align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  text-align: center;
-  min-height: 200px;
-}
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid rgba(0, 0, 0, 0.1);
-  border-radius: 50%;
-  border-top-color: var(--primary-color);
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
+  margin-left: auto;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.error-message {
-  background-color: rgba(244, 67, 54, 0.1);
-  border-left: 4px solid var(--error-color);
-  padding: 1rem;
-  margin-bottom: 1.5rem;
+.toggle-sidebar-btn, .help-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-}
-
-.error-message p {
-  color: var(--error-color);
-  margin-bottom: 1rem;
-}
-
-.retry-btn {
-  padding: 0.5rem 1rem;
-  background-color: var(--error-color);
-  color: white;
-  border: none;
-  border-radius: var(--border-radius);
-  cursor: pointer;
   font-weight: 500;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
 }
 
-.empty-state {
-  text-align: center;
-  padding: 2rem;
-  color: var(--text-secondary);
-  background-color: var(--bg-input);
-  border-radius: var(--border-radius);
-  margin: 1rem 0;
+.toggle-sidebar-btn:hover, .help-button:hover {
+  background-color: var(--bg-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
+  color: var(--primary-color);
 }
 
-/* ========== Study Schedule Tab Styles ========== */
+/* Sidebar integration */
+.study-hub-sidebar {
+  position: fixed;
+  top: 70px;
+  left: 0;
+  height: calc(100vh - 70px);
+  width: 200px;
+  z-index: 20;
+  transition: transform var(--transition-normal),
+  width var(--transition-normal),
+  box-shadow var(--transition-normal);
+  background-color: var(--bg-card);
+  border-right: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+}
+
+.sidebarCollapsed .study-hub-sidebar {
+  width: 60px;
+}
+
+.sidebarCollapsed .study-hub-container.with-sidebar {
+  margin-left: 280px;
+}
+
+.study-hub-sidebar.collapsed {
+  width: 60px;
+}
+
+/* ========== Schedule Tab Styles ========== */
 .schedule-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-xl);
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: var(--space-md);
 }
 
 .schedule-header h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-size: 1.75rem;
+  font-weight: 700;
   margin: 0;
   color: var(--text-primary);
 }
 
 .schedule-actions {
   display: flex;
-  gap: 1rem;
+  gap: var(--space-md);
 }
 
 .schedule-btn, .ai-schedule-btn {
@@ -3706,28 +3731,30 @@ export default {
   gap: 0.5rem;
   padding: 0.75rem 1.25rem;
   border-radius: var(--border-radius);
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal);
+  box-shadow: var(--shadow-sm);
 }
 
 .schedule-btn {
-  background-color: var(--bg-input);
+  background-color: var(--bg-card);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
 }
 
 .schedule-btn:hover {
   background-color: var(--bg-hover);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
+  border-color: var(--primary-light);
+  color: var(--primary-color);
 }
 
 .ai-schedule-btn {
-  background-color: var(--primary-color);
+  background: var(--primary-gradient);
   color: white;
   border: none;
-  box-shadow: 0 2px 5px rgba(123, 73, 255, 0.2);
   position: relative;
   overflow: hidden;
 }
@@ -3751,68 +3778,106 @@ export default {
 }
 
 .ai-schedule-btn:hover {
-  background-color: var(--primary-dark);
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
   transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(123, 73, 255, 0.3);
-}
-
-/* ========== Schedules List Section ========== */
-.schedules-list-section {
-  margin-bottom: 2rem;
-  background-color: var(--bg-card);
-  border-radius: var(--border-radius-lg);
-  padding: 1.5rem;
   box-shadow: var(--shadow-md);
 }
 
+@keyframes shimmer {
+  0% { transform: rotate(30deg) translateX(-100%); }
+  100% { transform: rotate(30deg) translateX(100%); }
+}
+
+/* Schedules List Section */
+.schedules-list-section {
+  margin-bottom: var(--space-xl);
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius-lg);
+  padding: var(--space-xl);
+  box-shadow: var(--shadow-md);
+  transition: transform var(--transition-normal),
+  box-shadow var(--transition-normal);
+}
+
+.schedules-list-section:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+
 .schedules-list-section h3 {
-  font-size: 1.2rem;
-  font-weight: 600;
+  font-size: 1.3rem;
+  font-weight: 700;
   margin-top: 0;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-lg);
   color: var(--text-primary);
-  border-bottom: 1px solid var(--border-color-light);
-  padding-bottom: 0.75rem;
+  position: relative;
+  display: inline-block;
+  padding-bottom: var(--space-xs);
+}
+
+.schedules-list-section h3::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 40px;
+  background: var(--primary-gradient);
+  border-radius: 3px;
 }
 
 .schedules-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
+  gap: var(--space-lg);
 }
 
+/* Schedule Card */
 .schedule-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius);
   border: 1px solid var(--border-color);
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal);
   box-shadow: var(--shadow-sm);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .schedule-card:hover {
   transform: translateY(-5px);
   box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
 }
 
 .schedule-card.active-schedule {
   border: 2px solid var(--primary-color);
-  box-shadow: 0 0 0 1px rgba(123, 73, 255, 0.2), var(--shadow-md);
+  box-shadow: 0 0 0 4px rgba(124, 77, 255, 0.1);
 }
 
+.active-schedule, .upcoming-sessions, .study-analytics {
+  padding: 1rem; /* Reduce padding */
+  margin-bottom: 1rem; /* Reduce margin */
+}
+
+
 .schedule-card-header {
-  background-color: var(--bg-input);
-  padding: 1rem;
+  background: linear-gradient(to right, rgba(124, 77, 255, 0.05), transparent);
+  padding: var(--space-md);
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-color-light);
 }
 
+
+
+
 .schedule-card-header h4 {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.1rem;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
@@ -3824,7 +3889,7 @@ export default {
 .ai-badge, .active-badge {
   font-size: 0.7rem;
   font-weight: 600;
-  padding: 0.2rem 0.5rem;
+  padding: 0.25rem 0.75rem;
   border-radius: 12px;
   display: inline-flex;
   align-items: center;
@@ -3832,33 +3897,38 @@ export default {
 }
 
 .ai-badge {
-  background-color: rgba(123, 73, 255, 0.1);
+  background-color: rgba(124, 77, 255, 0.1);
   color: var(--primary-color);
-  border: 1px solid rgba(123, 73, 255, 0.2);
 }
 
 .active-badge {
-  background-color: rgba(76, 175, 80, 0.1);
+  background-color: var(--success-light);
   color: var(--success-color);
-  border: 1px solid rgba(76, 175, 80, 0.2);
 }
 
 .schedule-card-content {
-  padding: 1rem;
+  padding: var(--space-md);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .schedule-details {
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-md);
+  flex: 1;
 }
 
 .schedule-detail-item {
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .detail-label {
   color: var(--text-secondary);
-  margin-right: 0.5rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
 }
 
 .detail-value {
@@ -3870,96 +3940,116 @@ export default {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  margin-top: auto;
 }
 
 .activate-btn, .calendar-btn, .edit-btn, .delete-btn {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.5rem;
+  padding: 0.6rem;
   border-radius: var(--border-radius);
-  font-size: 0.8rem;
-  font-weight: 500;
+  font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
   flex: 1;
   justify-content: center;
 }
 
 .activate-btn {
-  background-color: var(--success-color);
-  color: white;
-  border: none;
+  background-color: var(--success-light);
+  color: var(--success-color);
+  border: 1px solid rgba(76, 175, 80, 0.2);
 }
 
 .activate-btn:hover {
-  background-color: #3d8b40;
+  background-color: var(--success-color);
+  color: white;
+  box-shadow: var(--shadow-sm);
 }
 
 .calendar-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
+  background-color: rgba(124, 77, 255, 0.1);
+  color: var(--primary-color);
+  border: 1px solid rgba(124, 77, 255, 0.2);
 }
 
 .calendar-btn:hover {
-  background-color: var(--primary-dark);
+  background-color: var(--primary-color);
+  color: white;
+  box-shadow: var(--shadow-sm);
 }
 
 .edit-btn {
-  background-color: var(--bg-input);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
+  background-color: var(--info-light);
+  color: var(--info-color);
+  border: 1px solid rgba(33, 150, 243, 0.2);
 }
 
 .edit-btn:hover {
-  background-color: var(--bg-hover);
+  background-color: var(--info-color);
+  color: white;
+  box-shadow: var(--shadow-sm);
 }
 
 .delete-btn {
-  background-color: rgba(244, 67, 54, 0.1);
+  background-color: var(--error-light);
   color: var(--error-color);
   border: 1px solid rgba(244, 67, 54, 0.2);
 }
 
 .delete-btn:hover {
-  background-color: rgba(244, 67, 54, 0.2);
+  background-color: var(--error-color);
+  color: white;
+  box-shadow: var(--shadow-sm);
 }
 
-/* Calendar container */
+/* Calendar Container */
 .calendar-container {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-md);
   overflow: hidden;
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-xl);
+  transition: transform var(--transition-normal),
+  box-shadow var(--transition-normal);
 }
 
+.calendar-container:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Calendar Controls */
 .calendar-controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.5rem;
+  padding: var(--space-md) var(--space-lg);
   border-bottom: 1px solid var(--border-color);
-  flex-wrap: wrap;
-  gap: 1rem;
+  background-color: var(--bg-card);
+  position: sticky;
+  top: 0;
+  z-index: 3;
 }
 
 .view-selector {
   display: flex;
   border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  border-radius: 24px;
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .view-btn {
-  padding: 0.5rem 1.25rem;
+  padding: 0.6rem 1.25rem;
   background-color: var(--bg-card);
   color: var(--text-secondary);
   border: none;
   cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  transition: all var(--transition-fast);
 }
 
 .view-btn:not(:last-child) {
@@ -3967,12 +4057,13 @@ export default {
 }
 
 .view-btn.active {
-  background-color: var(--primary-color);
+  background: var(--primary-gradient);
   color: white;
 }
 
 .view-btn:hover:not(.active) {
   background-color: var(--bg-hover);
+  color: var(--primary-color);
 }
 
 .month-navigator {
@@ -3985,12 +4076,13 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--bg-input);
+  background-color: var(--bg-card);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
 }
 
 .nav-btn {
@@ -3999,21 +4091,26 @@ export default {
 }
 
 .today-btn {
-  padding: 0 1rem;
+  padding: 0 var(--space-md);
   height: 36px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .nav-btn:hover, .today-btn:hover {
   background-color: var(--bg-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
+  color: var(--primary-color);
 }
 
 .current-period {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 1.1rem;
   color: var(--text-primary);
+  padding: 0.5rem var(--space-md);
+  background-color: var(--bg-input);
+  border-radius: var(--border-radius);
 }
 
 /* Calendar Views */
@@ -4049,10 +4146,10 @@ export default {
 .day-cell {
   border-right: 1px solid var(--border-color-light);
   border-bottom: 1px solid var(--border-color-light);
-  padding: 0.5rem;
+  padding: 0.6rem;
   position: relative;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
 }
 
 .day-cell:hover {
@@ -4060,7 +4157,7 @@ export default {
 }
 
 .day-cell.today {
-  background-color: rgba(123, 73, 255, 0.05);
+  background-color: rgba(124, 77, 255, 0.05);
 }
 
 .day-cell.today .day-number {
@@ -4072,7 +4169,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(123, 73, 255, 0.2);
+  box-shadow: 0 2px 4px rgba(124, 77, 255, 0.2);
 }
 
 .day-cell.different-month {
@@ -4081,7 +4178,7 @@ export default {
 }
 
 .day-cell.selected {
-  background-color: rgba(123, 73, 255, 0.1);
+  background-color: rgba(124, 77, 255, 0.1);
   box-shadow: inset 0 0 0 2px var(--primary-color);
 }
 
@@ -4100,32 +4197,37 @@ export default {
 .day-event-pill {
   font-size: 0.75rem;
   padding: 0.25rem 0.5rem;
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius-sm);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: white;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: all var(--transition-fast);
+  margin-bottom: 2px;
+  box-shadow: var(--shadow-sm);
 }
 
 .day-event-pill:hover {
   transform: translateY(-1px) scale(1.02);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
 }
 
 .more-events {
   font-size: 0.75rem;
   text-align: center;
   color: var(--primary-color);
-  background-color: rgba(123, 73, 255, 0.1);
+  background-color: rgba(124, 77, 255, 0.1);
   padding: 0.25rem;
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius-sm);
   cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-top: 0.25rem;
 }
 
 .more-events:hover {
-  background-color: rgba(123, 73, 255, 0.2);
+  background-color: rgba(124, 77, 255, 0.2);
+  transform: translateY(-1px);
 }
 
 /* Week View */
@@ -4138,6 +4240,7 @@ export default {
 .week-grid-header {
   display: flex;
   border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-input);
 }
 
 .time-column-header {
@@ -4153,7 +4256,7 @@ export default {
 }
 
 .day-column-header.today {
-  background-color: rgba(123, 73, 255, 0.05);
+  background-color: rgba(124, 77, 255, 0.05);
 }
 
 .day-name {
@@ -4206,7 +4309,7 @@ export default {
 }
 
 .day-column.today {
-  background-color: rgba(123, 73, 255, 0.05);
+  background-color: rgba(124, 77, 255, 0.05);
 }
 
 .day-column .time-cell {
@@ -4217,7 +4320,7 @@ export default {
 }
 
 .day-column .time-cell:hover {
-  background-color: rgba(123, 73, 255, 0.05);
+  background-color: rgba(124, 77, 255, 0.05);
 }
 
 /* Event Styles */
@@ -4226,13 +4329,13 @@ export default {
   left: 4px;
   right: 4px;
   padding: 0.5rem;
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius-sm);
   color: white;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   overflow: hidden;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: all var(--transition-fast);
   z-index: 5;
 }
 
@@ -4243,7 +4346,7 @@ export default {
 }
 
 .event-time {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   opacity: 0.9;
   margin-bottom: 0.25rem;
 }
@@ -4288,7 +4391,7 @@ export default {
 }
 
 .day-view-header {
-  padding: 1rem;
+  padding: var(--space-md);
   text-align: center;
   border-bottom: 1px solid var(--border-color);
   background-color: var(--bg-input);
@@ -4296,7 +4399,7 @@ export default {
 
 .current-day {
   font-size: 1.2rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
@@ -4316,12 +4419,12 @@ export default {
   left: 60px;
   right: 12px;
   padding: 0.5rem;
-  border-radius: var(--border-radius);
+  border-radius: var(--border-radius-sm);
   color: white;
   overflow: hidden;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: all var(--transition-fast);
   z-index: 5;
 }
 
@@ -4343,19 +4446,19 @@ export default {
 
 /* Event color styles */
 .event-default {
-  background-color: var(--primary-color);
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
 }
 
 .event-cs101 {
-  background-color: var(--event-cs101);
+  background: linear-gradient(135deg, var(--event-cs101), #33b8b0);
 }
 
 .event-cs202 {
-  background-color: var(--event-cs202);
+  background: linear-gradient(135deg, var(--event-cs202), #e05757);
 }
 
 .event-math201 {
-  background-color: var(--event-math201);
+  background: linear-gradient(135deg, var(--event-math201), #e6bd5b);
 }
 
 .event-completed {
@@ -4364,56 +4467,78 @@ export default {
 }
 
 .event-in-progress {
-  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.5);
+  box-shadow: 0 0 0 2px var(--success-light);
 }
 
 .event-missed {
-  background-color: #ccc;
+  background: linear-gradient(135deg, #bdbdbd, #9e9e9e);
   opacity: 0.7;
 }
 
-/* AI Tips section */
+/* AI Tips Section */
 .ai-tips-section {
-  margin-top: 2rem;
-  padding: 1.5rem;
+  margin-top: var(--space-xl);
+  padding: var(--space-lg);
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-md);
+  transition: transform var(--transition-normal),
+  box-shadow var(--transition-normal);
+}
+
+.ai-tips-section:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
 }
 
 .ai-tips-section h3 {
-  font-size: 1.2rem;
-  font-weight: 600;
+  font-size: 1.3rem;
+  font-weight: 700;
   margin-top: 0;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-md);
   color: var(--text-primary);
+  position: relative;
+  display: inline-block;
+  padding-bottom: var(--space-xs);
+}
+
+.ai-tips-section h3::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 40px;
+  background: var(--primary-gradient);
+  border-radius: 3px;
 }
 
 .tips-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--space-md);
 }
 
 .tip-card {
   display: flex;
-  gap: 1rem;
-  padding: 1rem;
+  gap: var(--space-md);
+  padding: var(--space-md);
   background-color: var(--bg-input);
   border-radius: var(--border-radius);
   border-left: 3px solid var(--primary-color);
-  transition: transform 0.2s ease;
+  transition: all var(--transition-fast);
 }
 
 .tip-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-sm);
+  background-color: var(--bg-hover);
 }
 
 .tip-icon {
   color: var(--primary-color);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }
 
@@ -4422,14 +4547,14 @@ export default {
 }
 
 .tip-title {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
   margin-bottom: 0.5rem;
 }
 
 .tip-text {
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   line-height: 1.5;
 }
 
@@ -4443,9 +4568,9 @@ export default {
   padding: 0.5rem 1rem;
   border-radius: var(--border-radius);
   cursor: pointer;
-  font-weight: 500;
-  font-size: 0.8rem;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all var(--transition-fast);
 }
 
 .accept-tip-btn {
@@ -4456,6 +4581,8 @@ export default {
 
 .accept-tip-btn:hover {
   background-color: var(--primary-dark);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
 }
 
 .reject-tip-btn {
@@ -4466,62 +4593,168 @@ export default {
 
 .reject-tip-btn:hover {
   background-color: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 /* No Schedule Placeholder */
 .no-schedule-placeholder {
-  padding: 3rem;
+  padding: var(--space-2xl);
   text-align: center;
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-md);
-  margin-top: 2rem;
+  margin: var(--space-xl) 0;
+  transition: transform var(--transition-normal),
+  box-shadow var(--transition-normal);
+}
+
+.no-schedule-placeholder:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
 }
 
 .no-schedule-placeholder svg {
   color: var(--primary-color);
-  opacity: 0.7;
-  margin-bottom: 1.5rem;
+  opacity: 0.8;
+  margin-bottom: var(--space-lg);
 }
 
 .no-schedule-placeholder h3 {
   font-size: 1.5rem;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-md);
   color: var(--text-primary);
-}
-
-.no-schedule-placeholder p {
-  color: var(--text-secondary);
-  max-width: 600px;
-  margin: 0 auto 2rem;
-  line-height: 1.6;
+  font-weight: 700;
 }
 
 .placeholder-actions {
   display: flex;
   justify-content: center;
-  gap: 1rem;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-top: var(--space-lg);
+}
+
+.no-schedule-placeholder p {
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto var(--space-xl);
+  line-height: 1.6;
+}
+
+/* ========== Loading States ========== */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-2xl);
+  text-align: center;
+  min-height: 200px;
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius-lg);
+  margin: var(--space-md) 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(124, 77, 255, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--primary-color);
+  animation: spin 1s linear infinite;
+  margin-bottom: var(--space-md);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Error States */
+.error-message {
+  background-color: var(--error-light);
+  border-left: 4px solid var(--error-color);
+  padding: var(--space-md);
+  margin: var(--space-md) 0;
+  border-radius: var(--border-radius);
+}
+
+.error-message p {
+  color: var(--error-color);
+  margin-bottom: var(--space-md);
+}
+
+.retry-btn {
+  padding: 0.5rem 1rem;
+  background-color: var(--error-color);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.retry-btn:hover {
+  background-color: #d32f2f;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.empty-state {
+  text-align: center;
+  padding: var(--space-xl);
+  color: var(--text-secondary);
+  background-color: var(--bg-input);
+  border-radius: var(--border-radius);
+  margin: var(--space-md) 0;
 }
 
 /* ========== Analytics Tab Styles ========== */
 .analytics-tab h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: var(--space-xl);
   color: var(--text-primary);
+  position: relative;
+  display: inline-block;
+  padding-bottom: var(--space-xs);
+}
+
+.analytics-tab h2::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 40px;
+  background: var(--primary-gradient);
+  border-radius: 3px;
 }
 
 .analytics-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
 }
 
 .analytics-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
-  padding: 1.5rem;
+  padding: var(--space-lg);
   box-shadow: var(--shadow-md);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--transition-normal),
+  box-shadow var(--transition-normal);
+}
+
+.analytics-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
 }
 
 .analytics-card.full-width {
@@ -4529,55 +4762,99 @@ export default {
 }
 
 .analytics-card h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 1.2rem;
+  font-weight: 700;
   margin-top: 0;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-md);
   color: var(--text-primary);
-  border-bottom: 1px solid var(--border-color-light);
-  padding-bottom: 0.75rem;
+  position: relative;
+  display: inline-block;
+  padding-bottom: var(--space-xs);
+}
+
+.analytics-card h3::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 30px;
+  background: var(--primary-gradient);
+  border-radius: 3px;
 }
 
 .stats-overview {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
+  gap: var(--space-md);
 }
 
 .stat-item {
-  padding: 1rem;
-  background-color: var(--bg-input);
-  border-radius: var(--border-radius);
   text-align: center;
-  transition: transform 0.2s ease;
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 0.6rem 0.75rem; /* Reduce padding */
+  border-radius: var(--border-radius);
+  flex: 1;
+  transition: all 0.3s ease;
+}
+
+.pomodoro-timer-card {
+  padding: 1rem; /* Reduce padding */
+  margin-bottom: 1rem; /* Reduce margin */
+}
+
+.timer-circle-container {
+  width: 120px; /* Smaller timer circle */
+  height: 120px;
+}
+
+.timer-value {
+  font-size: 1.75rem; /* Smaller font */
+}
+
+.pomodoro-content {
+  gap: 0.75rem; /* Reduce gap */
+}
+
+.timer-controls {
+  gap: 0.3rem; /* Reduce gap */
 }
 
 .stat-item:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-sm);
+  background-color: var(--bg-hover);
 }
 
 .stat-value {
-  font-size: 1.5rem;
+  font-size: 1.4rem; /* Slightly smaller font */
   font-weight: 700;
-  color: var(--primary-color);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.2rem;
 }
 
 .stat-label {
   color: var(--text-secondary);
   font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .chart-container {
   height: 250px;
   position: relative;
+  margin-top: auto;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Module Stats Table */
 .module-stats-table {
   width: 100%;
-  margin-top: 1rem;
+  margin-top: var(--space-md);
+  overflow-x: auto;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-color-light);
 }
 
 .module-stats-header {
@@ -4585,9 +4862,11 @@ export default {
   grid-template-columns: 2fr repeat(5, 1fr);
   padding: 0.75rem;
   background-color: var(--bg-input);
-  border-radius: var(--border-radius) var(--border-radius) 0 0;
   font-weight: 600;
   color: var(--text-primary);
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .module-stats-row {
@@ -4595,7 +4874,7 @@ export default {
   grid-template-columns: 2fr repeat(5, 1fr);
   padding: 0.75rem;
   border-bottom: 1px solid var(--border-color-light);
-  transition: background-color 0.2s ease;
+  transition: background-color var(--transition-fast);
 }
 
 .module-stats-row:last-child {
@@ -4625,47 +4904,112 @@ export default {
 
 .progress-value {
   height: 100%;
-  background-color: var(--primary-color);
+  background: var(--primary-gradient);
   border-radius: 3px;
   text-align: center;
   color: transparent;
   font-size: 0;
 }
 
+/* No Data Placeholder */
+.no-data-placeholder {
+  text-align: center;
+  padding: var(--space-2xl);
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius-lg);
+  margin: var(--space-xl) 0;
+  box-shadow: var(--shadow-md);
+}
+
+.no-data-placeholder svg {
+  color: var(--primary-color);
+  opacity: 0.7;
+  margin-bottom: var(--space-lg);
+}
+
+.no-data-placeholder h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: var(--space-md);
+  color: var(--text-primary);
+}
+
+.no-data-placeholder p {
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
 /* ========== Achievements Tab Styles ========== */
 .achievements-tab h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: var(--space-xl);
   color: var(--text-primary);
+  position: relative;
+  display: inline-block;
+  padding-bottom: var(--space-xs);
+}
+
+.achievements-tab h2::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 40px;
+  background: var(--primary-gradient);
+  border-radius: 3px;
 }
 
 .streak-section {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
 }
 
 .streak-card, .level-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
-  padding: 1.5rem;
+  padding: var(--space-lg);
   box-shadow: var(--shadow-md);
+  transition: transform var(--transition-normal),
+  box-shadow var(--transition-normal);
+}
+
+.streak-card:hover, .level-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
 }
 
 .streak-card h3, .level-card h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 1.2rem;
+  font-weight: 700;
   margin-top: 0;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-md);
   color: var(--text-primary);
+  position: relative;
+  display: inline-block;
+  padding-bottom: var(--space-xs);
+}
+
+.streak-card h3::after, .level-card h3::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 30px;
+  background: var(--primary-gradient);
+  border-radius: 3px;
 }
 
 .streak-display {
   display: flex;
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
 }
 
 .streak-circle {
@@ -4678,6 +5022,7 @@ export default {
   align-items: center;
   justify-content: center;
   position: relative;
+  box-shadow: var(--shadow-md);
 }
 
 .streak-circle::before {
@@ -4693,7 +5038,7 @@ export default {
 
 .streak-value {
   font-size: 2rem;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--primary-color);
   z-index: 1;
   position: relative;
@@ -4702,6 +5047,7 @@ export default {
 .streak-label {
   color: var(--text-secondary);
   font-size: 0.8rem;
+  font-weight: 500;
   z-index: 1;
   position: relative;
 }
@@ -4717,16 +5063,22 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 1rem;
+  padding: 0.75rem var(--space-md);
   background-color: var(--bg-input);
   border-radius: var(--border-radius);
   border-left: 3px solid var(--primary-color);
+  transition: all var(--transition-fast);
+}
+
+.streak-stat:hover {
+  transform: translateX(3px);
+  background-color: var(--bg-hover);
 }
 
 .streak-calendar {
   display: flex;
   justify-content: space-between;
-  padding: 1rem;
+  padding: var(--space-md);
   background-color: var(--bg-input);
   border-radius: var(--border-radius);
 }
@@ -4741,6 +5093,7 @@ export default {
 .day-date {
   font-weight: 600;
   font-size: 0.8rem;
+  color: var(--text-secondary);
 }
 
 .day-indicator {
@@ -4751,25 +5104,28 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  background-color: var(--bg-card);
+  transition: all var(--transition-fast);
 }
 
 .day-indicator.studied {
   background-color: var(--primary-color);
   border-color: var(--primary-color);
   color: white;
+  box-shadow: var(--shadow-sm);
 }
 
 /* Level Display */
 .level-display {
   display: flex;
-  gap: 1.5rem;
+  gap: var(--space-lg);
   align-items: center;
 }
 
 .level-badge {
   width: 100px;
   height: 100px;
-  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+  background: var(--primary-gradient);
   border-radius: 50%;
   display: flex;
   flex-direction: column;
@@ -4777,17 +5133,19 @@ export default {
   justify-content: center;
   color: white;
   flex-shrink: 0;
+  box-shadow: var(--shadow-md);
 }
 
 .level-value {
   font-size: 2.5rem;
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .level-title {
   font-size: 0.65rem;
   text-align: center;
   max-width: 90%;
+  font-weight: 600;
 }
 
 .xp-info {
@@ -4800,11 +5158,12 @@ export default {
   border-radius: var(--border-radius);
   overflow: hidden;
   margin-bottom: 0.5rem;
+  box-shadow: inset 0 0 0 1px var(--border-color);
 }
 
 .xp-progress {
   height: 100%;
-  background: linear-gradient(to right, var(--primary-color), var(--primary-dark));
+  background: var(--primary-gradient);
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -4822,32 +5181,58 @@ export default {
 }
 
 .xp-current {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--primary-color);
+}
+
+.xp-next {
+  color: var(--text-secondary);
 }
 
 /* Achievements */
 .achievements-section {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
-  padding: 1.5rem;
+  padding: var(--space-lg);
   box-shadow: var(--shadow-md);
+  transition: transform var(--transition-normal),
+  box-shadow var(--transition-normal);
+  margin-bottom: var(--space-xl);
+}
+
+.achievements-section:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
 }
 
 .achievements-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--space-lg);
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: var(--space-md);
 }
 
 .achievements-header h3 {
-  font-size: 1.1rem;
-  font-weight: 600;
+  font-size: 1.2rem;
+  font-weight: 700;
   margin: 0;
   color: var(--text-primary);
+  position: relative;
+  display: inline-block;
+  padding-bottom: var(--space-xs);
+}
+
+.achievements-header h3::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 30px;
+  background: var(--primary-gradient);
+  border-radius: 3px;
 }
 
 .achievements-filter {
@@ -4863,24 +5248,27 @@ export default {
   background-color: var(--bg-input);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
   font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .achievements-filter button.active {
-  background-color: var(--primary-color);
+  background: var(--primary-gradient);
   color: white;
   border-color: var(--primary-color);
 }
 
 .achievements-filter button:not(.active):hover {
   background-color: var(--bg-hover);
+  color: var(--primary-color);
+  border-color: var(--primary-light);
 }
 
 .achievements-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
+  gap: var(--space-lg);
 }
 
 .achievement-card {
@@ -4888,7 +5276,7 @@ export default {
   border-radius: var(--border-radius);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
-  transition: transform 0.2s ease;
+  transition: all var(--transition-normal);
   border: 1px solid var(--border-color-light);
 }
 
@@ -4911,12 +5299,12 @@ export default {
   align-items: center;
   justify-content: center;
   background-color: var(--bg-input);
-  padding: 1rem;
+  padding: var(--space-md);
 }
 
 .achievement-icon img {
   max-height: 100%;
-  opacity: 0.7;
+  transition: opacity var(--transition-normal);
 }
 
 .achievement-card.locked .achievement-icon img {
@@ -4924,12 +5312,12 @@ export default {
 }
 
 .achievement-info {
-  padding: 1rem;
+  padding: var(--space-md);
 }
 
 .achievement-info h4 {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.1rem;
+  font-weight: 700;
   margin-top: 0;
   margin-bottom: 0.5rem;
   color: var(--text-primary);
@@ -4938,7 +5326,8 @@ export default {
 .achievement-info p {
   color: var(--text-secondary);
   font-size: 0.9rem;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-md);
+  line-height: 1.5;
 }
 
 .achievement-progress {
@@ -4955,12 +5344,12 @@ export default {
 
 .progress {
   height: 100%;
-  background-color: var(--primary-color);
+  background: var(--primary-gradient);
   border-radius: 4px;
 }
 
 .achievement-card.completed .progress {
-  background-color: var(--success-color);
+  background: linear-gradient(135deg, var(--success-color), #66bb6a);
 }
 
 .progress-text {
@@ -4970,7 +5359,7 @@ export default {
 }
 
 .achievement-badge {
-  padding: 0.5rem 1rem;
+  padding: 0.5rem var(--space-md);
   background-color: var(--bg-input);
   border-top: 1px solid var(--border-color-light);
   font-size: 0.8rem;
@@ -4979,12 +5368,12 @@ export default {
 }
 
 .achievement-card.completed .achievement-badge {
-  background-color: rgba(76, 175, 80, 0.1);
+  background-color: var(--success-light);
   color: var(--success-color);
 }
 
 .achievement-card.in-progress .achievement-badge {
-  background-color: rgba(123, 73, 255, 0.1);
+  background-color: rgba(124, 77, 255, 0.1);
   color: var(--primary-color);
 }
 
@@ -4994,31 +5383,53 @@ export default {
 
 /* ========== Profile Tab Styles ========== */
 .profile-tab h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: var(--space-xl);
   color: var(--text-primary);
+  position: relative;
+  display: inline-block;
+  padding-bottom: var(--space-xs);
+}
+
+.profile-tab h2::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 40px;
+  background: var(--primary-gradient);
+  border-radius: 3px;
 }
 
 .profile-content {
   max-width: 800px;
   margin: 0 auto;
+  width: 100%;
 }
 
 .profile-card {
   background-color: var(--bg-card);
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-md);
-  padding: 2rem;
-  margin-bottom: 2rem;
+  padding: var(--space-xl);
+  width: 100%;
+  transition: transform var(--transition-normal),
+  box-shadow var(--transition-normal);
+}
+
+.profile-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
 }
 
 .profile-header {
   display: flex;
   align-items: center;
-  gap: 2rem;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
+  gap: var(--space-xl);
+  margin-bottom: var(--space-xl);
+  padding-bottom: var(--space-lg);
   border-bottom: 1px solid var(--border-color-light);
 }
 
@@ -5031,6 +5442,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: var(--shadow-md);
 }
 
 .profile-avatar img {
@@ -5042,13 +5454,13 @@ export default {
 .avatar-placeholder {
   width: 100%;
   height: 100%;
-  background-color: var(--primary-color);
+  background: var(--primary-gradient);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 2.5rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .profile-info {
@@ -5057,65 +5469,85 @@ export default {
 
 .profile-info h3 {
   font-size: 1.5rem;
-  font-weight: 600;
+  font-weight: 800;
   margin: 0 0 0.5rem;
-  color: var(--primary-color);
+  color: var(--text-primary);
 }
 
 .user-email {
-  color: var(--text-secondary);
+  color: var(--primary-color);
   margin-bottom: 0.25rem;
+  font-weight: 500;
 }
 
 .user-role {
   color: var(--text-primary);
-  font-weight: 500;
+  font-weight: 600;
   margin-bottom: 0.25rem;
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background-color: var(--bg-input);
+  border-radius: 12px;
 }
 
 .user-details {
   color: var(--text-secondary);
   font-size: 0.9rem;
+  margin-top: 0.5rem;
 }
 
 .profile-details {
-  margin-bottom: 2rem;
+  margin-bottom: var(--space-xl);
 }
 
 .profile-details h4 {
   font-size: 1.1rem;
-  font-weight: 600;
-  margin: 1.5rem 0 1rem;
+  font-weight: 700;
+  margin: var(--space-lg) 0 var(--space-md);
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-color-light);
   padding-bottom: 0.5rem;
+  position: relative;
+}
+
+.profile-details h4::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 2px;
+  width: 40px;
+  background: var(--primary-gradient);
 }
 
 .module-list {
+  padding: 0;
+  list-style: none;
   border: 1px solid var(--border-color-light);
   border-radius: var(--border-radius);
   overflow: hidden;
 }
 
-.module-list li {
-  padding: 0.75rem;
+.module-list-item {
+  padding: var(--space-md);
   border-bottom: 1px solid var(--border-color-light);
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  transition: background-color var(--transition-fast);
 }
 
-.module-list li span {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-}
-
-.module-list-item {
-  padding: 1rem;
-  transition: background-color 0.2s ease;
+.module-list-item:last-child {
+  border-bottom: none;
 }
 
 .module-list-item:hover {
-  background-color: rgba(123, 73, 255, 0.05);
+  background-color: var(--bg-hover);
+}
+
+.module-info {
+  display: flex;
+  flex-direction: column;
 }
 
 .module-name {
@@ -5142,48 +5574,12 @@ export default {
 }
 
 .enrolled-badge {
-  background-color: var(--primary-color);
-  color: white;
+  background-color: var(--success-light);
+  color: var(--success-color);
   font-size: 0.75rem;
   font-weight: 600;
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
-  box-shadow: 0 2px 4px rgba(123, 73, 255, 0.2);
-}
-
-.module-score {
-  font-weight: 700;
-  font-size: 1.1rem;
-}
-
-.excellent-score {
-  color: #2ecc71;
-}
-
-.good-score {
-  color: #3498db;
-}
-
-.average-score {
-  color: #f1c40f;
-}
-
-.pass-score {
-  color: #e67e22;
-}
-
-.fail-score {
-  color: #e74c3c;
-}
-
-.empty-state {
-  padding: 1rem;
-  background-color: var(--bg-input);
-  border-radius: var(--border-radius);
-  text-align: center;
-  color: var(--text-secondary);
-  font-style: italic;
-  margin-bottom: 1.5rem;
 }
 
 .preference-item {
@@ -5207,15 +5603,15 @@ export default {
 .profile-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
+  gap: var(--space-md);
 }
 
 .edit-profile-btn, .update-preferences-btn {
   padding: 0.75rem 1.25rem;
   border-radius: var(--border-radius);
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal);
   text-decoration: none;
   display: inline-block;
 }
@@ -5229,17 +5625,22 @@ export default {
 .edit-profile-btn:hover {
   background-color: var(--bg-hover);
   transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+  border-color: var(--primary-light);
+  color: var(--primary-color);
 }
 
 .update-preferences-btn {
-  background-color: var(--primary-color);
+  background: var(--primary-gradient);
   color: white;
   border: none;
+  box-shadow: var(--shadow-sm);
 }
 
 .update-preferences-btn:hover {
-  background-color: var(--primary-dark);
   transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
 }
 
 /* ========== Modal Styles ========== */
@@ -5254,8 +5655,14 @@ export default {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 1rem;
-  backdrop-filter: blur(2px);
+  padding: var(--space-md);
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .modal-container {
@@ -5265,13 +5672,38 @@ export default {
   max-width: 600px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-xl);
   display: flex;
   flex-direction: column;
+  animation: modalSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-container::-webkit-scrollbar-thumb {
+  background-color: var(--border-color);
+  border-radius: 3px;
 }
 
 .modal-header {
-  padding: 1.25rem 1.5rem;
+  padding: var(--space-lg) var(--space-lg) var(--space-md);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   justify-content: space-between;
@@ -5284,7 +5716,7 @@ export default {
 
 .modal-header h3 {
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: 700;
   margin: 0;
   color: var(--text-primary);
 }
@@ -5300,553 +5732,69 @@ export default {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
 }
 
 .close-modal-btn:hover {
   background-color: var(--bg-hover);
   color: var(--text-primary);
+  transform: rotate(90deg);
 }
 
 .modal-body {
-  padding: 1.5rem;
+  padding: var(--space-lg);
+  overflow-y: auto;
 }
 
 .modal-footer {
-  padding: 1.25rem 1.5rem;
+  padding: var(--space-md) var(--space-lg);
   border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: flex-end;
-  gap: 1rem;
+  gap: var(--space-md);
   position: sticky;
   bottom: 0;
   background-color: var(--bg-card);
   z-index: 10;
 }
 
-/* Form styles */
-.form-group {
-  margin-bottom: 1.25rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.form-row {
-  display: flex;
-  gap: 1.25rem;
-  margin-bottom: 1.25rem;
-}
-
-.form-row .form-group {
-  flex: 1;
-  margin-bottom: 0;
-}
-
-.checkbox-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 0.75rem;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-}
-
-.checkbox-label input[type="checkbox"] {
-  accent-color: var(--primary-color);
-}
-
-.module-selection {
-  max-height: 200px;
-  overflow-y: auto;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  padding: 0.75rem;
-}
-
-.module-selection .checkbox-label {
-  padding: 0.5rem;
-  border-bottom: 1px solid var(--border-color-light);
-}
-
-.module-selection .checkbox-label:last-child {
-  border-bottom: none;
-}
-
-input[type="text"],
-input[type="date"],
-select,
-textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  background-color: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 1rem;
-}
-
-textarea {
-  resize: vertical;
-  min-height: 100px;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(123, 73, 255, 0.1);
-}
-
-/* Event details modal */
-.event-modal {
-  max-width: 500px;
-}
-
-.event-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.event-header {
-  padding: 1.25rem;
-  border-radius: var(--border-radius);
-  color: white;
-  margin-bottom: 1.25rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.event-header h4 {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin: 0;
-}
-
-.event-module-badge {
-  font-size: 0.8rem;
-  padding: 0.25rem 0.5rem;
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-}
-
-.event-info {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.event-info-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: var(--text-primary);
-}
-
-.event-info-item svg {
-  color: var(--primary-color);
-}
-
-.event-description h5,
-.event-topics h5,
-.event-status h5 {
-  font-size: 1rem;
-  font-weight: 600;
-  margin: 0 0 0.5rem;
-  color: var(--text-primary);
-}
-
-.event-topics .topic-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.topic-tag {
-  font-size: 0.8rem;
-  padding: 0.25rem 0.5rem;
-  background-color: var(--bg-input);
-  border-radius: 12px;
-  color: var(--text-secondary);
-}
-
-.no-topics {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  font-style: italic;
-}
-
-.status-badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  font-size: 0.8rem;
-  border-radius: 12px;
-  font-weight: 500;
-}
-
-.status-planned {
-  background-color: rgba(123, 73, 255, 0.1);
-  color: var(--primary-color);
-}
-
-.status-in-progress {
-  background-color: rgba(76, 175, 80, 0.1);
-  color: var(--success-color);
-}
-
-.status-completed {
-  background-color: rgba(3, 169, 244, 0.1);
-  color: #03a9f4;
-}
-
-.status-missed {
-  background-color: rgba(244, 67, 54, 0.1);
-  color: var(--error-color);
-}
-
-.session-actions {
-  display: flex;
-  gap: 1rem;
-  margin-right: auto;
-}
-
-.start-session-btn,
-.reschedule-btn,
-.complete-session-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: var(--border-radius);
-  font-weight: 500;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.start-session-btn {
-  background-color: var(--success-color);
-  color: white;
-  border: none;
-}
-
-.start-session-btn:hover {
-  background-color: #2e9c39;
-}
-
-.reschedule-btn {
-  background-color: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
-}
-
-.reschedule-btn:hover {
-  background-color: var(--bg-hover);
-}
-
-.complete-session-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-}
-
-.complete-session-btn:hover {
-  background-color: var(--primary-dark);
-}
-
-.close-btn {
-  padding: 0.5rem 1rem;
-  border-radius: var(--border-radius);
-  background-color: var(--bg-input);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.close-btn:hover {
-  background-color: var(--bg-hover);
-}
-
-.session-feedback {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-right: auto;
-}
-
-.feedback-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.rating-stars {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.star {
-  color: var(--border-color);
-  font-size: 1.25rem;
-}
-
-.star.filled {
-  color: var(--warning-color);
-}
-
-.xp-earned {
-  font-weight: 600;
-}
-
-.xp-value {
-  color: var(--primary-color);
-}
-
-/* Completion modal */
-.completion-modal {
-  max-width: 550px;
-}
-
-.feedback-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.rating-input {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.rating-star {
-  font-size: 1.75rem;
-  color: var(--border-color);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.rating-star:hover {
-  transform: scale(1.2);
-}
-
-.rating-star.selected {
-  color: var(--warning-color);
-}
-
-.topic-input-container {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.add-topic-btn {
-  padding: 0.75rem 1rem;
-  background-color: var(--bg-input);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.add-topic-btn:hover {
-  background-color: var(--bg-hover);
-}
-
-.topic-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.topic-tag {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0.75rem;
-  background-color: var(--bg-input);
-  border-radius: 12px;
-  font-size: 0.85rem;
-}
-
-.remove-topic-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  transition: all 0.2s ease;
-  padding: 0;
-}
-
-.remove-topic-btn:hover {
-  background-color: rgba(0, 0, 0, 0.1);
-  color: var(--error-color);
-}
-
-/* Calendar and Delete Confirmation Modals */
-.calendar-confirm-modal,
-.delete-confirm-modal {
-  max-width: 500px;
-}
-
-.confirmation-message {
-  text-align: center;
-}
-
-.confirmation-icon {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 1.5rem;
-  color: var(--primary-color);
-}
-
-.delete-icon {
-  color: var(--error-color);
-}
-
-.confirmation-message p {
-  margin-bottom: 1rem;
-  line-height: 1.6;
-}
-
-.confirmation-note {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  font-style: italic;
-  margin-top: 1rem;
-}
-
-.warning-text {
-  color: var(--warning-color);
-  font-weight: 500;
-}
-
-.confirm-btn,
-.delete-confirm-btn {
-  padding: 0.75rem 1.25rem;
-  border-radius: var(--border-radius);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-width: 100px;
-}
-
-.confirm-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-}
-
-.confirm-btn:hover {
-  background-color: var(--primary-dark);
-}
-
-.delete-confirm-btn {
-  background-color: var(--error-color);
-  color: white;
-  border: none;
-}
-
-.delete-confirm-btn:hover {
-  background-color: #d32f2f;
-}
-
-/* Modal footer buttons */
-.cancel-btn,
-.create-btn,
-.ai-generate-btn,
-.submit-btn {
-  padding: 0.75rem 1.25rem;
-  border-radius: var(--border-radius);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-width: 100px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.cancel-btn {
-  background-color: var(--bg-input);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
-}
-
-.cancel-btn:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.create-btn,
-.ai-generate-btn,
-.submit-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  box-shadow: 0 2px 4px rgba(123, 73, 255, 0.2);
-}
-
-.create-btn:hover,
-.ai-generate-btn:hover,
-.submit-btn:hover {
-  background-color: var(--primary-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 3px 6px rgba(123, 73, 255, 0.3);
-}
-
-.ai-generate-btn svg {
-  color: white;
-}
-
-/* Tutorial Styles */
+/* Tutorial Modal */
 .tutorial-modal {
   max-width: 650px;
 }
 
 .tutorial-step {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-xl);
 }
 
 .tutorial-step h4 {
-  font-size: 1.2rem;
-  margin-bottom: 10px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: var(--space-md);
   color: var(--primary-color);
 }
 
-.tutorial-step ul,
-.tutorial-step ol {
-  margin-left: 20px;
-  margin-bottom: 15px;
+.tutorial-step p {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-md);
+  line-height: 1.6;
+}
+
+.tutorial-step ul, .tutorial-step ol {
+  margin-left: var(--space-xl);
+  margin-bottom: var(--space-lg);
+  color: var(--text-secondary);
 }
 
 .tutorial-step li {
-  margin-bottom: 8px;
+  margin-bottom: var(--space-sm);
+  line-height: 1.6;
 }
 
 .tutorial-icon {
   display: flex;
   justify-content: center;
-  margin: 20px 0;
+  margin: var(--space-lg) 0;
 }
 
 .tutorial-icon svg {
@@ -5854,11 +5802,11 @@ textarea:focus {
 }
 
 .tutorial-nav-btn {
-  padding: 8px 16px;
+  padding: 0.75rem 1.5rem;
   border-radius: var(--border-radius);
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
 }
 
 .prev-btn {
@@ -5867,45 +5815,164 @@ textarea:focus {
   border: 1px solid var(--border-color);
 }
 
+.prev-btn:hover {
+  background-color: var(--bg-hover);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
 .next-btn, .done-btn {
-  background-color: var(--primary-color);
+  background: var(--primary-gradient);
   color: white;
   border: none;
+  box-shadow: var(--shadow-sm);
 }
 
-/* No data placeholder */
-.no-data-placeholder {
-  padding: 3rem;
-  text-align: center;
-  background-color: var(--bg-card);
-  border-radius: var(--border-radius-lg);
+
+.today-summary {
+  background: var(--primary-gradient);
+  border-radius: var(--border-radius);
+  padding: 1rem;  /* Reduce padding */
+  box-shadow: 0 8px 20px rgba(158, 120, 255, 0.2);
+  color: white;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1rem; /* Reduce margin */
+  transition: all 0.3s ease;
+}
+
+.date-pill {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  padding: 0.3rem 0.75rem; /* Smaller padding */
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.quick-stats {
+  display: flex;
+  justify-content: space-around;
+  gap: 0.5rem; /* Reduce gap */
+}
+
+
+
+
+
+.daily-progress {
+  margin-top: 0.75rem;
+}
+
+
+.next-btn:hover, .done-btn:hover {
+  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
-  margin-top: 2rem;
 }
 
-.no-data-placeholder svg {
-  color: var(--primary-color);
-  opacity: 0.7;
-  margin-bottom: 1.5rem;
+/* ========== Animation Classes ========== */
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
 }
 
-.no-data-placeholder h3 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  color: var(--text-primary);
+.animate-slide-down {
+  animation: slideDown 0.4s ease-out;
 }
 
-.no-data-placeholder p {
-  color: var(--text-secondary);
-  max-width: 600px;
-  margin: 0 auto 2rem;
-  line-height: 1.6;
+.animate-pop-in {
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes slideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  70% {
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* ========== Responsive Styles ========== */
+@media (max-width: 1280px) {
+  .study-hub-container {
+    padding: var(--space-lg);
+  }
+
+  .study-hub-container.with-sidebar {
+    margin-left: 280px;
+  }
+
+  .sidebarCollapsed .study-hub-container.with-sidebar {
+    margin-left: 60px;
+  }
+
+  .study-hub-sidebar {
+    width: 280px;
+  }
+
+  .sidebarCollapsed .study-hub-sidebar {
+    width: 50px;
+  }
+}
+
+@media (max-width: 992px) {
+  .study-hub-container {
+    padding: var(--space-md);
+  }
+
+  .study-hub-container.with-sidebar {
+    margin-left: 0;
+  }
+
+  .study-hub-sidebar {
+    transform: translateX(-100%);
+    box-shadow: var(--shadow-lg);
+    z-index: 40;
+  }
+
+  .showSidebar .study-hub-sidebar {
+    transform: translateX(0);
+  }
+
+  .streak-section, .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .streak-display, .level-display {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .streak-stat {
+    width: 100%;
+  }
+}
+
 @media (max-width: 768px) {
   .study-hub-container {
     padding: 1rem;
+  }
+
+  .study-hub-container.with-sidebar {
+    margin-left: 0;
   }
 
   .study-hub-header {
@@ -5924,6 +5991,20 @@ textarea:focus {
     font-size: 0.85rem;
   }
 
+  .header-actions {
+    width: 100%;
+    margin-top: var(--space-sm);
+  }
+
+  .toggle-sidebar-btn, .help-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .help-button {
+    margin-top: var(--space-sm);
+  }
+
   .schedule-header {
     flex-direction: column;
     align-items: flex-start;
@@ -5931,98 +6012,66 @@ textarea:focus {
 
   .schedule-actions {
     width: 100%;
-    justify-content: space-between;
+    margin-top: var(--space-sm);
+  }
+
+  .schedule-btn, .ai-schedule-btn {
+    width: 100%;
   }
 
   .schedules-list {
     grid-template-columns: 1fr;
   }
 
-  .schedule-card-actions {
-    flex-direction: column;
-  }
-
   .calendar-controls {
     flex-direction: column;
     align-items: flex-start;
+    gap: var(--space-sm);
   }
 
   .view-selector, .month-navigator {
     width: 100%;
   }
 
-  .month-navigator {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 0.5rem;
-  }
-
-  .today-btn {
-    grid-column: span 3;
-  }
-
-  .current-period {
-    text-align: center;
-  }
-
-  .month-grid-header {
-    grid-template-columns: repeat(7, 1fr);
-  }
-
-  .day-header {
-    padding: 0.5rem 0.25rem;
+  .month-grid-header .day-header {
     font-size: 0.8rem;
+    padding: 0.5rem 0.25rem;
   }
 
   .month-grid {
-    grid-auto-rows: minmax(60px, 1fr);
+    grid-auto-rows: minmax(80px, 1fr);
   }
 
   .day-cell {
-    padding: 0.25rem;
+    padding: 0.4rem;
   }
 
   .day-event-pill {
-    padding: 0.15rem 0.35rem;
     font-size: 0.7rem;
+    padding: 0.15rem 0.3rem;
   }
 
   .week-view, .day-view {
-    height: 500px;
+    height: 450px;
   }
 
-  .analytics-grid {
-    grid-template-columns: 1fr;
+  .time-column {
+    width: 40px;
   }
 
-  .stats-overview {
-    grid-template-columns: repeat(2, 1fr);
+  .day-event {
+    left: 40px;
   }
 
   .module-stats-header, .module-stats-row {
-    grid-template-columns: 2fr repeat(3, 1fr);
+    grid-template-columns: 2fr repeat(2, 1fr);
+    font-size: 0.9rem;
   }
 
-  .module-stat-cell:nth-child(4), .module-stat-cell:nth-child(5) {
+  .module-stat-cell:nth-child(3),
+  .module-stat-cell:nth-child(4),
+  .module-stat-cell:nth-child(5) {
     display: none;
-  }
-
-  .streak-section {
-    grid-template-columns: 1fr;
-  }
-
-  .streak-display {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .level-display {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .achievements-grid {
-    grid-template-columns: 1fr;
   }
 
   .profile-header {
@@ -6031,144 +6080,102 @@ textarea:focus {
   }
 
   .profile-avatar {
-    margin: 0 auto;
+    margin: 0 auto var(--space-md);
   }
 
-  .preference-item {
+  .profile-actions {
     flex-direction: column;
-    gap: 0.25rem;
+    gap: var(--space-sm);
   }
 
-  .preference-label {
-    min-width: 0;
+  .edit-profile-btn, .update-preferences-btn {
+    width: 100%;
+    text-align: center;
   }
 
-  .form-row {
-    flex-direction: column;
-    gap: 1.25rem;
+  .modal-body, .modal-header, .modal-footer {
+    padding: var(--space-md);
   }
 
-  .ai-tips-section {
-    padding: 1rem;
-  }
-
-  .tip-card {
-    flex-direction: column;
-  }
-
-  .tip-actions {
-    justify-content: center;
-  }
-
-  .modal-container {
-    width: 95%;
-    max-height: 85vh;
-  }
-
-  .module-list-item {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .enrolled-badge,
-  .module-score {
-    margin-top: 0.5rem;
-    align-self: flex-start;
-  }
-
-  .tutorial-modal {
-    width: 95%;
+  .profile-card {
+    padding: var(--space-md);
   }
 }
 
 @media (max-width: 480px) {
-  .study-hub-header h1 {
-    font-size: 1.6rem;
-  }
-
-  .schedule-actions {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .schedule-btn, .ai-schedule-btn {
-    width: 100%;
-    justify-content: center;
+  .month-navigator .current-period {
+    display: none;
   }
 
   .nav-btn, .today-btn {
-    font-size: 0.8rem;
+    width: 100%;
   }
 
-  .current-period {
-    font-size: 0.9rem;
-  }
-
-  .stats-overview {
-    grid-template-columns: 1fr;
-  }
-
-  .streak-calendar {
-    overflow-x: auto;
-    justify-content: flex-start;
-  }
-
-  .calendar-day {
-    min-width: 40px;
+  .day-cell {
+    padding: 0.25rem;
   }
 
   .achievements-filter {
     overflow-x: auto;
-    padding-bottom: 0.5rem;
+    padding-bottom: var(--space-sm);
+    width: 100%;
   }
 
   .achievements-filter button {
     white-space: nowrap;
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
   }
 
-  .module-stats-header, .module-stats-row {
-    grid-template-columns: 2fr 1fr;
+  .achievement-card .achievement-info h4 {
+    font-size: 1rem;
   }
 
-  .module-stat-cell:nth-child(3) {
-    display: none;
+  .achievement-card .achievement-info p {
+    font-size: 0.8rem;
   }
 
-  .checkbox-grid {
-    grid-template-columns: 1fr;
+  .tutorial-step h4 {
+    font-size: 1.1rem;
   }
 
-  .session-actions {
-    flex-direction: column;
-    width: 100%;
+  .tutorial-step ul, .tutorial-step ol {
+    margin-left: var(--space-md);
   }
 
-  .start-session-btn, .reschedule-btn, .complete-session-btn {
-    width: 100%;
-    justify-content: center;
+  .tutorial-nav-btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Touch Device Optimizations */
+@media (hover: none) {
+  .schedule-card:hover,
+  .analytics-card:hover,
+  .streak-card:hover,
+  .level-card:hover,
+  .achievement-card:hover,
+  .profile-card:hover,
+  .calendar-container:hover,
+  .schedules-list-section:hover,
+  .ai-tips-section:hover,
+  .achievements-section:hover {
+    transform: none;
   }
 
-  .modal-body {
-    padding: 1rem;
-  }
-
-  .modal-header {
-    padding: 1rem;
-  }
-
-  .modal-footer {
-    padding: 1rem;
-    flex-direction: column;
-  }
-
-  .cancel-btn, .create-btn, .ai-generate-btn, .submit-btn, .confirm-btn, .delete-confirm-btn {
-    width: 100%;
-  }
-
-  .help-button {
-    width: 100%;
-    justify-content: center;
-    margin-top: 0.5rem;
+  .activate-btn:active,
+  .calendar-btn:active,
+  .edit-btn:active,
+  .delete-btn:active,
+  .schedule-btn:active,
+  .ai-schedule-btn:active,
+  .nav-btn:active,
+  .today-btn:active,
+  .view-btn:active,
+  .toggle-sidebar-btn:active,
+  .help-button:active {
+    transform: scale(0.97);
   }
 }
 </style>
