@@ -314,7 +314,7 @@
       </div>
 
       <!-- Mobile Bottom Navigation -->
-      <div :class="['mobile-bottom-nav', { 'nav-collapsed': isNavCollapsed }]">
+      <div class="mobile-bottom-nav">
         <div class="mobile-nav-content">
           <router-link 
             v-for="(link, index) in navLinks" 
@@ -359,33 +359,12 @@
                   <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                 </svg>
               </div>
-              <div class="mobile-nav-text" :class="{ 'hidden': isNavCollapsed }">
+              <div class="mobile-nav-text">
                 {{ link.name }}
               </div>
             </a>
           </router-link>
-          
-          <div class="float-action-button">
-            <button @click="handleFloatAction" class="fab-button">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="16"></line>
-                <line x1="8" y1="12" x2="16" y2="12"></line>
-              </svg>
-            </button>
-          </div>
         </div>
-        
-        <button class="collapse-toggle" @click="toggleNavCollapse">
-          <svg v-if="isNavCollapsed" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="13 17 18 12 13 7"></polyline>
-            <polyline points="6 17 11 12 6 7"></polyline>
-          </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="11 17 6 12 11 7"></polyline>
-            <polyline points="18 17 13 12 18 7"></polyline>
-          </svg>
-        </button>
       </div>
     </div>
     
@@ -497,7 +476,7 @@ export default {
       darkMode: getDarkModePreference(),
       showUserMenu: false,
       showNotifications: false,
-      isNavCollapsed: localStorage.getItem('navCollapsed') === 'true' || false,
+      // Removed isNavCollapsed as it's no longer needed
       isScrolled: false,
       hasNotifications: true,
       notifications: [
@@ -601,15 +580,7 @@ export default {
       // Emit event so parent components can react
       this.$emit('logout');
     },
-    toggleNavCollapse() {
-      this.isNavCollapsed = !this.isNavCollapsed;
-      localStorage.setItem('navCollapsed', this.isNavCollapsed);
-    },
-    handleFloatAction() {
-      // Handle floating action button click
-      // Can be customized based on your app's needs
-      this.$emit('fabClick');
-    },
+    // Removed toggleNavCollapse and handleFloatAction methods as they're no longer needed
     markAsRead(index) {
       this.notifications[index].read = true;
     },
@@ -1748,25 +1719,11 @@ body.has-mobile-nav {
   overflow: hidden;
 }
 
-.nav-collapsed {
-  width: 70px;
-  left: 16px;
-  right: auto;
-}
-
 .mobile-nav-content {
   display: flex;
   height: 100%;
   width: 100%;
-  transition: all 0.5s ease;
   position: relative;
-}
-
-.nav-collapsed .mobile-nav-content {
-  flex-direction: column;
-  justify-content: center;
-  gap: 10px;
-  padding: 8px 0;
 }
 
 .mobile-nav-item {
@@ -1777,11 +1734,7 @@ body.has-mobile-nav {
   transition: all var(--transition-speed) ease;
 }
 
-.nav-collapsed .mobile-nav-item {
-  height: auto;
-  width: 100%;
-  flex: none;
-}
+/* Removed .nav-collapsed .mobile-nav-item style */
 
 .mobile-nav-link {
   display: flex;
@@ -1818,13 +1771,7 @@ body.has-mobile-nav {
   opacity: 1;
 }
 
-.nav-collapsed .mobile-nav-link::before {
-  left: 0;
-  bottom: 25%;
-  width: 3px;
-  height: 50%;
-  border-radius: 0 3px 3px 0;
-}
+/* Removed .nav-collapsed .mobile-nav-link::before style */
 
 .mobile-nav-icon {
   display: flex;
@@ -1844,9 +1791,7 @@ body.has-mobile-nav {
   transform: translateY(-2px);
 }
 
-.nav-collapsed .mobile-nav-item.active .mobile-nav-icon {
-  transform: scale(1.15);
-}
+/* Removed .nav-collapsed .mobile-nav-item.active .mobile-nav-icon style */
 
 .mobile-nav-text {
   font-size: 12px;
@@ -1860,74 +1805,9 @@ body.has-mobile-nav {
   transform: translateY(-2px);
 }
 
-.mobile-nav-text.hidden {
-  opacity: 0;
-  height: 0;
-  margin: 0;
-  transform: scale(0);
-}
+/* Removed .mobile-nav-text.hidden class as it's no longer needed */
 
-/* Floating Action Button */
-.float-action-button {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 2;
-}
-
-.fab-button {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: var(--primary-gradient);
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  box-shadow: 0 4px 10px rgba(103, 58, 183, 0.3);
-  cursor: pointer;
-  transition: all var(--transition-speed) ease;
-}
-
-.fab-button:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(103, 58, 183, 0.3);
-}
-
-.fab-button:active {
-  transform: scale(0.95);
-}
-
-/* Collapse Button */
-.collapse-toggle {
-  position: absolute;
-  right: -24px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--primary-gradient);
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  box-shadow: 0 4px 10px rgba(103, 58, 183, 0.3);
-  cursor: pointer;
-  z-index: 3;
-  transition: all var(--transition-speed) ease;
-}
-
-.collapse-toggle:active {
-  transform: translateY(-50%) scale(0.95);
-}
-
-.nav-collapsed .collapse-toggle svg {
-  transform: rotate(180deg);
-}
+/* Removed Floating Action Button and Collapse Button styles */
 
 /* Media query adjustments for smaller screens */
 @media (max-width: 374px) {

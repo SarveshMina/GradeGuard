@@ -9,17 +9,6 @@
         @logout="handleLogout"
     />
 
-    <!-- Global Add Module Button -->
-    <div class="global-module-button">
-      <button @click="showGlobalAddModule" class="floating-add-button">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        <span>Add Module</span>
-      </button>
-    </div>
-
     <!-- Layout container: main content and sidebar -->
     <div class="dashboard-layout">
       <!-- Floating collapse button that appears when sidebar is hidden -->
@@ -40,15 +29,7 @@
         <div class="dashboard-header">
           <h1>My Dashboard</h1>
           <!-- Prominent Add Module Button -->
-          <div class="dashboard-actions">
-            <button @click="showGlobalAddModule" class="primary-action-button">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-              Add Module
-            </button>
-          </div>
+
           <div class="view-controls">
             <button :class="{ active: activeView === 'overview' }" @click="activeView = 'overview'">Overview</button>
             <button :class="{ active: activeView === 'yearly' }" @click="activeView = 'yearly'">Yearly View</button>
