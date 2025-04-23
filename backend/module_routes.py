@@ -155,6 +155,9 @@ def create_module(req: func.HttpRequest) -> func.HttpResponse:
         # Add activity to user's dashboard
         add_module_activity(identity, module, "Module Added")
 
+        # Update university module data
+        update_university_module_data(module.dict(exclude_none=True))
+
         return func.HttpResponse(json.dumps(result), status_code=201)
     except Exception as e:
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=400)
@@ -233,6 +236,9 @@ def update_module(req: func.HttpRequest) -> func.HttpResponse:
         # Add activity for module update
         module_obj = Module(**existing_module)
         add_module_activity(identity, module_obj, "Module Updated")
+        
+        # Update university module data
+        update_university_module_data(existing_module)
         
         return func.HttpResponse(json.dumps(result), status_code=200)
     except Exception as e:
@@ -445,3 +451,55 @@ def get_module_analytics(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(json.dumps(module_stats), status_code=200)
     except Exception as e:
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+    
+
+def update_university_module_data(module):
+    """Update university data when a module is created or updated"""
+    try:
+        # Extract needed fields
+        module_id = module.get("id")
+        university = module.get("university")
+        degree = module.get("degree")
+        
+        if not module_id or not university or not degree:
+            return False
+            
+        # Get university document
+        from database import get_university_doc, _uni_container
+        university_doc = get_university_doc(university)
+        
+        if not university_doc:
+            return False
+            
+        # Ensure degrees structure exists
+        if "degrees" not in university_doc:
+            university_doc["degrees"] = {}
+            
+        if degree not in university_doc["degrees"]:
+            university_doc["degrees"][degree] = {}
+            
+        if "modules" not in university_doc["degrees"][degree]:
+            university_doc["degrees"][degree]["modules"] = {}
+            
+        # Prepare module data to store in university document
+        module_data = {
+            "id": module_id,
+            "name": module.get("name", ""),
+            "code": module.get("code", ""),
+            "credits": module.get("credits", 0),
+            "year": module.get("year", ""),
+            "semester": module.get("semester", 1),
+            "score": module.get("score", 0),
+            "last_updated": datetime.utcnow().isoformat()
+        }
+        
+        # Store in university document
+        university_doc["degrees"][degree]["modules"][module_id] = module_data
+        
+        # Save changes
+        _uni_container.upsert_item(university_doc)
+        
+        return True
+    except Exception as e:
+        print(f"Error updating university module data: {str(e)}")
+        return False

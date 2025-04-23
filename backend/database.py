@@ -3,6 +3,8 @@
 import os
 import uuid
 from azure.cosmos import CosmosClient
+from datetime import datetime
+import json
 from typing import List, Dict, Any
 
 COSMOS_ENDPOINT = os.environ.get("COSMOS_ENDPOINT")
@@ -292,3 +294,240 @@ def get_modules_with_stats(university: str, degree: str):
     except Exception as e:
         print(f"Error getting modules with stats: {str(e)}")
         return []
+    
+def get_module_reviews(module_id: str):
+    """Get all reviews for a specific module"""
+    query = "SELECT * FROM c WHERE c.type = 'module_review' AND c.module_id = @module_id"
+    parameters = [{"name": "@module_id", "value": module_id}]
+    
+    reviews = list(_container.query_items(
+        query=query,
+        parameters=parameters,
+        enable_cross_partition_query=True
+    ))
+    return reviews
+
+def create_module_review(review_data: dict):
+    """Create a new module review"""
+    # Add metadata
+    review_data["type"] = "module_review"
+    if "id" not in review_data:
+        review_data["id"] = f"review_{str(uuid.uuid4())}"
+    review_data["created_at"] = datetime.utcnow().isoformat()
+    
+    # Create in database
+    result = _container.create_item(body=review_data)
+    
+    # Update module statistics
+    update_module_statistics(review_data["module_id"], review_data["university"], review_data["degree"])
+    
+    return result
+
+def delete_module_review(review_id: str, user_email: str):
+    """Delete a module review (only by the creator)"""
+    query = "SELECT * FROM c WHERE c.id = @id AND c.user_email = @email AND c.type = 'module_review'"
+    parameters = [
+        {"name": "@id", "value": review_id},
+        {"name": "@email", "value": user_email}
+    ]
+    
+    reviews = list(_container.query_items(
+        query=query,
+        parameters=parameters,
+        enable_cross_partition_query=True
+    ))
+    
+    if not reviews:
+        return False
+    
+    # Get the module_id for updating statistics later
+    module_id = reviews[0].get("module_id")
+    university = reviews[0].get("university")
+    degree = reviews[0].get("degree")
+    
+    # Delete the review
+    _container.delete_item(item=review_id, partition_key=review_id)
+    
+    # Update module statistics
+    update_module_statistics(module_id, university, degree)
+    
+    return True
+
+def get_module_statistics(module_id: str, university: str, degree: str):
+    """Calculate statistics for a module"""
+    # Get all reviews for the module
+    reviews = get_module_reviews(module_id)
+    
+    if not reviews:
+        return {
+            "difficulty_avg": 0,
+            "teaching_quality_avg": 0,
+            "recommended_avg": 0,
+            "total_reviews": 0,
+            "grade_distribution": {}
+        }
+    
+    # Calculate average ratings
+    total_difficulty = sum(r.get("difficulty_rating", 0) for r in reviews)
+    total_teaching = sum(r.get("teaching_quality_rating", 0) for r in reviews)
+    total_recommended = sum(r.get("recommended_rating", 0) for r in reviews)
+    
+    difficulty_avg = round(total_difficulty / len(reviews), 1) if reviews else 0
+    teaching_avg = round(total_teaching / len(reviews), 1) if reviews else 0
+    recommended_avg = round(total_recommended / len(reviews), 1) if reviews else 0
+    
+    # Calculate grade distribution
+    grade_distribution = {}
+    for review in reviews:
+        if "grade_received" in review and review["grade_received"]:
+            grade_range = get_grade_range(review["grade_received"])
+            if grade_range not in grade_distribution:
+                grade_distribution[grade_range] = 0
+            grade_distribution[grade_range] += 1
+    
+    return {
+        "difficulty_avg": difficulty_avg,
+        "teaching_quality_avg": teaching_avg,
+        "recommended_avg": recommended_avg,
+        "total_reviews": len(reviews),
+        "grade_distribution": grade_distribution
+    }
+
+def get_grade_range(grade: int) -> str:
+    """Convert grade to a range string for distribution"""
+    if grade >= 90:
+        return "90% +"
+    elif grade >= 80:
+        return "80% +"
+    elif grade >= 70:
+        return "70% +"
+    elif grade >= 60:
+        return "60% +"
+    elif grade >= 50:
+        return "50% +"
+    elif grade >= 40:
+        return "40% +"
+    elif grade >= 30:
+        return "30% +"
+    elif grade >= 20:
+        return "20% +"
+    elif grade >= 10:
+        return "10% +"
+    else:
+        return "0% +"
+
+def update_module_statistics(module_id: str, university: str, degree: str):
+    """Update module statistics in the university document"""
+    try:
+        # Get statistics for this module
+        stats = get_module_statistics(module_id, university, degree)
+        
+        # Now find the module in the university document
+        # First, get the university document
+        query = "SELECT * FROM c WHERE c.name = @university"
+        parameters = [{"name": "@university", "value": university}]
+        
+        universities = list(_uni_container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+        
+        if not universities:
+            return False
+            
+        university_doc = universities[0]
+        
+        # Look for the degree and modules structure
+        if "degrees" not in university_doc:
+            university_doc["degrees"] = {}
+            
+        if degree not in university_doc["degrees"]:
+            university_doc["degrees"][degree] = {"modules": {}}
+            
+        if "modules" not in university_doc["degrees"][degree]:
+            university_doc["degrees"][degree]["modules"] = {}
+            
+        # Update module statistics
+        university_doc["degrees"][degree]["modules"][module_id] = {
+            "statistics": stats,
+            "last_updated": datetime.utcnow().isoformat()
+        }
+        
+        # Save changes
+        _uni_container.upsert_item(university_doc)
+        
+        return True
+    except Exception as e:
+        print(f"Error updating module statistics: {str(e)}")
+        return False
+
+def get_university_modules_with_stats(university: str, degree: str = None):
+    """Get all modules for a university with their statistics"""
+    # Query for the university
+    query = "SELECT * FROM c WHERE c.name = @university"
+    parameters = [{"name": "@university", "value": university}]
+    
+    universities = list(_uni_container.query_items(
+        query=query,
+        parameters=parameters,
+        enable_cross_partition_query=True
+    ))
+    
+    if not universities:
+        return []
+        
+    university_doc = universities[0]
+    
+    # Get the modules from the university document
+    modules_with_stats = []
+    
+    if "degrees" in university_doc:
+        if degree:
+            # Only get modules for the specified degree
+            if degree in university_doc["degrees"]:
+                degree_data = university_doc["degrees"][degree]
+                if "modules" in degree_data:
+                    for module_id, module_data in degree_data["modules"].items():
+                        # Get the base module data
+                        module_info = get_module_by_id_public(module_id)
+                        if module_info:
+                            # Make a copy to avoid modifying the original
+                            module_dict = dict(module_info)
+                            # Add statistics
+                            module_dict["statistics"] = module_data.get("statistics", {})
+                            modules_with_stats.append(module_dict)
+        else:
+            # Get modules for all degrees
+            for degree_name, degree_data in university_doc["degrees"].items():
+                if "modules" in degree_data:
+                    for module_id, module_data in degree_data["modules"].items():
+                        # Get the base module data
+                        module_info = get_module_by_id_public(module_id)
+                        if module_info:
+                            # Make a copy to avoid modifying the original
+                            module_dict = dict(module_info)
+                            # Add degree info and statistics
+                            module_dict["degree"] = degree_name
+                            module_dict["statistics"] = module_data.get("statistics", {})
+                            modules_with_stats.append(module_dict)
+    
+    return modules_with_stats
+
+def get_module_by_id_public(module_id: str):
+    """Get a module by ID for public consumption (without user-specific data)"""
+    query = "SELECT c.id, c.name, c.code, c.credits, c.year, c.semester, c.university, c.degree, c.description FROM c WHERE c.id = @id AND c.type = 'module'"
+    parameters = [{"name": "@id", "value": module_id}]
+    
+    modules = list(_container.query_items(
+        query=query,
+        parameters=parameters,
+        enable_cross_partition_query=True
+    ))
+    
+    # Return as a dictionary, not a module object
+    return dict(modules[0]) if modules else None
+
+def get_degree_modules_with_stats(university: str, degree: str):
+    """Get all modules for a specific degree with statistics"""
+    return get_university_modules_with_stats(university, degree)

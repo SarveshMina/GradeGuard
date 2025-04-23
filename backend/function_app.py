@@ -44,6 +44,16 @@ from university_routes import (
     import_template_modules
 )
 
+from graderadar_routes import (
+    get_universities_with_data,
+    get_university_degrees,
+    get_degree_modules,
+    get_module_details,
+    create_module_review_route,
+    delete_module_review_route,
+    get_user_reviews
+)
+
 from study_routes import (
     get_schedules, create_schedule_manual, create_schedule_ai, update_schedule_route, delete_schedule_route,
     get_active_schedule_route, activate_schedule_route, create_calendar_events_route,
@@ -766,4 +776,54 @@ def schedule_explanations_endpoint(req: func.HttpRequest) -> func.HttpResponse:
     if req.method == "OPTIONS":
         return cors_preflight_response(req)
     response = get_schedule_explanations(req)
+    return add_cors_headers(response, req)
+
+
+@app.route(route="graderadar/universities", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def graderadar_universities_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = get_universities_with_data(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="graderadar/university/degrees", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def graderadar_university_degrees_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = get_university_degrees(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="graderadar/modules", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def graderadar_modules_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = get_degree_modules(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="graderadar/module", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def graderadar_module_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = get_module_details(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="graderadar/reviews", methods=["POST", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def graderadar_create_review_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = create_module_review_route(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="graderadar/reviews/{id}", methods=["DELETE", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def graderadar_delete_review_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = delete_module_review_route(req)
+    return add_cors_headers(response, req)
+
+@app.route(route="graderadar/user/reviews", methods=["GET", "OPTIONS"], auth_level=func.AuthLevel.ANONYMOUS)
+def graderadar_user_reviews_endpoint(req: func.HttpRequest) -> func.HttpResponse:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(req)
+    response = get_user_reviews(req)
     return add_cors_headers(response, req)
