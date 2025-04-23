@@ -395,11 +395,14 @@
               <div class="overview-header">
                 <h2>Overall Performance</h2>
                 <div class="time-filters">
-                  <button :class="{ active: selectedTimeframe === 'all' }" @click="selectedTimeframe = 'all'">All Years</button>
-                  <button v-for="year in yearsCompleted" :key="year"
-                          :class="{ active: selectedTimeframe === year }"
-                          @click="selectedTimeframe = year">Year {{ year }}</button>
-                </div>
+  <button :class="{ active: selectedTimeframe === 'all' }" @click="updateTimeframe('all')">All Years</button>
+  <button v-for="year in calculatorConfig.years.filter(y => y.active)"
+          :key="year.year"
+          :class="{ active: selectedTimeframe === year.year.replace('Year ', '') }"
+          @click="updateTimeframe(year.year.replace('Year ', ''))">
+    {{ year.year }}
+  </button>
+</div>
               </div>
 
               <div class="overview-body">
@@ -1187,6 +1190,20 @@ export default {
       return this.moduleData.filter(m => !m.isCurrentlyEnrolled);
     },
 
+    filteredCompletedModules() {
+  if (this.selectedTimeframe === 'all') {
+    return this.completedModuleData;
+  }
+  return this.completedModuleData.filter(m => {
+    // Convert both to strings for comparison (Year 1, Year 2, etc.)
+    return m.year === `Year ${this.selectedTimeframe}`;
+  });
+},
+
+
+
+
+
     currentModuleData() {
       return this.moduleData.filter(m => m.isCurrentlyEnrolled);
     },
@@ -1221,116 +1238,135 @@ export default {
           this.totalAssessmentWeight === 100;
     },
 
-    // Get overall average across all years (excluding currently enrolled modules)
-    overallAverage() {
-      // Always calculate manually excluding currently enrolled modules
-      // Don't rely on the backend stats as they might include currently enrolled modules
-      const completedModules = this.completedModuleData;
-      if (!completedModules || completedModules.length === 0) return 0;
+// Update this computed property to filter by selectedTimeframe
+overallAverage() {
+  const modules = this.filteredCompletedModules;
+  if (!modules || modules.length === 0) return 0;
 
-      const totalCredits = completedModules.reduce((sum, m) => sum + m.credits, 0);
-      const weightedSum = completedModules.reduce((sum, m) => sum + (m.score * m.credits), 0);
+  const totalCredits = modules.reduce((sum, m) => sum + m.credits, 0);
+  const weightedSum = modules.reduce((sum, m) => sum + (m.score * m.credits), 0);
 
-      return totalCredits > 0 ? Math.round((weightedSum / totalCredits) * 10) / 10 : 0;
-    },
+  return totalCredits > 0 ? Math.round((weightedSum / totalCredits) * 10) / 10 : 0;
+},
 
     // Get current yearly average (excluding currently enrolled modules)
     yearlyAverage() {
-      // Always calculate manually for the latest year to ensure in-progress modules are excluded
-      // First get the latest year from completed modules
-      const latestYear = [...this.completedModuleData]
-          .sort((a, b) => {
-            const yearA = parseInt(a.year.replace('Year ', ''));
-            const yearB = parseInt(b.year.replace('Year ', ''));
-            return yearB - yearA;
-          })[0];
-
-      if (!latestYear) return 0;
-
-      const latestYearModules = this.completedModuleData.filter(m => m.year === latestYear.year);
-      const totalCredits = latestYearModules.reduce((sum, m) => sum + m.credits, 0);
-      const weightedSum = latestYearModules.reduce((sum, m) => sum + (m.score * m.credits), 0);
-
-      return totalCredits > 0 ? Math.round((weightedSum / totalCredits) * 10) / 10 : 0;
-    },
+  return this.overallAverage; // Will already be filtered by year
+},
 
     // Get completed and total credits
     completedCredits() {
-      return this.completedModuleData.reduce((sum, m) => sum + m.credits, 0);
-    },
+  return this.filteredCompletedModules.reduce((sum, m) => sum + m.credits, 0);
+},
 
     totalCredits() {
       return this.dashboardStats?.totalCredits ||
           this.moduleData.reduce((sum, m) => sum + m.credits, 0);
     },
 
+    yearTotalCredits() {
+  if (this.selectedTimeframe === 'all') {
+    return this.dashboardStats?.totalCredits || 
+      this.moduleData.reduce((sum, m) => sum + m.credits, 0);
+  }
+
+  // Find the year config for the selected year
+  const yearConfig = this.calculatorConfig.years?.find(y => 
+    y.year === `Year ${this.selectedTimeframe}`
+  );
+  
+  return yearConfig?.credits || 120; // Default to 120 if not found
+},
+
     // Get top module (only from completed modules)
     topModule() {
-      if (this.dashboardStats?.topModule) {
-        return this.dashboardStats.topModule;
-      }
+  const modules = this.filteredCompletedModules;
+  if (!modules || modules.length === 0) return {name: 'N/A', score: 0};
 
-      if (this.completedModuleData.length === 0) return {name: 'N/A', score: 0};
-
-      return this.completedModuleData.reduce((top, module) => {
-        return (module.score > top.score) ? module : top;
-      }, {name: 'N/A', score: 0});
-    },
+  return modules.reduce((top, module) => {
+    return (module.score > top.score) ? module : top;
+  }, {name: 'N/A', score: 0});
+},
 
     // Get progress percentages
     achievedPercentage() {
-      const completedModules = this.completedModuleData;
-      const totalPossible = completedModules.reduce((sum, m) => sum + (m.credits * 100), 0);
-      const achieved = completedModules.reduce((sum, m) => sum + (m.score * m.credits), 0);
+  const modules = this.filteredCompletedModules;
+  const totalPossible = modules.reduce((sum, m) => sum + (m.credits * 100), 0);
+  const achieved = modules.reduce((sum, m) => sum + (m.score * m.credits), 0);
 
-      return totalPossible > 0 ? Math.round((achieved / totalPossible) * 100) : 0;
-    },
+  return totalPossible > 0 ? Math.round((achieved / totalPossible) * 100) : 0;
+},
+lostPercentage() {
+  const completedCreds = this.completedCredits;
+  const totalCreds = this.yearTotalCredits;
 
-    lostPercentage() {
-      const completedCredits = this.completedCredits;
-      const totalCredits = this.totalCredits;
+  if (totalCreds === 0) return 0;
 
-      if (totalCredits === 0) return 0;
+  return Math.round((completedCreds / totalCreds * 100) - this.achievedPercentage);
+},
 
-      return Math.round((completedCredits / totalCredits * 100) - this.achievedPercentage);
-    },
+remainingPercentage() {
+  const completedCreds = this.completedCredits;
+  const totalCreds = this.yearTotalCredits;
 
-    remainingPercentage() {
-      const completedCredits = this.completedCredits;
-      const totalCredits = this.totalCredits;
+  if (totalCreds === 0) return 100;
 
-      if (totalCredits === 0) return 100;
+  return Math.round(100 - (completedCreds / totalCreds * 100));
+},
 
-      return Math.round(100 - (completedCredits / totalCredits * 100));
-    },
+targetGrades() {
+  // Get current average
+  const currentAvg = this.overallAverage;
+  // Get completed and total credits
+  const completedCreds = this.completedCredits;
+  const totalCreds = this.yearTotalCredits;
+  // Calculate remaining credits
+  const remainingCreds = totalCreds - completedCreds;
+  
+  // If all credits completed or no credits remaining, return current
+  if (remainingCreds <= 0) {
+    return {
+      firstClass: currentAvg,
+      upperSecond: currentAvg,
+      lowerSecond: currentAvg
+    };
+  }
+  
+  // Calculate minimum grades needed to achieve each classification
+  // The formula is: (targetAverage * totalCredits - currentTotal) / remainingCredits
+  // where currentTotal = currentAverage * completedCredits
+  const currentTotal = currentAvg * completedCreds;
+  
+  // Get thresholds from settings
+  const gradingScale = this.settings.academic.gradingScale || [];
+  const firstClassThreshold = gradingScale.find(g => g.letter === 'A')?.minPercentage || 70;
+  const upperSecondThreshold = gradingScale.find(g => g.letter === 'B')?.minPercentage || 60;
+  const lowerSecondThreshold = gradingScale.find(g => g.letter === 'C')?.minPercentage || 50;
+  
+  // Calculate needed grades
+  const firstClassNeeded = Math.round((firstClassThreshold * totalCreds - currentTotal) / remainingCreds * 10) / 10;
+  const upperSecondNeeded = Math.round((upperSecondThreshold * totalCreds - currentTotal) / remainingCreds * 10) / 10;
+  const lowerSecondNeeded = Math.round((lowerSecondThreshold * totalCreds - currentTotal) / remainingCreds * 10) / 10;
+  
+  return {
+    firstClass: Math.max(0, Math.min(100, firstClassNeeded)),
+    upperSecond: Math.max(0, Math.min(100, upperSecondNeeded)),
+    lowerSecond: Math.max(0, Math.min(100, lowerSecondNeeded))
+  };
+},
 
     // Get target grades needed for different classifications based on settings or defaults
     targetHighGrade() {
-      if (this.dashboardStats?.targetHighGrade) return this.dashboardStats.targetHighGrade;
+  return this.targetGrades.firstClass;
+},
 
-      // Calculate based on academic settings if available
-      const gradingScale = this.settings.academic.gradingScale || [];
-      const firstClass = gradingScale.find(g => g.letter === 'A') || {minPercentage: 70};
-      return firstClass.minPercentage;
-    },
+targetMediumGrade() {
+  return this.targetGrades.upperSecond;
+},
 
-    targetMediumGrade() {
-      if (this.dashboardStats?.targetMediumGrade) return this.dashboardStats.targetMediumGrade;
-
-      // Calculate based on academic settings if available
-      const gradingScale = this.settings.academic.gradingScale || [];
-      const upperSecond = gradingScale.find(g => g.letter === 'B') || {minPercentage: 60};
-      return upperSecond.minPercentage;
-    },
-
-    targetLowGrade() {
-      if (this.dashboardStats?.targetLowGrade) return this.dashboardStats.targetLowGrade;
-
-      // Calculate based on academic settings if available
-      const gradingScale = this.settings.academic.gradingScale || [];
-      const lowerSecond = gradingScale.find(g => g.letter === 'C') || {minPercentage: 50};
-      return lowerSecond.minPercentage;
-    },
+targetLowGrade() {
+  return this.targetGrades.lowerSecond;
+},
 
     // Insights tab calculations
     averageVsTarget() {
@@ -1581,6 +1617,11 @@ export default {
         this.prepareInsightsData();
       }
     },
+    selectedTimeframe(newValue) {
+    console.log(`Timeframe changed to: ${newValue}`);
+    // Update chart data when timeframe changes
+    this.prepareChartData();
+  },
 
     // Watch for numYears changes to update year weights
     'nextConfig.numYears': function (newValue) {
@@ -1707,6 +1748,10 @@ export default {
       window.addEventListener('yearSettingsUpdated', this.onYearSettingsUpdated);
       window.addEventListener('screenReaderVerbosityChanged', this.onScreenReaderVerbosityChanged);
     },
+
+    updateTimeframe(timeframe) {
+    this.selectedTimeframe = timeframe;
+  },
 
     // Remove settings event listeners
     removeSettingsEventListeners() {
@@ -2778,49 +2823,163 @@ export default {
     },
 
     // Prepare data for charts
-    prepareChartData() {
-      // Year data for year comparison chart will be from API
+// Prepare data for charts
+prepareChartData() {
+  console.log(`Preparing chart data for timeframe: ${this.selectedTimeframe}`);
+  
+  // Filter modules based on selected timeframe
+  const completedModules = this.selectedTimeframe === 'all' 
+    ? this.completedModuleData 
+    : this.completedModuleData.filter(m => m.year === `Year ${this.selectedTimeframe}`);
+  
+  // Log how many modules we're working with
+  console.log(`Found ${completedModules.length} completed modules for the selected timeframe`);
+  
+  // Score distribution for grade distribution chart
+  const scores = completedModules.map(m => m.score);
+  
+  // Use grading scale ranges from settings if available
+  let ranges;
+  const gradingScale = this.settings.academic.gradingScale;
 
-      // Score distribution for charts
-      const completedModules = this.completedModuleData;
-      const scores = completedModules.map(m => m.score);
+  if (gradingScale && gradingScale.length >= 4) {
+    ranges = [];
+    // Sort grading scale by minPercentage in descending order
+    const sortedScale = [...gradingScale].sort((a, b) => b.minPercentage - a.minPercentage);
 
-      // Use grading scale ranges from settings if available
-      let ranges;
-      const gradingScale = this.settings.academic.gradingScale;
-
-      if (gradingScale && gradingScale.length >= 4) {
-        ranges = [];
-        // Sort grading scale by minPercentage in descending order
-        const sortedScale = [...gradingScale].sort((a, b) => b.minPercentage - a.minPercentage);
-
-        // Create ranges from grading scale
-        for (let i = 0; i < sortedScale.length; i++) {
-          const min = sortedScale[i].minPercentage;
-          const max = i === 0 ? 100 : sortedScale[i - 1].minPercentage - 1;
-          ranges.push({
-            name: `${sortedScale[i].letter} (${min}-${max}%)`,
-            range: [min, max]
-          });
-        }
-      } else {
-        // Default ranges
-        ranges = [
-          {name: '0-39%', range: [0, 39]},
-          {name: '40-49%', range: [40, 49]},
-          {name: '50-59%', range: [50, 59]},
-          {name: '60-69%', range: [60, 69]},
-          {name: '70-100%', range: [70, 100]}
-        ];
-      }
-
-      this.scoreDistribution = ranges.map(range => {
-        return {
-          name: range.name,
-          count: scores.filter(score => score >= range.range[0] && score <= range.range[1]).length
-        };
+    // Create ranges from grading scale
+    for (let i = 0; i < sortedScale.length; i++) {
+      const min = sortedScale[i].minPercentage;
+      const max = i === 0 ? 100 : sortedScale[i - 1].minPercentage - 1;
+      ranges.push({
+        name: `${sortedScale[i].letter} (${min}-${max}%)`,
+        range: [min, max]
       });
-    },
+    }
+  } else {
+    // Default ranges
+    ranges = [
+      {name: '0-39%', range: [0, 39]},
+      {name: '40-49%', range: [40, 49]},
+      {name: '50-59%', range: [50, 59]},
+      {name: '60-69%', range: [60, 69]},
+      {name: '70-100%', range: [70, 100]}
+    ];
+  }
+
+  // Update score distribution for grade chart
+  this.scoreDistribution = ranges.map(range => {
+    return {
+      name: range.name,
+      count: scores.filter(score => score >= range.range[0] && score <= range.range[1]).length
+    };
+  });
+  
+  // Prepare year comparison data
+  // Group modules by year to prepare yearData
+  const modulesByYear = {};
+  completedModules.forEach(module => {
+    if (!modulesByYear[module.year]) {
+      modulesByYear[module.year] = [];
+    }
+    modulesByYear[module.year].push(module);
+  });
+  
+  // Only update yearData if we need year comparison data
+  if (this.selectedTimeframe === 'all') {
+    this.yearData = Object.keys(modulesByYear).map(year => {
+      const modules = modulesByYear[year];
+      const totalCredits = modules.reduce((sum, m) => sum + m.credits, 0);
+      const averageScore = modules.length ? 
+        Math.round(modules.reduce((sum, m) => sum + (m.score * m.credits), 0) / totalCredits * 10) / 10 : 0;
+      
+      return {
+        name: year,
+        average: averageScore,
+        credits: totalCredits,
+        modules: modules.length,
+        highest: Math.max(...modules.map(m => m.score)),
+        lowest: Math.min(...modules.map(m => m.score))
+      };
+    }).sort((a, b) => {
+      // Sort by year number
+      const yearA = parseInt(a.name.replace('Year ', ''));
+      const yearB = parseInt(b.name.replace('Year ', ''));
+      return yearA - yearB;
+    });
+  }
+  
+  // Prepare data for subject strengths radar chart (optional, only if you're using this)
+  const subjectCategories = [
+    {name: 'Programming', pattern: /(programming|coding|development|software)/i},
+    {name: 'Theory', pattern: /(theory|concepts|foundations)/i},
+    {name: 'Mathematics', pattern: /(math|mathematics|calculation|statistics)/i},
+    {name: 'Design', pattern: /(design|architecture|interface)/i},
+    {name: 'Research', pattern: /(research|analysis|thesis)/i},
+    {name: 'Security', pattern: /(security|cyber|protection)/i}
+  ];
+  
+  this.strengthsData = subjectCategories.map(category => {
+    const matchingModules = completedModules.filter(m =>
+      category.pattern.test(m.name) || (m.code && category.pattern.test(m.code))
+    );
+    
+    return {
+      subject: category.name,
+      score: matchingModules.length ?
+        Math.round(matchingModules.reduce((sum, m) => sum + m.score, 0) / matchingModules.length) :
+        50 // Default value if no matching modules
+    };
+  });
+  
+  // Prepare performance trend data
+  if (this.selectedTimeframe === 'all') {
+    // Sort modules by completion date or semester
+    const sortedModules = [...completedModules].sort((a, b) => {
+      // First by year
+      const yearA = parseInt(a.year.replace('Year ', ''));
+      const yearB = parseInt(b.year.replace('Year ', ''));
+      if (yearA !== yearB) return yearA - yearB;
+      
+      // Then by semester
+      return (a.semester || 1) - (b.semester || 1);
+    });
+    
+    // Group by semester for performance chart
+    const performanceByPeriod = {};
+    sortedModules.forEach(module => {
+      const period = `${module.year} - Sem ${module.semester || 1}`;
+      if (!performanceByPeriod[period]) {
+        performanceByPeriod[period] = { 
+          modules: [], 
+          totalCredits: 0 
+        };
+      }
+      performanceByPeriod[period].modules.push(module);
+      performanceByPeriod[period].totalCredits += module.credits;
+    });
+    
+    // Create performance data points
+    this.performanceData = Object.keys(performanceByPeriod).map(period => {
+      const data = performanceByPeriod[period];
+      const weightedSum = data.modules.reduce((sum, m) => sum + (m.score * m.credits), 0);
+      const average = data.totalCredits > 0 ? Math.round((weightedSum / data.totalCredits) * 10) / 10 : 0;
+      
+      return {
+        period: period,
+        average: average,
+        highest: Math.max(...data.modules.map(m => m.score)),
+        lowest: Math.min(...data.modules.map(m => m.score)),
+        credits: data.totalCredits
+      };
+    }).sort((a, b) => {
+      // Sort periods chronologically
+      return a.period.localeCompare(b.period);
+    });
+  }
+  
+  console.log("Chart data prepared successfully");
+},
 
     // Prepare data for insights charts
     prepareInsightsData() {
