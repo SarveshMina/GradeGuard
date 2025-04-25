@@ -70,6 +70,8 @@ body.dark-mode {
 
 html {
     font-size: 16px;
+    /* Fix for iOS 100vh issue */
+    height: 100%;
 }
 
 body {
@@ -82,6 +84,8 @@ body {
     transition: background var(--transition-speed) ease,
     color var(--transition-speed) ease;
     min-height: 100vh;
+    /* iOS height fix */
+    min-height: -webkit-fill-available;
 }
 
 /* Transitions for dark mode */
@@ -94,6 +98,8 @@ a {
     color: var(--primary-color);
     text-decoration: none;
     transition: color var(--transition-speed) ease;
+    /* Fix for iOS touch delay */
+    touch-action: manipulation;
 }
 
 a:hover {
@@ -103,6 +109,8 @@ a:hover {
 button {
     cursor: pointer;
     font-family: "Montserrat", sans-serif;
+    /* Fix for iOS touch delay */
+    touch-action: manipulation;
 }
 
 input, select, textarea {
@@ -114,6 +122,10 @@ input, select, textarea {
     padding: 0.75rem;
     transition: border-color var(--transition-speed) ease,
     background-color var(--transition-speed) ease;
+    /* Fix for iOS input zoom */
+    font-size: 16px !important;
+    /* Fix for iOS form elements */
+    -webkit-appearance: none;
 }
 
 input:focus, select:focus, textarea:focus {
@@ -145,12 +157,23 @@ input:focus, select:focus, textarea:focus {
     transition: background-color var(--transition-speed) ease,
     transform var(--transition-speed) ease,
     box-shadow var(--transition-speed) ease;
+    /* Ensure touch target size for iOS */
+    min-height: 44px;
 }
 
 .btn:hover {
     background-color: var(--primary-dark);
     transform: translateY(-2px);
     box-shadow: var(--shadow-sm);
+}
+
+/* Fix for iOS sticky hover states */
+@media (hover: hover) {
+    .btn:hover {
+        background-color: var(--primary-dark);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
 }
 
 .btn-secondary {
@@ -193,6 +216,66 @@ input:focus, select:focus, textarea:focus {
 .mb-4 { margin-bottom: 1.5rem; }
 .mb-5 { margin-bottom: 2rem; }
 
+/* Loading indicator styles for better iOS UX */
+.loading-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.8);
+    z-index: 1000;
+}
+
+body.dark-mode .loading-container {
+    background-color: rgba(33, 33, 33, 0.8);
+}
+
+.loading-container p {
+    margin-top: 16px;
+    font-size: 16px;
+}
+
+/* iOS-specific fixes */
+/* Fix for iOS momentum scrolling */
+.scrollable-container {
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+}
+
+/* Safari-specific fixes */
+@supports (-webkit-touch-callout: none) {
+    /* iOS Safari specific styles */
+    /* Fixes for notched iPhones */
+    .safe-area-padding {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+    
+    /* Make iOS-specific adjustments to the full-height elements */
+    .full-height {
+        height: 100%;
+        height: -webkit-fill-available;
+    }
+    
+    /* Fix for iOS buttons and links that need slight adjustments */
+    button, a.btn {
+        padding-top: 0.8rem;
+        padding-bottom: 0.8rem;
+    }
+}
+
+/* Fix for keyboard on iOS */
+.keyboard-open .scrollable-container {
+    padding-bottom: 50vh; /* Add space for keyboard */
+}
+
 /* Responsive adjustments */
 @media screen and (max-width: 768px) {
     html {
@@ -202,6 +285,20 @@ input:focus, select:focus, textarea:focus {
     .card, .container {
         padding: 1rem;
     }
+    
+    /* Ensure touch targets are large enough on mobile */
+    button, 
+    a.btn, 
+    .nav-link, 
+    .menu-item {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    /* Adjust headers for mobile */
+    h1 { font-size: 1.8rem; }
+    h2 { font-size: 1.5rem; }
+    h3 { font-size: 1.3rem; }
 }
 
 /* Animation keyframes */
@@ -219,6 +316,16 @@ input:focus, select:focus, textarea:focus {
         transform: translateY(0);
         opacity: 1;
     }
+}
+
+/* Pull-to-refresh indicator styles */
+.pull-to-refresh-indicator {
+    text-align: center;
+    height: 40px;
+    margin-top: -40px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    padding-top: 10px;
 }
 
 /* Transitions */

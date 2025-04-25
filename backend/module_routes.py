@@ -79,7 +79,7 @@ def get_module(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
 def create_module(req: func.HttpRequest) -> func.HttpResponse:
-    """Create a new module"""
+    """Create a new module with normalization and duplicate checking"""
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
@@ -93,16 +93,38 @@ def create_module(req: func.HttpRequest) -> func.HttpResponse:
         # Get module data from request
         module_data = req.get_json()
 
-        # Add user email and type
-        module_data["user_email"] = identity
-        module_data["type"] = "module"
-
         # Auto-populate university and degree if not provided
         if "university" not in module_data:
             module_data["university"] = user_doc.get("university", "")
 
         if "degree" not in module_data:
             module_data["degree"] = user_doc.get("degree", "")
+
+        # Normalize module name to prevent duplicates
+        from database import normalize_module_name, check_similar_module_exists
+        if "name" in module_data:
+            module_data["name"] = normalize_module_name(module_data["name"])
+
+        # Check for similar existing modules
+        existing_module = check_similar_module_exists(
+            module_data.get("university", ""),
+            module_data.get("degree", ""),
+            module_data.get("name", ""),
+            module_data.get("code")
+        )
+
+        if existing_module:
+            return func.HttpResponse(
+                json.dumps({
+                    "error": "Similar module already exists",
+                    "existing_module": existing_module
+                }),
+                status_code=409  # Conflict
+            )
+
+        # Add user email and type
+        module_data["user_email"] = identity
+        module_data["type"] = "module"
 
         # Generate ID if not provided
         if "id" not in module_data:
@@ -152,15 +174,16 @@ def create_module(req: func.HttpRequest) -> func.HttpResponse:
                 # Log error but don't fail the request
                 print(f"Error incrementing university counter: {str(e)}")
 
-        # Add activity to user's dashboard
-        add_module_activity(identity, module, "Module Added")
-
         # Update university module data
         update_university_module_data(module.dict(exclude_none=True))
+
+        # Add activity to user's dashboard
+        add_module_activity(identity, module, "Module Added")
 
         return func.HttpResponse(json.dumps(result), status_code=201)
     except Exception as e:
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=400)
+    
 
 def update_module(req: func.HttpRequest) -> func.HttpResponse:
     """Update an existing module"""
@@ -359,55 +382,59 @@ def get_modules_by_year_semester(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
 
 def get_module_suggestions(req: func.HttpRequest) -> func.HttpResponse:
-    """Get module suggestions based on university and degree"""
+    """
+    Get module suggestions based on partial text input.
+    Searches modules at the user's university that match the text.
+    """
     is_valid, identity = verify_session(req)
     if not is_valid:
         return func.HttpResponse(json.dumps({"error": identity}), status_code=401)
 
     try:
-        # Get user's university and degree
+        # Get search query parameter
+        query = req.params.get('query')
+        if not query or len(query) < 2:  # Require at least 2 characters
+            return func.HttpResponse(
+                json.dumps({"error": "Query parameter must be at least 2 characters"}),
+                status_code=400
+            )
+            
+        # Get user's university
         user_doc = get_user_by_email(identity)
         if not user_doc:
             return func.HttpResponse(json.dumps({"error": "User not found"}), status_code=404)
             
         university = user_doc.get("university", "")
-        degree = user_doc.get("degree", "")
+        user_degree = user_doc.get("degree", "")
         
-        # For now, return empty suggestions
-        # In a real implementation, this would query a course catalog or template modules
-        suggestions = []
+        if not university:
+            return func.HttpResponse(
+                json.dumps({"error": "User must have university set in profile"}),
+                status_code=400
+            )
+
+        # Get module suggestions from database
+        from database import search_modules_for_university
+        modules = search_modules_for_university(university, query)
         
-        # Example: Add some default modules based on degree
-        if degree == "COMPUTER SCIENCE":
-            suggestions = [
-                {
-                    "name": "Programming I",
-                    "code": "COMP1001",
-                    "credits": 15,
-                    "description": "Introduction to programming concepts and practices",
-                    "year": "Year 1",
-                    "semester": 1
-                },
-                {
-                    "name": "Computer Systems",
-                    "code": "COMP1002", 
-                    "credits": 15,
-                    "description": "Introduction to computer architecture and systems",
-                    "year": "Year 1",
-                    "semester": 1
-                },
-                {
-                    "name": "Data Structures and Algorithms",
-                    "code": "COMP1003",
-                    "credits": 15,
-                    "description": "Study of fundamental data structures and algorithms",
-                    "year": "Year 1",
-                    "semester": 2
-                }
-            ]
+        # Enhance the response by marking modules that are in the user's degree
+        for module in modules:
+            module["in_user_degree"] = (module.get("degree") == user_degree)
+            
+        # Create response with grouped suggestions
+        user_degree_modules = [m for m in modules if m.get("in_user_degree")]
+        other_modules = [m for m in modules if not m.get("in_user_degree")]
+        
+        suggestions = {
+            "user_degree_modules": user_degree_modules,
+            "other_modules": other_modules
+        }
         
         return func.HttpResponse(json.dumps(suggestions), status_code=200)
     except Exception as e:
+        print(f"Error getting module suggestions: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
     
 def get_module_analytics(req: func.HttpRequest) -> func.HttpResponse:
@@ -503,3 +530,44 @@ def update_university_module_data(module):
     except Exception as e:
         print(f"Error updating university module data: {str(e)}")
         return False
+    
+def get_module_suggestions_anonymous(req: func.HttpRequest) -> func.HttpResponse:
+    """
+    Get module suggestions for anonymous users (not logged in).
+    Requires university parameter.
+    """
+    try:
+        # Get search query and university parameters
+        query = req.params.get('query')
+        university = req.params.get('university')
+        
+        if not query or len(query) < 2:  # Require at least 2 characters
+            return func.HttpResponse(
+                json.dumps({"error": "Query parameter must be at least 2 characters"}),
+                status_code=400
+            )
+            
+        if not university:
+            return func.HttpResponse(
+                json.dumps({"error": "University parameter is required"}),
+                status_code=400
+            )
+
+        # Get module suggestions from database
+        from database import search_modules_for_university
+        modules = search_modules_for_university(university, query)
+        
+        # Group modules by degree
+        modules_by_degree = {}
+        for module in modules:
+            degree = module.get("degree", "Unknown")
+            if degree not in modules_by_degree:
+                modules_by_degree[degree] = []
+            modules_by_degree[degree].append(module)
+        
+        return func.HttpResponse(json.dumps(modules_by_degree), status_code=200)
+    except Exception as e:
+        print(f"Error getting module suggestions: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
+        return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)

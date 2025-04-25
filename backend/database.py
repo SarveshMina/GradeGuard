@@ -531,3 +531,370 @@ def get_module_by_id_public(module_id: str):
 def get_degree_modules_with_stats(university: str, degree: str):
     """Get all modules for a specific degree with statistics"""
     return get_university_modules_with_stats(university, degree)
+
+
+def search_modules_for_university(university: str, search_query: str, limit: int = 10):
+    """
+    Search for modules at a given university based on partial text input.
+    Includes modules from all degrees/courses at the university.
+    """
+    try:
+        # Normalize the search query (lowercase)
+        search_query_lower = search_query.lower()
+        
+        # Get all modules for this university
+        query = """
+        SELECT c.id, c.name, c.code, c.university, c.degree, c.credits, c.year, c.semester
+        FROM c 
+        WHERE c.type = 'module' 
+        AND c.university = @university
+        """
+        
+        parameters = [{"name": "@university", "value": university}]
+        
+        modules = list(_container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+        
+        # Filter modules that match the search query on name or code
+        matching_modules = []
+        for module in modules:
+            module_name = module.get("name", "").lower()
+            module_code = module.get("code", "").lower()
+            
+            if search_query_lower in module_name or search_query_lower in module_code:
+                matching_modules.append(module)
+        
+        # Sort by relevance - exact matches first, then by degree (user's degree first)
+        # This sorting function would place exact matches at the top
+        matching_modules.sort(key=lambda m: (
+            0 if m.get("name", "").lower().startswith(search_query_lower) else 1,
+            0 if m.get("code", "").lower().startswith(search_query_lower) else 1,
+            m.get("name", "")
+        ))
+        
+        # Limit results
+        return matching_modules[:limit]
+    except Exception as e:
+        print(f"Error searching modules: {str(e)}")
+        return []
+
+def check_similar_module_exists(university: str, degree: str, module_name: str, module_code: str = None, similarity_threshold: float = 0.8):
+    """
+    Enhanced version that checks for similar modules based on name similarity.
+    Returns the most similar module if above threshold, otherwise None.
+    """
+    try:
+        # Normalize the module name
+        module_name_lower = module_name.lower()
+        
+        # Query for modules in the same university and degree
+        query = """
+        SELECT c.id, c.name, c.code, c.university, c.degree
+        FROM c 
+        WHERE c.type = 'module' 
+        AND c.university = @university
+        AND c.degree = @degree
+        """
+        
+        parameters = [
+            {"name": "@university", "value": university},
+            {"name": "@degree", "value": degree}
+        ]
+        
+        modules = list(_container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+        
+        # If module code is provided and exact match exists, return that
+        if module_code:
+            for module in modules:
+                if module.get("code") and module.get("code").lower() == module_code.lower():
+                    return module
+        
+        # Check for similar names
+        most_similar_module = None
+        highest_similarity = 0.0
+        
+        for module in modules:
+            existing_name = module.get("name", "")
+            similarity = calculate_similarity(existing_name, module_name)
+            
+            if similarity > highest_similarity:
+                highest_similarity = similarity
+                most_similar_module = module
+        
+        # If similarity is above threshold, return the most similar module
+        if highest_similarity >= similarity_threshold:
+            return most_similar_module
+        
+        # No similar module found
+        return None
+    except Exception as e:
+        print(f"Error checking for similar modules: {str(e)}")
+        return None
+
+def normalize_module_name(name: str):
+    """
+    Normalize module name to prevent duplicates with slightly different casing.
+    Currently just capitalizes the first letter of each word.
+    """
+    if not name:
+        return name
+        
+    # Capitalize first letter of each word
+    return ' '.join(word.capitalize() for word in name.split())
+
+def calculate_similarity(str1: str, str2: str) -> float:
+    """
+    Calculate string similarity using a combination of techniques:
+    - Exact match (case insensitive)
+    - Word similarity (common words)
+    
+    Returns a similarity score between 0 and 1
+    """
+    if not str1 or not str2:
+        return 0.0
+        
+    # Convert to lowercase for comparison
+    str1_lower = str1.lower()
+    str2_lower = str2.lower()
+    
+    # Exact match gets perfect score
+    if str1_lower == str2_lower:
+        return 1.0
+    
+    # Split into words and remove common stop words
+    stop_words = {'and', 'the', 'of', 'in', 'for', 'to', 'with', 'on', 'at', 'by', 'from'}
+    
+    words1 = [word for word in str1_lower.split() if word not in stop_words]
+    words2 = [word for word in str2_lower.split() if word not in stop_words]
+    
+    if not words1 or not words2:
+        return 0.0
+    
+    # Count common words
+    common_words = set(words1).intersection(set(words2))
+    unique_words = set(words1).union(set(words2))
+    
+    # Calculate Jaccard similarity (common words / total unique words)
+    jaccard_similarity = len(common_words) / len(unique_words)
+    
+    # If very similar words (e.g., plural vs singular), increase score
+    # This is a simple check - could be enhanced with lemmatization
+    extra_similarity = 0.0
+    for w1 in words1:
+        for w2 in words2:
+            if w1 != w2 and (w1.startswith(w2) or w2.startswith(w1)):
+                # One word is prefix of the other
+                if abs(len(w1) - len(w2)) <= 2:  # Small difference in length
+                    extra_similarity += 0.1
+    
+    # Combine scores (with caps to keep between 0 and 1)
+    similarity = min(1.0, jaccard_similarity + min(0.3, extra_similarity))
+    
+    return similarity
+
+def get_popular_modules(university: str, degree: str = None, limit: int = 10) -> List[dict]:
+    """Get the most popular modules (with most reviews) for a university and optional degree"""
+    try:
+        # Query for the university document
+        query = "SELECT * FROM c WHERE c.name = @university"
+        parameters = [{"name": "@university", "value": university}]
+        
+        universities = list(_uni_container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+        
+        if not universities:
+            return []
+            
+        university_doc = universities[0]
+        
+        # Get modules with reviews
+        modules_with_reviews = []
+        
+        if "degrees" in university_doc:
+            if degree:
+                # If degree is specified, only get modules for that degree
+                if degree in university_doc["degrees"]:
+                    degree_data = university_doc["degrees"][degree]
+                    if "modules" in degree_data:
+                        for module_id, module_data in degree_data["modules"].items():
+                            if "statistics" in module_data and module_data["statistics"].get("total_reviews", 0) > 0:
+                                # Get the module details
+                                module_info = get_module_by_id_public(module_id)
+                                if module_info:
+                                    modules_with_reviews.append({
+                                        "module": module_info,
+                                        "reviews": module_data["statistics"].get("total_reviews", 0)
+                                    })
+            else:
+                # Get modules from all degrees
+                for degree_name, degree_data in university_doc["degrees"].items():
+                    if "modules" in degree_data:
+                        for module_id, module_data in degree_data["modules"].items():
+                            if "statistics" in module_data and module_data["statistics"].get("total_reviews", 0) > 0:
+                                # Get the module details
+                                module_info = get_module_by_id_public(module_id)
+                                if module_info:
+                                    modules_with_reviews.append({
+                                        "module": module_info,
+                                        "reviews": module_data["statistics"].get("total_reviews", 0)
+                                    })
+        
+        # Sort by number of reviews (descending) and limit results
+        modules_with_reviews.sort(key=lambda x: x["reviews"], reverse=True)
+        top_modules = modules_with_reviews[:limit]
+        
+        # Return just the module data
+        return [item["module"] for item in top_modules]
+    except Exception as e:
+        print(f"Error getting popular modules: {str(e)}")
+        return []
+
+def get_newest_reviews(limit: int = 10) -> List[dict]:
+    """Get the newest module reviews across all universities"""
+    try:
+        # Query for the newest reviews
+        query = """
+        SELECT TOP @limit * 
+        FROM c 
+        WHERE c.type = 'module_review' 
+        ORDER BY c.created_at DESC
+        """
+        parameters = [{"name": "@limit", "value": limit}]
+        
+        reviews = list(_container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+        
+        # Enhance reviews with module information
+        enhanced_reviews = []
+        for review in reviews:
+            module_id = review.get("module_id")
+            module = get_module_by_id_public(module_id) if module_id else None
+            
+            enhanced_review = {
+                "id": review.get("id"),
+                "module_id": module_id,
+                "module_name": module.get("name") if module else "Unknown Module",
+                "module_code": module.get("code") if module else "",
+                "university": review.get("university"),
+                "degree": review.get("degree"),
+                "difficulty_rating": review.get("difficulty_rating"),
+                "teaching_quality_rating": review.get("teaching_quality_rating"),
+                "recommended_rating": review.get("recommended_rating"),
+                "comment": review.get("comment"),
+                "anonymous": review.get("anonymous", True),
+                "created_at": review.get("created_at")
+            }
+            
+            # Only include user email if review is not anonymous
+            if not review.get("anonymous", True):
+                enhanced_review["user_email"] = review.get("user_email")
+                
+            enhanced_reviews.append(enhanced_review)
+        
+        return enhanced_reviews
+    except Exception as e:
+        print(f"Error getting newest reviews: {str(e)}")
+        return []
+
+def get_top_contributors(limit: int = 10) -> List[dict]:
+    """Get top contributors based on review count and module contributions"""
+    try:
+        # Query for users with most reviews
+        review_query = """
+        SELECT c.user_email, COUNT(1) as review_count
+        FROM c
+        WHERE c.type = 'module_review'
+        GROUP BY c.user_email
+        ORDER BY review_count DESC
+        """
+        
+        review_counts = list(_container.query_items(
+            query=review_query,
+            enable_cross_partition_query=True
+        ))
+        
+        # Query for users who created modules
+        module_query = """
+        SELECT c.created_by as user_email, COUNT(1) as module_count
+        FROM c
+        WHERE c.type = 'module' AND IS_DEFINED(c.created_by)
+        GROUP BY c.created_by
+        """
+        
+        module_counts = list(_container.query_items(
+            query=module_query,
+            enable_cross_partition_query=True
+        ))
+        
+        # Combine and calculate contribution scores
+        contributors = {}
+        
+        for item in review_counts:
+            email = item.get("user_email")
+            if not email:
+                continue
+                
+            if email not in contributors:
+                contributors[email] = {
+                    "email": email,
+                    "review_count": 0,
+                    "module_count": 0,
+                    "score": 0
+                }
+                
+            contributors[email]["review_count"] = item.get("review_count", 0)
+        
+        for item in module_counts:
+            email = item.get("user_email")
+            if not email:
+                continue
+                
+            if email not in contributors:
+                contributors[email] = {
+                    "email": email,
+                    "review_count": 0,
+                    "module_count": 0,
+                    "score": 0
+                }
+                
+            contributors[email]["module_count"] = item.get("module_count", 0)
+        
+        # Calculate scores and get user details
+        for email, data in contributors.items():
+            # Calculate score: reviews are worth 5 points, modules are worth 10 points
+            score = (data["review_count"] * 5) + (data["module_count"] * 10)
+            data["score"] = score
+            
+            # Get user display name
+            user_doc = get_user_by_email(email)
+            if user_doc:
+                data["display_name"] = user_doc.get("graderadar_display_name", user_doc.get("firstName", ""))
+                data["university"] = user_doc.get("university", "")
+                
+                # Only show real name if user has opted in
+                show_name = user_doc.get("graderadar_show_name", False)
+                if not show_name:
+                    data["display_name"] = "Anonymous"
+        
+        # Convert to list, sort by score, and limit results
+        contributors_list = list(contributors.values())
+        contributors_list.sort(key=lambda x: x["score"], reverse=True)
+        top_contributors = contributors_list[:limit]
+        
+        return top_contributors
+    except Exception as e:
+        print(f"Error getting top contributors: {str(e)}")
+        return []

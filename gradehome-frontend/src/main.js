@@ -4,33 +4,52 @@ import App from './App.vue'
 import router from './router'
 import './style.css'  // your global styles
 import vuetify from './plugins/vuetify'
-import axios from 'axios'
+import { setupAxios } from './plugins/axios'
 import { initDarkMode } from './services/darkModeService'
+import { authService } from './services/authService'
 
-// IMPORT the default VCalendar stylesheet:
+// Import the default VCalendar stylesheet
 import 'v-calendar/style.css'
 
-// Next, import VCalendar itself:
+// Import VCalendar
 import VCalendar from 'v-calendar'
 
-// Set Axios defaults to send cookies with every request
-axios.defaults.withCredentials = true
+// Set up enhanced axios with fallback auth mechanisms
+setupAxios()
 
-// Add request/response interceptors for debugging
-axios.interceptors.request.use(config => {
-    console.log(`Request to ${config.url}`, config);
-    return config;
-}, error => {
-    console.error('Request error:', error);
-    return Promise.reject(error);
-});
+// Add navigation guard for authentication
+router.beforeEach(async (to, from, next) => {
+  console.log(`Navigation from ${from.path} to ${to.path}`);
+  
+  // Check if route requires authentication
+  if (to.matched.some(record => record.meta.requiresAuth)) {
+    try {
+      console.log('Route requires auth, checking authentication');
+      const isAuthenticated = await authService.isAuthenticated();
 
-axios.interceptors.response.use(response => {
-    console.log(`Response from ${response.config.url}`, response);
-    return response;
-}, error => {
-    console.error('Response error:', error);
-    return Promise.reject(error);
+      if (!isAuthenticated) {
+        // Not authenticated, redirect to login with a return URL
+        console.log('Not authenticated, redirecting to login');
+        next({ 
+          path: '/login', 
+          query: { redirect: to.fullPath } 
+        });
+      } else {
+        // User is authenticated, proceed
+        console.log('Authentication confirmed, proceeding');
+        next();
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error);
+      next({ 
+        path: '/login', 
+        query: { redirect: to.fullPath } 
+      });
+    }
+  } else {
+    // No auth required, just proceed
+    next();
+  }
 });
 
 const app = createApp(App)
@@ -44,4 +63,8 @@ app.use(VCalendar, {
     componentPrefix: 'vc', // Use <vc-calendar />, <vc-date-picker />, etc.
 })
 
+// Add global property for easier access to auth service in components
+app.config.globalProperties.$auth = authService
+
+// Mount the app
 app.mount('#app')

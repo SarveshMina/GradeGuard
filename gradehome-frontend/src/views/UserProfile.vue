@@ -235,6 +235,106 @@
               </div>
             </div>
           </div>
+
+          <!-- GradeRadar Settings Card (NEW) -->
+          <div class="profile-card">
+            <div class="card-header">
+              <h2>GradeRadar Settings</h2>
+              <button @click="toggleGradeRadarEditMode" class="edit-button" v-if="!gradeRadarEditMode">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Edit Settings
+              </button>
+            </div>
+
+            <!-- View mode -->
+            <div v-if="!gradeRadarEditMode" class="profile-details">
+              <div class="detail-row">
+                <div class="detail-item">
+                  <label>University</label>
+                  <p>{{ gradeRadarProfile.university || 'Not set' }}</p>
+                </div>
+                <div class="detail-item">
+                  <label>Degree Program</label>
+                  <p>{{ gradeRadarProfile.degree || 'Not set' }}</p>
+                </div>
+              </div>
+
+              <div class="detail-row">
+                <div class="detail-item full-width">
+                  <p class="info-text">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="16" x2="12" y2="12"></line>
+                      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    These settings are used for GradeRadar community features. Your university and degree help categorize modules you add or review.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Edit mode -->
+            <div v-else class="profile-form">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="grUniversity">University</label>
+                  <select 
+                    id="grUniversity" 
+                    v-model="editedGradeRadarProfile.university"
+                    @change="onUniversityChange"
+                  >
+                    <option value="">Select University</option>
+                    <option v-for="uni in universities" :key="uni.id" :value="uni.name">
+                      {{ uni.name }}
+                    </option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="grDegree">Degree Program</label>
+                  <select 
+                    id="grDegree" 
+                    v-model="editedGradeRadarProfile.degree"
+                    :disabled="!editedGradeRadarProfile.university"
+                  >
+                    <option value="">Select Degree Program</option>
+                    <option v-for="deg in degreesForSelectedUniversity" :key="deg.id" :value="deg.name">
+                      {{ deg.name }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group full-width">
+                  <p class="info-text">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="16" x2="12" y2="12"></line>
+                      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    Can't find your university or degree? You can add them when writing your first module review.
+                  </p>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button @click="cancelGradeRadarEdit" class="cancel-button">
+                  Cancel
+                </button>
+                <button @click="saveGradeRadarProfile" class="save-button">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                  </svg>
+                  Save Settings
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -338,7 +438,21 @@ export default {
       },
       changePasswordLoading: false,
       passwordLastChanged: null,
-      avatarUploading: false
+      avatarUploading: false,
+
+      gradeRadarEditMode: false,
+      gradeRadarProfile: {
+        university: "",
+        degree: ""
+      },
+      editedGradeRadarProfile: {
+        university: "",
+        degree: ""
+      },
+      universities: [],
+      degreesForSelectedUniversity: [],
+      loadingUniversities: false,
+      loadingDegrees: false
     };
   },
   async mounted() {
@@ -352,6 +466,8 @@ export default {
 
     // Fetch user profile
     await this.fetchUserProfile();
+    await this.fetchGradeRadarProfile();
+    await this.fetchUniversities();
   },
   beforeUnmount() {
     window.removeEventListener("resize", this.checkMobile);
@@ -389,6 +505,82 @@ export default {
         this.loading = false;
       }
     },
+    
+    async fetchGradeRadarProfile() {
+      try {
+        const response = await gradeRadarService.getUserProfile();
+        this.gradeRadarProfile = {
+          university: response.data.university || "",
+          degree: response.data.degree || ""
+        };
+        this.initGradeRadarEditForm();
+      } catch (error) {
+        console.error("Error fetching GradeRadar profile:", error);
+      }
+    },
+    
+    initGradeRadarEditForm() {
+      this.editedGradeRadarProfile = {
+        university: this.gradeRadarProfile.university || "",
+        degree: this.gradeRadarProfile.degree || ""
+      };
+    },
+    
+    toggleGradeRadarEditMode() {
+      this.gradeRadarEditMode = !this.gradeRadarEditMode;
+      if (this.gradeRadarEditMode) {
+        this.initGradeRadarEditForm();
+      }
+    },
+    
+    cancelGradeRadarEdit() {
+      this.gradeRadarEditMode = false;
+    },
+    
+    async saveGradeRadarProfile() {
+      try {
+        await gradeRadarService.updateUserProfile(this.editedGradeRadarProfile);
+        this.gradeRadarProfile = { ...this.editedGradeRadarProfile };
+        this.gradeRadarEditMode = false;
+        notify({ type: "success", message: "GradeRadar settings updated successfully!" });
+      } catch (error) {
+        console.error("Error updating GradeRadar profile:", error);
+        notify({ type: "error", message: "Failed to update GradeRadar settings. Please try again." });
+      }
+    },
+    
+    async fetchUniversities() {
+      try {
+        this.loadingUniversities = true;
+        const response = await gradeRadarService.getUniversities();
+        this.universities = response.data || [];
+      } catch (error) {
+        console.error("Error fetching universities:", error);
+      } finally {
+        this.loadingUniversities = false;
+      }
+    },
+
+    async onUniversityChange() {
+      if (!this.editedGradeRadarProfile.university) {
+        this.degreesForSelectedUniversity = [];
+        this.editedGradeRadarProfile.degree = "";
+        return;
+      }
+      
+      try {
+        this.loadingDegrees = true;
+        this.editedGradeRadarProfile.degree = ""; // Reset degree when university changes
+        const response = await gradeRadarService.getUniversityDegrees(this.editedGradeRadarProfile.university);
+        this.degreesForSelectedUniversity = response.data.degrees || [];
+      } catch (error) {
+        console.error("Error fetching degrees:", error);
+        this.degreesForSelectedUniversity = [];
+      } finally {
+        this.loadingDegrees = false;
+      }
+    },
+
     initEditForm() {
       this.editedProfile = {
         firstName: this.userProfile.firstName || "",
