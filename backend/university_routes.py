@@ -516,3 +516,462 @@ def import_template_modules(req: func.HttpRequest) -> func.HttpResponse:
         )
     except Exception as e:
         return func.HttpResponse(json.dumps({"error": str(e)}), status_code=500)
+    
+
+def get_university_analytics(req: func.HttpRequest) -> func.HttpResponse:
+    """Get analytics data for all universities"""
+    try:
+        from database import get_all_universities_docs
+        universities = get_all_universities_docs()
+        
+        # Prepare an analytics-friendly response
+        analytics_data = []
+        
+        for uni in universities:
+            # Skip universities with no degrees or modules
+            if "degrees" not in uni:
+                continue
+                
+            uni_data = {
+                "name": uni.get("name", ""),
+                "students_count": uni.get("counter", 0),
+                "degrees": []
+            }
+            
+            # Process each degree
+            for degree_name, degree_data in uni.get("degrees", {}).items():
+                # Skip degrees with no modules
+                if "modules" not in degree_data:
+                    continue
+                    
+                # Count students in this degree
+                student_count = 0
+                for major in uni.get("majors", []):
+                    if major.get("major_name") == degree_name:
+                        student_count = major.get("counter", 0)
+                        break
+                
+                degree_info = {
+                    "name": degree_name,
+                    "students_count": student_count,
+                    "modules_count": len(degree_data.get("modules", {}))
+                }
+                
+                uni_data["degrees"].append(degree_info)
+            
+            if uni_data["degrees"]:  # Only include universities with degree data
+                analytics_data.append(uni_data)
+        
+        return func.HttpResponse(
+            json.dumps(analytics_data),
+            status_code=200,
+            mimetype="application/json"
+        )
+    except Exception as e:
+        return func.HttpResponse(
+            json.dumps({"error": str(e)}),
+            status_code=500,
+            mimetype="application/json"
+        )
+
+def get_university_degree_analytics(req: func.HttpRequest) -> func.HttpResponse:
+    """Get analytics data for a specific university degree"""
+    university_name = req.params.get("university")
+    degree_name = req.params.get("degree")
+    
+    if not university_name or not degree_name:
+        return func.HttpResponse(
+            json.dumps({"error": "University and degree names are required"}),
+            status_code=400,
+            mimetype="application/json"
+        )
+    
+    try:
+        from database import get_university_doc
+        uni_doc = get_university_doc(university_name)
+        
+        if not uni_doc:
+            return func.HttpResponse(
+                json.dumps({"error": "University not found"}),
+                status_code=404,
+                mimetype="application/json"
+            )
+            
+        # Check if degree exists
+        if "degrees" not in uni_doc or degree_name not in uni_doc["degrees"]:
+            return func.HttpResponse(
+                json.dumps({"error": "Degree not found"}),
+                status_code=404,
+                mimetype="application/json"
+            )
+            
+        degree_data = uni_doc["degrees"][degree_name]
+        
+        # Get student count
+        student_count = 0
+        for major in uni_doc.get("majors", []):
+            if major.get("major_name") == degree_name:
+                student_count = major.get("counter", 0)
+                break
+        
+        # Prepare module data
+        modules = []
+        for module_key, module_data in degree_data.get("modules", {}).items():
+            # Simplify the grade distribution for the response
+            grade_dist = []
+            if "grade_distribution" in module_data:
+                for range_key, count in module_data["grade_distribution"].items():
+                    if count > 0:  # Only include ranges with students
+                        grade_dist.append({
+                            "range": range_key,
+                            "count": count
+                        })
+            
+            module_info = {
+                "name": module_data.get("name", ""),
+                "code": module_data.get("code", ""),
+                "year": module_data.get("year", ""),
+                "semester": module_data.get("semester", 1),
+                "students_count": module_data.get("student_counter", 0),
+                "average_score": module_data.get("average_score", 0),
+                "grade_distribution": grade_dist
+            }
+            
+            modules.append(module_info)
+        
+        # Sort modules by year and semester
+        modules.sort(key=lambda m: (m.get("year", ""), m.get("semester", 1)))
+        
+        response_data = {
+            "university": university_name,
+            "degree": degree_name,
+            "students_count": student_count,
+            "modules_count": len(modules),
+            "modules": modules
+        }
+        
+        return func.HttpResponse(
+            json.dumps(response_data),
+            status_code=200,
+            mimetype="application/json"
+        )
+    except Exception as e:
+        return func.HttpResponse(
+            json.dumps({"error": str(e)}),
+            status_code=500,
+            mimetype="application/json"
+        )
+
+def get_module_analytics(req: func.HttpRequest) -> func.HttpResponse:
+    """Get analytics data for a specific module"""
+    university_name = req.params.get("university")
+    degree_name = req.params.get("degree")
+    module_name = req.params.get("module_name")
+    module_code = req.params.get("module_code")
+    
+    if not university_name or not degree_name or (not module_name and not module_code):
+        return func.HttpResponse(
+            json.dumps({"error": "University, degree, and either module name or code are required"}),
+            status_code=400,
+            mimetype="application/json"
+        )
+    
+    try:
+        from database import get_university_doc
+        uni_doc = get_university_doc(university_name)
+        
+        if not uni_doc:
+            return func.HttpResponse(
+                json.dumps({"error": "University not found"}),
+                status_code=404,
+                mimetype="application/json"
+            )
+            
+        # Check if degree exists
+        if "degrees" not in uni_doc or degree_name not in uni_doc["degrees"]:
+            return func.HttpResponse(
+                json.dumps({"error": "Degree not found"}),
+                status_code=404,
+                mimetype="application/json"
+            )
+            
+        degree_data = uni_doc["degrees"][degree_name]
+        
+        # Find the module
+        module_data = None
+        for module_key, data in degree_data.get("modules", {}).items():
+            if module_name and data.get("name") == module_name:
+                module_data = data
+                break
+            elif module_code and data.get("code") == module_code:
+                module_data = data
+                break
+        
+        if not module_data:
+            return func.HttpResponse(
+                json.dumps({"error": "Module not found"}),
+                status_code=404,
+                mimetype="application/json"
+            )
+            
+        # Prepare grade distribution for the response
+        grade_dist = []
+        if "grade_distribution" in module_data:
+            for range_key, count in module_data["grade_distribution"].items():
+                grade_dist.append({
+                    "range": range_key,
+                    "count": count
+                })
+        
+        response_data = {
+            "university": university_name,
+            "degree": degree_name,
+            "name": module_data.get("name", ""),
+            "code": module_data.get("code", ""),
+            "year": module_data.get("year", ""),
+            "semester": module_data.get("semester", 1),
+            "students_count": module_data.get("student_counter", 0),
+            "average_score": module_data.get("average_score", 0),
+            "grade_distribution": grade_dist,
+            "last_updated": module_data.get("last_updated", "")
+        }
+        
+        return func.HttpResponse(
+            json.dumps(response_data),
+            status_code=200,
+            mimetype="application/json"
+        )
+    except Exception as e:
+        return func.HttpResponse(
+            json.dumps({"error": str(e)}),
+            status_code=500,
+            mimetype="application/json"
+        )
+    
+
+# Add these enhanced functions to university_routes.py
+
+def get_top_universities(req: func.HttpRequest) -> func.HttpResponse:
+    """Get the top universities by student count"""
+    try:
+        # Get limit parameter, default to 10
+        limit = int(req.params.get("limit", "10"))
+        
+        from database import get_all_universities_docs
+        universities = get_all_universities_docs()
+        
+        # Filter to include only universities with degree data
+        valid_universities = []
+        for uni in universities:
+            if "degrees" in uni and uni["degrees"]:  # Only include universities with degree data
+                # Create a simplified response object
+                uni_data = {
+                    "name": uni.get("name", ""),
+                    "students_count": uni.get("counter", 0),
+                    "degrees_count": len(uni.get("degrees", {}))
+                }
+                valid_universities.append(uni_data)
+        
+        # Sort by student count (descending) and take the top N
+        top_universities = sorted(valid_universities, key=lambda x: x["students_count"], reverse=True)[:limit]
+        
+        return func.HttpResponse(
+            json.dumps({"universities": top_universities}),
+            status_code=200,
+            mimetype="application/json"
+        )
+    except Exception as e:
+        return func.HttpResponse(
+            json.dumps({"error": str(e)}),
+            status_code=500,
+            mimetype="application/json"
+        )
+
+def search_university_analytics(req: func.HttpRequest) -> func.HttpResponse:
+    """Search for universities by name for analytics"""
+    try:
+        query = req.params.get("query")
+        if not query:
+            return func.HttpResponse(
+                json.dumps({"error": "Search query is required"}),
+                status_code=400,
+                mimetype="application/json"
+            )
+        
+        from database import get_all_universities_docs
+        all_universities = get_all_universities_docs()
+        
+        # Find matching universities
+        query = query.lower()
+        results = []
+        
+        for uni in all_universities:
+            # Only include in search if it has degree data
+            if "degrees" in uni and uni["degrees"] and query in uni.get("name", "").lower():
+                results.append({
+                    "name": uni.get("name", ""),
+                    "students_count": uni.get("counter", 0),
+                    "degrees_count": len(uni.get("degrees", {}))
+                })
+        
+        if not results:
+            # Return the query to show "no results for X"
+            return func.HttpResponse(
+                json.dumps({"universities": [], "query": query}),
+                status_code=200,
+                mimetype="application/json"
+            )
+        
+        return func.HttpResponse(
+            json.dumps({"universities": results}),
+            status_code=200,
+            mimetype="application/json"
+        )
+    except Exception as e:
+        return func.HttpResponse(
+            json.dumps({"error": str(e)}),
+            status_code=500,
+            mimetype="application/json"
+        )
+
+def get_university_degrees_list(req: func.HttpRequest) -> func.HttpResponse:
+    """Get a list of degrees for a specific university"""
+    university_name = req.params.get("university")
+    
+    if not university_name:
+        return func.HttpResponse(
+            json.dumps({"error": "University name is required"}),
+            status_code=400,
+            mimetype="application/json"
+        )
+    
+    try:
+        from database import get_university_doc
+        university_doc = get_university_doc(university_name)
+        
+        if not university_doc:
+            return func.HttpResponse(
+                json.dumps({"error": "University not found"}),
+                status_code=404,
+                mimetype="application/json"
+            )
+        
+        # Get degrees with module counts
+        degrees_data = []
+        
+        if "degrees" in university_doc:
+            for degree_name, degree_data in university_doc["degrees"].items():
+                module_count = len(degree_data.get("modules", {}))
+                
+                # Get student count from majors
+                student_count = 0
+                for major in university_doc.get("majors", []):
+                    if major.get("major_name") == degree_name:
+                        student_count = major.get("counter", 0)
+                        break
+                
+                degrees_data.append({
+                    "name": degree_name,
+                    "modules_count": module_count,
+                    "students_count": student_count
+                })
+        
+        # Sort by student count descending
+        degrees_data.sort(key=lambda x: x["students_count"], reverse=True)
+        
+        response = {
+            "university": university_name,
+            "degrees": degrees_data
+        }
+        
+        return func.HttpResponse(
+            json.dumps(response),
+            status_code=200,
+            mimetype="application/json"
+        )
+    except Exception as e:
+        return func.HttpResponse(
+            json.dumps({"error": str(e)}),
+            status_code=500,
+            mimetype="application/json"
+        )
+
+def get_degree_modules_list(req: func.HttpRequest) -> func.HttpResponse:
+    """Get a list of modules for a specific university and degree"""
+    university_name = req.params.get("university")
+    degree_name = req.params.get("degree")
+    
+    if not university_name or not degree_name:
+        return func.HttpResponse(
+            json.dumps({"error": "University and degree names are required"}),
+            status_code=400,
+            mimetype="application/json"
+        )
+    
+    try:
+        from database import get_university_doc
+        university_doc = get_university_doc(university_name)
+        
+        if not university_doc:
+            return func.HttpResponse(
+                json.dumps({"error": "University not found"}),
+                status_code=404,
+                mimetype="application/json"
+            )
+            
+        # Check if degree exists
+        if "degrees" not in university_doc or degree_name not in university_doc["degrees"]:
+            return func.HttpResponse(
+                json.dumps({"error": "Degree not found"}),
+                status_code=404,
+                mimetype="application/json"
+            )
+            
+        degree_data = university_doc["degrees"][degree_name]
+        
+        # Get modules list
+        modules_list = []
+        
+        for module_key, module_data in degree_data.get("modules", {}).items():
+            module_info = {
+                "name": module_data.get("name", ""),
+                "code": module_data.get("code", ""),
+                "year": module_data.get("year", ""),
+                "semester": module_data.get("semester", 1),
+                "students_count": module_data.get("student_counter", 0),
+                "average_score": module_data.get("average_score", 0)
+            }
+            
+            modules_list.append(module_info)
+        
+        # Sort by year and semester
+        modules_list.sort(key=lambda m: (m.get("year", ""), m.get("semester", 1)))
+        
+        # Group by year for easier navigation
+        modules_by_year = {}
+        for module in modules_list:
+            year = module.get("year", "Unknown")
+            if year not in modules_by_year:
+                modules_by_year[year] = []
+            modules_by_year[year].append(module)
+        
+        response = {
+            "university": university_name,
+            "degree": degree_name,
+            "modules_count": len(modules_list),
+            "modules_by_year": modules_by_year,
+            "modules": modules_list  # Include flat list for compatibility
+        }
+        
+        return func.HttpResponse(
+            json.dumps(response),
+            status_code=200,
+            mimetype="application/json"
+        )
+    except Exception as e:
+        return func.HttpResponse(
+            json.dumps({"error": str(e)}),
+            status_code=500,
+            mimetype="application/json"
+        )
+    

@@ -373,39 +373,3 @@ class ScheduleActivationRequest(BaseModel):
 
     class Config:
         extra = "allow"
-
-class ModuleReview(BaseModel):
-    id: Optional[str] = None
-    module_id: str
-    user_email: str
-    university: str
-    degree: str
-    difficulty_rating: conint(ge=1, le=5)
-    teaching_quality_rating: conint(ge=1, le=5)
-    recommended_rating: conint(ge=1, le=5)
-    comment: Optional[str] = None
-    semester: Optional[int] = None
-    year: Optional[str] = None
-    grade_received: Optional[int] = None
-    anonymous: bool = True
-    created_at: Optional[str] = None
-
-class ModuleStatistics(BaseModel):
-    difficulty_avg: float = 0.0
-    teaching_quality_avg: float = 0.0
-    recommended_avg: float = 0.0
-    total_reviews: int = 0
-    grade_distribution: dict = {}
-    
-class ModuleWithStatistics(BaseModel):
-    id: str
-    name: str
-    code: Optional[str] = None
-    university: str
-    degree: str
-    credits: Optional[int] = None
-    year: Optional[str] = None
-    semester: Optional[int] = None
-    students_count: int = 0
-    average_score: float = 0.0
-    statistics: ModuleStatistics = None

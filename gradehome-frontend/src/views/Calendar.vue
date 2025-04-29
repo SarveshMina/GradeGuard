@@ -1410,6 +1410,7 @@ import { API_URL } from "@/config.js";
 import { useSwipe, useDraggable } from '@vueuse/core';
 import { gsap } from 'gsap';
 import ConfettiExplosion from 'vue-confetti-explosion';
+import { utcToLocalHM } from "../utils/utilities";
 import VueTippy from 'vue-tippy';
 
 export default {
@@ -3270,11 +3271,21 @@ methods: {
     if (event.all_day) return 'All Day';
 
     if (event.start_time && event.end_time) {
-      return `${this.formatTime(event.start_time)} - ${this.formatTime(event.end_time)}`;
+      const s = utcToLocalHM(event.date, event.start_time);
+      const e = utcToLocalHM(event.date, event.end_time);
+      return `${this.formatTimeHM(s)} – ${this.formatTimeHM(e)}`;
     }
 
     return '';
   },
+
+  formatTimeHM({ h, m }) {
+  const hh = h % 12 || 12;
+  const mm = m.toString().padStart(2, '0');
+  return this.calendarSettings.timeFormat === '24h'
+         ? `${h.toString().padStart(2,'0')}:${mm}`
+         : `${hh}:${mm} ${h < 12 ? 'AM' : 'PM'}`;
+},
 
   formatTime(timeStr) {
     if (!timeStr) return '';
@@ -3318,8 +3329,8 @@ methods: {
     }
 
     // Parse start and end times
-    const [startHour, startMinute] = event.start_time.split(':').map(Number);
-    const [endHour, endMinute] = event.end_time.split(':').map(Number);
+    const { h: startHour, m: startMinute } = utcToLocalHM(event.date, event.start_time);
+    const { h: endHour,   m: endMinute   } = utcToLocalHM(event.date, event.end_time);
 
     // Calculate top position as percentage of day height
     const dayStart = this.displayHours[0]; // first hour displayed

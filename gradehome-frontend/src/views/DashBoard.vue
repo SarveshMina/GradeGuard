@@ -490,11 +490,14 @@
 
               <!-- Year Comparison Chart -->
               <div class="chart-card">
-                <h3>Year Comparison</h3>
-                <div class="chart-container year-chart">
-                  <YearComparisonChart :yearData="yearData" />
-                </div>
-              </div>
+  <h3>Year Comparison</h3>
+  <div class="chart-container year-chart" style="height: 300px; max-height: 300px; overflow: hidden;">
+    <CssYearComparisonChart 
+      :yearData="yearData" 
+      ref="yearChart" 
+    />
+  </div>
+</div>
             </div>
 
             <!-- Recent Activity and Goals -->
@@ -780,7 +783,7 @@
           </div>
 
           <!-- Module Detail Dialog (appears when a module is clicked) -->
-          <div v-if="showModuleDetail" class="module-detail-dialog">
+<div v-if="showModuleDetail" class="module-detail-dialog">
   <div class="dialog-content">
     <div class="dialog-header">
       <h2>{{ selectedModule.name }}</h2>
@@ -792,127 +795,87 @@
       </button>
     </div>
 
-    <div class="module-info-grid">
-      <div class="info-item">
-        <div class="info-label">Module Code</div>
-        <div class="info-value">{{ selectedModule.code || 'N/A' }}</div>
-      </div>
-      <div class="info-item">
-        <div class="info-label">Credits</div>
-        <div class="info-value">{{ selectedModule.credits }}</div>
-      </div>
-      <div class="info-item">
-        <div class="info-label">Year</div>
-        <div class="info-value">{{ selectedModule.year }}</div>
-      </div>
-      <div class="info-item">
-        <div class="info-label">Semester</div>
-        <div class="info-value">{{ selectedModule.semester === 0 ? 'Full Academic Year' : `Semester ${selectedModule.semester || '?'}` }}</div>
-      </div>
-      <div class="info-item">
-        <div class="info-label">Overall Score</div>
-        <div class="info-value score" :class="getScoreClass(selectedModule.score)">
-          {{ selectedModule.isCurrentlyEnrolled ? 'In Progress' : `${selectedModule.score}%` }}
-        </div>
-      </div>
-      <!-- Enrollment status display -->
-      <div class="info-item">
-        <div class="info-label">Status</div>
-        <div class="info-value">
-          <span class="enrollment-status" :class="{ 'active': selectedModule.isCurrentlyEnrolled }">
-            {{ selectedModule.isCurrentlyEnrolled ? 'Currently Enrolled' : 'Completed' }}
-          </span>
-        </div>
-      </div>
-    </div>
-
-    <h3>Assessment Breakdown</h3>
-    <div class="assessments-table">
-      <div class="table-header">
-        <div class="table-cell">Assessment</div>
-        <div class="table-cell">Weight</div>
-        <div class="table-cell">Your Score</div>
-        <div class="table-cell">Contribution</div>
-      </div>
-      <div v-for="(assessment, index) in selectedModule.assessments" :key="index" class="table-row">
-        <div class="table-cell">{{ assessment.name }}</div>
-        <div class="table-cell">{{ assessment.weight }}%</div>
-        <div class="table-cell" :class="getScoreClass(assessment.score)">{{ assessment.score }}%</div>
-        <div class="table-cell">{{ (assessment.score * assessment.weight / 100).toFixed(1) }}%</div>
-      </div>
-    </div>
-
-    <div class="module-charts">
-      <div class="module-chart">
-        <h4>Performance vs Class Average</h4>
-        <ModuleComparisonChart :moduleData="selectedModule" />
-      </div>
-    </div>
-
-    <!-- GradeRadar Integration - Show community ratings if available -->
-    <div v-if="gradeRadarModule" class="module-graderadar-section">
-      <h3>Community Ratings</h3>
-      <div class="graderadar-stats">
-        <div class="stat-item">
-          <div class="stat-title">Difficulty</div>
-          <div class="stat-value">
-            <div class="rating-stars">
-              <div class="stars-background">★★★★★</div>
-              <div class="stars-filled" :style="{ width: calculateStarWidth(gradeRadarModule.statistics?.difficulty_avg || 0) }">★★★★★</div>
-            </div>
-            <span>{{ formatRating(gradeRadarModule.statistics?.difficulty_avg) }}</span>
-          </div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-title">Teaching</div>
-          <div class="stat-value">
-            <div class="rating-stars">
-              <div class="stars-background">★★★★★</div>
-              <div class="stars-filled" :style="{ width: calculateStarWidth(gradeRadarModule.statistics?.teaching_quality_avg || 0) }">★★★★★</div>
-            </div>
-            <span>{{ formatRating(gradeRadarModule.statistics?.teaching_quality_avg) }}</span>
-          </div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-title">Recommended</div>
-          <div class="stat-value">{{ formatPercentage(gradeRadarModule.statistics?.recommended_avg) }}</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-title">Reviews</div>
-          <div class="stat-value">{{ gradeRadarModule.statistics?.total_reviews || 0 }}</div>
-        </div>
-      </div>
-
-      <!-- Review this module button -->
-      <div v-if="!selectedModule.isCurrentlyEnrolled" class="graderadar-actions">
-        <button @click="viewInGradeRadar(gradeRadarModule.id)" class="view-graderadar-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-            <circle cx="12" cy="12" r="3"></circle>
-          </svg>
-          View in GradeRadar
-        </button>
-        <button @click="reviewModule(gradeRadarModule.id)" class="review-module-btn">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-          </svg>
-          Review this Module
-        </button>
-      </div>
-    </div>
-
-    <!-- GradeRadar Integration - No community ratings yet -->
-    <div v-else-if="!selectedModule.isCurrentlyEnrolled" class="module-graderadar-section no-ratings">
-      <h3>Community Ratings</h3>
-      <p>This module isn't in the GradeRadar community database yet.</p>
-      <button @click="addToGradeRadar" class="add-to-graderadar-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        Add to GradeRadar & Review
+    <div class="module-tabs">
+      <button 
+        :class="{ active: activeModuleTab === 'details' }" 
+        @click="onModuleTabChange('details')"
+      >
+        Module Details
       </button>
+      <button 
+        :class="{ active: activeModuleTab === 'analytics' }" 
+        @click="onModuleTabChange('analytics')"
+      >
+        Analytics
+      </button>
+    </div>
+
+    <!-- Details Tab -->
+    <div v-if="activeModuleTab === 'details'">
+      <div class="module-info-grid">
+        <div class="info-item">
+          <div class="info-label">Module Code</div>
+          <div class="info-value">{{ selectedModule.code || 'N/A' }}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Credits</div>
+          <div class="info-value">{{ selectedModule.credits }}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Year</div>
+          <div class="info-value">{{ selectedModule.year }}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Semester</div>
+          <div class="info-value">{{ selectedModule.semester === 0 ? 'Full Academic Year' : `Semester ${selectedModule.semester || 1}` }}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Overall Score</div>
+          <div class="info-value score" :class="getScoreClass(selectedModule.score)">
+            {{ selectedModule.isCurrentlyEnrolled ? 'In Progress' : `${selectedModule.score}%` }}
+          </div>
+        </div>
+        <!-- New enrollment status display -->
+        <div class="info-item">
+          <div class="info-label">Status</div>
+          <div class="info-value">
+            <span class="enrollment-status" :class="{ 'active': selectedModule.isCurrentlyEnrolled }">
+              {{ selectedModule.isCurrentlyEnrolled ? 'Currently Enrolled' : 'Completed' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <h3>Assessment Breakdown</h3>
+      <div class="assessments-table">
+        <div class="table-header">
+          <div class="table-cell">Assessment</div>
+          <div class="table-cell">Weight</div>
+          <div class="table-cell">Your Score</div>
+          <div class="table-cell">Contribution</div>
+        </div>
+        <div v-for="(assessment, index) in selectedModule.assessments" :key="index" class="table-row">
+          <div class="table-cell">{{ assessment.name }}</div>
+          <div class="table-cell">{{ assessment.weight }}%</div>
+          <div class="table-cell" :class="getScoreClass(assessment.score)">{{ assessment.score }}%</div>
+          <div class="table-cell">{{ (assessment.score * assessment.weight / 100).toFixed(1) }}%</div>
+        </div>
+      </div>
+
+      <div class="module-charts">
+        <div class="module-chart">
+          <h4>Performance vs Class Average</h4>
+          <ModuleComparisonChart :moduleData="selectedModule" ref="comparisonChart" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Analytics Tab -->
+    <div v-else-if="activeModuleTab === 'analytics'">
+      <ModuleAnalyticsComponent 
+        :moduleId="selectedModule.analyticsId || getAnalyticsId(selectedModule)" 
+        :yourScore="selectedModule.isCurrentlyEnrolled ? null : selectedModule.score"
+      />
     </div>
 
     <div class="dialog-actions">
@@ -936,79 +899,6 @@
   </div>
 </div>
 
-<div v-if="showReviewDialog" class="review-dialog-overlay">
-  <div class="review-dialog">
-    <div class="review-dialog-header">
-      <h3>Review: {{ reviewModule.name }}</h3>
-      <button @click="showReviewDialog = false" class="close-dialog">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    </div>
-    <div class="review-dialog-content">
-      <div class="review-form">
-        <div class="rating-item">
-          <label>Teaching Quality</label>
-          <div class="rating-input">
-            <div class="star-rating">
-              <span 
-                v-for="i in 5" 
-                :key="'teaching-'+i" 
-                @click="moduleReview.teaching_quality = i"
-                :class="{ active: moduleReview.teaching_quality >= i }"
-              >★</span>
-            </div>
-            <span class="rating-value">{{ moduleReview.teaching_quality }}/5</span>
-          </div>
-        </div>
-        
-        <div class="rating-item">
-          <label>Difficulty</label>
-          <div class="rating-input">
-            <div class="star-rating">
-              <span 
-                v-for="i in 5" 
-                :key="'difficulty-'+i" 
-                @click="moduleReview.difficulty = i"
-                :class="{ active: moduleReview.difficulty >= i }"
-              >★</span>
-            </div>
-            <span class="rating-value">{{ moduleReview.difficulty }}/5</span>
-          </div>
-          <div class="rating-hint">Higher stars = More difficult</div>
-        </div>
-        
-        <div class="rating-item checkbox-item">
-          <label>Would you recommend this module?</label>
-          <div class="checkbox-input">
-            <input type="checkbox" id="recommend-module" v-model="moduleReview.recommended">
-            <label for="recommend-module">Yes, I recommend this module</label>
-          </div>
-        </div>
-        
-        <div class="comment-item">
-          <label>Your Review (optional)</label>
-          <textarea 
-            v-model="moduleReview.comment" 
-            placeholder="Share your experience with this module..."
-            rows="4"
-          ></textarea>
-          <div class="comment-hint">Be honest and helpful to other students</div>
-        </div>
-      </div>
-    </div>
-    <div class="review-dialog-footer">
-      <button @click="showReviewDialog = false" class="cancel-btn">Cancel</button>
-      <button @click="submitReview" class="submit-btn" :disabled="!isReviewValid">
-        <span v-if="reviewSubmitting">Submitting...</span>
-        <span v-else>Submit Review</span>
-      </button>
-    </div>
-  </div>
-</div>
-
           <!-- Add/Edit Module Form Dialog -->
           <div v-if="showModuleForm" class="module-form-dialog">
             <div class="dialog-content">
@@ -1024,9 +914,47 @@
 
               <div class="form-grid">
                 <div class="form-group">
-                  <label for="moduleName">Module Name <span class="required">*</span></label>
-                  <input type="text" id="moduleName" v-model="moduleForm.name" placeholder="e.g. Introduction to Programming">
-                </div>
+  <label for="moduleName">Module Name <span class="required">*</span></label>
+  <div class="module-name-container">
+    <input 
+      type="text" 
+      id="moduleName" 
+      class="module-name-input"
+      v-model="moduleForm.name" 
+      placeholder="e.g. Introduction to Programming"
+      @input="fetchModuleSuggestions"
+      @keydown="handleSuggestionKeydown"
+      autocomplete="off"
+    >
+    
+    <!-- Loading indicator -->
+    <div v-if="isLoadingSuggestions" class="suggestions-loading">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spinner">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M12 6v6l4 2"></path>
+      </svg>
+    </div>
+    
+    <!-- Suggestions dropdown -->
+    <div v-if="showSuggestions" class="module-suggestions">
+      <div 
+        v-for="(suggestion, index) in moduleSuggestions" 
+        :key="suggestion.code || index"
+        class="suggestion-item"
+        :class="{ 'selected': index === selectedSuggestionIndex }"
+        @click="selectSuggestion(suggestion)"
+      >
+        <div class="suggestion-main">
+          <div class="suggestion-name">{{ suggestion.name }}</div>
+          <div class="suggestion-code">{{ suggestion.code }}</div>
+        </div>
+        <div v-if="suggestion.average_score" class="suggestion-details">
+          Avg: {{ suggestion.average_score }}% | {{ suggestion.student_counter }} students
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
                 <div class="form-group">
                   <label for="moduleCode">Module Code</label>
@@ -1145,16 +1073,17 @@ import { notify } from "@/services/toastService.js";
 import DashboardNavBar from "@/components/DashboardNavBar.vue";
 import CalendarSidebar from "@/components/CalendarSidebar.vue";
 import { getDarkModePreference } from "@/services/darkModeService.js";
-import { userSettingsService } from "@/services/userSettingsService.js";
+import { userSettingsService } from "@/services/userSettingsService.js"; // Import userSettingsService
 import { API_URL } from "@/config.js";
-import gradeRadarService from "@/services/gradeRadarService.js";
 
 // Import chart components
 import GradeDistributionChart from "@/components/charts/GradeDistributionChart.vue";
-import YearComparisonChart from "@/components/charts/YearComparisonChart.vue";
+// import YearComparisonChart from "@/components/charts/YearComparisonChart.vue";
+import CssYearComparisonChart from "@/components/CssYearComparisonChart.vue";
 import PerformanceChart from "@/components/charts/PerformanceChart.vue";
 import StrengthsRadarChart from "@/components/charts/StrengthsRadarChart.vue";
 import ModuleComparisonChart from "@/components/charts/ModuleComparisonChart.vue";
+import ModuleAnalyticsComponent from '@/components/ModuleAnalyticsComponent.vue';
 
 // Import tooltip directive
 import VTooltip from 'v-tooltip';
@@ -1165,10 +1094,12 @@ export default {
     DashboardNavBar,
     CalendarSidebar,
     GradeDistributionChart,
-    YearComparisonChart,
+    // YearComparisonChart,
+    CssYearComparisonChart,
     PerformanceChart,
     StrengthsRadarChart,
-    ModuleComparisonChart
+    ModuleComparisonChart,
+    ModuleAnalyticsComponent
   },
   directives: {
     tooltip: VTooltip.VTooltip
@@ -1185,6 +1116,14 @@ export default {
       selectedYear: 'all',
       sortMethod: 'name',
       loading: false,
+
+      moduleSuggestions: [],
+    showSuggestions: false,
+    isLoadingSuggestions: false,
+    suggestionTimeout: null,
+    selectedSuggestionIndex: -1,
+
+      activeModuleTab: 'details',
 
       // User data
       userProfile: {
@@ -1321,36 +1260,7 @@ export default {
           highlightToday: true,
           defaultView: 'month'
         }
-      },
-      
-      // GradeRadar integration
-      gradeRadarModule: null,
-      showReviewDialog: false,
-      reviewModule: {
-        id: null,
-        name: ""
-      },
-      moduleReview: {
-        teaching_quality: 3,
-        difficulty: 3,
-        recommended: true,
-        comment: ""
-      },
-      reviewSubmitting: false,
-      
-      // GradeRadar user settings
-      userGradeRadarProfile: {
-        university: "",
-        degree: ""
-      },
-      
-      // GradeRadar community stats
-      communityStats: {
-        users_count: 0,
-        reviews_count: 0,
-        modules_count: 0
-      },
-      myReviewsCount: 0
+      }
     };
   },
   computed: {
@@ -1360,14 +1270,18 @@ export default {
     },
 
     filteredCompletedModules() {
-      if (this.selectedTimeframe === 'all') {
-        return this.completedModuleData;
-      }
-      return this.completedModuleData.filter(m => {
-        // Convert both to strings for comparison (Year 1, Year 2, etc.)
-        return m.year === `Year ${this.selectedTimeframe}`;
-      });
-    },
+  if (this.selectedTimeframe === 'all') {
+    return this.completedModuleData;
+  }
+  return this.completedModuleData.filter(m => {
+    // Convert both to strings for comparison (Year 1, Year 2, etc.)
+    return m.year === `Year ${this.selectedTimeframe}`;
+  });
+},
+
+
+
+
 
     currentModuleData() {
       return this.moduleData.filter(m => m.isCurrentlyEnrolled);
@@ -1403,26 +1317,26 @@ export default {
           this.totalAssessmentWeight === 100;
     },
 
-    // Update this computed property to filter by selectedTimeframe
-    overallAverage() {
-      const modules = this.filteredCompletedModules;
-      if (!modules || modules.length === 0) return 0;
+// Update this computed property to filter by selectedTimeframe
+overallAverage() {
+  const modules = this.filteredCompletedModules;
+  if (!modules || modules.length === 0) return 0;
 
-      const totalCredits = modules.reduce((sum, m) => sum + m.credits, 0);
-      const weightedSum = modules.reduce((sum, m) => sum + (m.score * m.credits), 0);
+  const totalCredits = modules.reduce((sum, m) => sum + m.credits, 0);
+  const weightedSum = modules.reduce((sum, m) => sum + (m.score * m.credits), 0);
 
-      return totalCredits > 0 ? Math.round((weightedSum / totalCredits) * 10) / 10 : 0;
-    },
+  return totalCredits > 0 ? Math.round((weightedSum / totalCredits) * 10) / 10 : 0;
+},
 
     // Get current yearly average (excluding currently enrolled modules)
     yearlyAverage() {
-      return this.overallAverage; // Will already be filtered by year
-    },
+  return this.overallAverage; // Will already be filtered by year
+},
 
     // Get completed and total credits
     completedCredits() {
-      return this.filteredCompletedModules.reduce((sum, m) => sum + m.credits, 0);
-    },
+  return this.filteredCompletedModules.reduce((sum, m) => sum + m.credits, 0);
+},
 
     totalCredits() {
       return this.dashboardStats?.totalCredits ||
@@ -1430,109 +1344,108 @@ export default {
     },
 
     yearTotalCredits() {
-      if (this.selectedTimeframe === 'all') {
-        return this.dashboardStats?.totalCredits || 
-          this.moduleData.reduce((sum, m) => sum + m.credits, 0);
-      }
+  if (this.selectedTimeframe === 'all') {
+    return this.dashboardStats?.totalCredits || 
+      this.moduleData.reduce((sum, m) => sum + m.credits, 0);
+  }
 
-      // Find the year config for the selected year
-      const yearConfig = this.calculatorConfig.years?.find(y => 
-        y.year === `Year ${this.selectedTimeframe}`
-      );
-      
-      return yearConfig?.credits || 120; // Default to 120 if not found
-    },
+  // Find the year config for the selected year
+  const yearConfig = this.calculatorConfig.years?.find(y => 
+    y.year === `Year ${this.selectedTimeframe}`
+  );
+  
+  return yearConfig?.credits || 120; // Default to 120 if not found
+},
 
     // Get top module (only from completed modules)
     topModule() {
-      const modules = this.filteredCompletedModules;
-      if (!modules || modules.length === 0) return {name: 'N/A', score: 0};
+  const modules = this.filteredCompletedModules;
+  if (!modules || modules.length === 0) return {name: 'N/A', score: 0};
 
-      return modules.reduce((top, module) => {
-        return (module.score > top.score) ? module : top;
-      }, {name: 'N/A', score: 0});
-    },
+  return modules.reduce((top, module) => {
+    return (module.score > top.score) ? module : top;
+  }, {name: 'N/A', score: 0});
+},
 
     // Get progress percentages
     achievedPercentage() {
-      const modules = this.filteredCompletedModules;
-      const totalPossible = modules.reduce((sum, m) => sum + (m.credits * 100), 0);
-      const achieved = modules.reduce((sum, m) => sum + (m.score * m.credits), 0);
+  const modules = this.filteredCompletedModules;
+  const totalPossible = modules.reduce((sum, m) => sum + (m.credits * 100), 0);
+  const achieved = modules.reduce((sum, m) => sum + (m.score * m.credits), 0);
 
-      return totalPossible > 0 ? Math.round((achieved / totalPossible) * 100) : 0;
-    },
-    
-    lostPercentage() {
-      const completedCreds = this.completedCredits;
-      const totalCreds = this.yearTotalCredits;
+  return totalPossible > 0 ? Math.round((achieved / totalPossible) * 100) : 0;
+},
+lostPercentage() {
+  const completedCreds = this.completedCredits;
+  const totalCreds = this.yearTotalCredits;
 
-      if (totalCreds === 0) return 0;
+  if (totalCreds === 0) return 0;
 
-      return Math.round((completedCreds / totalCreds * 100) - this.achievedPercentage);
-    },
+  return Math.round((completedCreds / totalCreds * 100) - this.achievedPercentage);
+},
 
-    remainingPercentage() {
-      const completedCreds = this.completedCredits;
-      const totalCreds = this.yearTotalCredits;
+remainingPercentage() {
+  const completedCreds = this.completedCredits;
+  const totalCreds = this.yearTotalCredits;
 
-      if (totalCreds === 0) return 100;
+  if (totalCreds === 0) return 100;
 
-      return Math.round(100 - (completedCreds / totalCreds * 100));
-    },
+  return Math.round(100 - (completedCreds / totalCreds * 100));
+},
 
-    targetGrades() {
-      // Get current average
-      const currentAvg = this.overallAverage;
-      // Get completed and total credits
-      const completedCreds = this.completedCredits;
-      const totalCreds = this.yearTotalCredits;
-      // Calculate remaining credits
-      const remainingCreds = totalCreds - completedCreds;
-      
-      // If all credits completed or no credits remaining, return current
-      if (remainingCreds <= 0) {
-        return {
-          firstClass: currentAvg,
-          upperSecond: currentAvg,
-          lowerSecond: currentAvg
-        };
-      }
-      
-      // Calculate minimum grades needed to achieve each classification
-      // The formula is: (targetAverage * totalCredits - currentTotal) / remainingCredits
-      // where currentTotal = currentAverage * completedCredits
-      const currentTotal = currentAvg * completedCreds;
-      
-      // Get thresholds from settings
-      const gradingScale = this.settings.academic.gradingScale || [];
-      const firstClassThreshold = gradingScale.find(g => g.letter === 'A')?.minPercentage || 70;
-      const upperSecondThreshold = gradingScale.find(g => g.letter === 'B')?.minPercentage || 60;
-      const lowerSecondThreshold = gradingScale.find(g => g.letter === 'C')?.minPercentage || 50;
-      
-      // Calculate needed grades
-      const firstClassNeeded = Math.round((firstClassThreshold * totalCreds - currentTotal) / remainingCreds * 10) / 10;
-      const upperSecondNeeded = Math.round((upperSecondThreshold * totalCreds - currentTotal) / remainingCreds * 10) / 10;
-      const lowerSecondNeeded = Math.round((lowerSecondThreshold * totalCreds - currentTotal) / remainingCreds * 10) / 10;
-      
-      return {
-        firstClass: Math.max(0, Math.min(100, firstClassNeeded)),
-        upperSecond: Math.max(0, Math.min(100, upperSecondNeeded)),
-        lowerSecond: Math.max(0, Math.min(100, lowerSecondNeeded))
-      };
-    },
+targetGrades() {
+  // Get current average
+  const currentAvg = this.overallAverage;
+  // Get completed and total credits
+  const completedCreds = this.completedCredits;
+  const totalCreds = this.yearTotalCredits;
+  // Calculate remaining credits
+  const remainingCreds = totalCreds - completedCreds;
+  
+  // If all credits completed or no credits remaining, return current
+  if (remainingCreds <= 0) {
+    return {
+      firstClass: currentAvg,
+      upperSecond: currentAvg,
+      lowerSecond: currentAvg
+    };
+  }
+  
+  // Calculate minimum grades needed to achieve each classification
+  // The formula is: (targetAverage * totalCredits - currentTotal) / remainingCredits
+  // where currentTotal = currentAverage * completedCredits
+  const currentTotal = currentAvg * completedCreds;
+  
+  // Get thresholds from settings
+  const gradingScale = this.settings.academic.gradingScale || [];
+  const firstClassThreshold = gradingScale.find(g => g.letter === 'A')?.minPercentage || 70;
+  const upperSecondThreshold = gradingScale.find(g => g.letter === 'B')?.minPercentage || 60;
+  const lowerSecondThreshold = gradingScale.find(g => g.letter === 'C')?.minPercentage || 50;
+  
+  // Calculate needed grades
+  const firstClassNeeded = Math.round((firstClassThreshold * totalCreds - currentTotal) / remainingCreds * 10) / 10;
+  const upperSecondNeeded = Math.round((upperSecondThreshold * totalCreds - currentTotal) / remainingCreds * 10) / 10;
+  const lowerSecondNeeded = Math.round((lowerSecondThreshold * totalCreds - currentTotal) / remainingCreds * 10) / 10;
+  
+  return {
+    firstClass: Math.max(0, Math.min(100, firstClassNeeded)),
+    upperSecond: Math.max(0, Math.min(100, upperSecondNeeded)),
+    lowerSecond: Math.max(0, Math.min(100, lowerSecondNeeded))
+  };
+},
 
     // Get target grades needed for different classifications based on settings or defaults
     targetHighGrade() {
-      return this.targetGrades.firstClass;
-    },
+  return this.targetGrades.firstClass;
+},
 
-    targetMediumGrade() {
-      return this.targetGrades.upperSecond;
-    },
+targetMediumGrade() {
+  return this.targetGrades.upperSecond;
+},
 
-    targetLowGrade() {
-      return this.targetGrades.lowerSecond;
-    },
+targetLowGrade() {
+  return this.targetGrades.lowerSecond;
+},
 
     // Insights tab calculations
     averageVsTarget() {
@@ -1643,6 +1556,10 @@ export default {
         console.log("No years configured in calculator config");
         return [];
       }
+
+      console.log("Calculator config years:", this.calculatorConfig.years);
+      console.log("Selected year:", this.selectedYear);
+      console.log("Module data count:", this.moduleData?.length || 0);
 
       let years = [];
 
@@ -1769,11 +1686,6 @@ export default {
       });
 
       return options;
-    },
-    
-    // GradeRadar related computed properties
-    isReviewValid() {
-      return this.moduleReview.teaching_quality > 0 && this.moduleReview.difficulty > 0;
     }
   },
   watch: {
@@ -1785,10 +1697,10 @@ export default {
       }
     },
     selectedTimeframe(newValue) {
-      console.log(`Timeframe changed to: ${newValue}`);
-      // Update chart data when timeframe changes
-      this.prepareChartData();
-    },
+    console.log(`Timeframe changed to: ${newValue}`);
+    // Update chart data when timeframe changes
+    this.prepareChartData();
+  },
 
     // Watch for numYears changes to update year weights
     'nextConfig.numYears': function (newValue) {
@@ -1834,6 +1746,49 @@ export default {
     }
   },
   async mounted() {
+    if (!this.yearData) {
+    this.yearData = [];
+  }
+  
+  // Add a delayed check to ensure yearData is populated
+  setTimeout(() => {
+    if (!this.yearData || this.yearData.length === 0) {
+      console.log("Initializing with sample year data");
+      
+      // Create sample data based on the modules we have
+      this.yearData = this.generateYearDataFromModules();
+      
+      // If we still have no data, use fallback data
+      if (this.yearData.length === 0) {
+        this.yearData = [
+          {
+            name: 'Year 1',
+            average: 65,
+            credits: 120,
+            modules: 8,
+            highest: 85,
+            lowest: 52
+          },
+          {
+            name: 'Year 2',
+            average: 68,
+            credits: 120,
+            modules: 6,
+            highest: 88,
+            lowest: 56
+          },
+          {
+            name: 'Year 3',
+            average: 72,
+            credits: 120,
+            modules: 4,
+            highest: 92,
+            lowest: 60
+          }
+        ];
+      }
+    }
+  }, 1000);
     // Load dark mode preference
     this.darkMode = getDarkModePreference();
 
@@ -1894,10 +1849,6 @@ export default {
     await this.checkLoginAndFetchConfig();
     await this.fetchModules();
     await this.fetchDashboardData();
-    
-    // Load GradeRadar profile and community stats
-    await this.loadGradeRadarProfile();
-    await this.loadCommunityStats();
   },
   beforeUnmount() {
     window.removeEventListener("resize", this.checkMobile);
@@ -1920,190 +1871,191 @@ export default {
       window.addEventListener('screenReaderVerbosityChanged', this.onScreenReaderVerbosityChanged);
     },
 
+    refreshYearChart() {
+  console.log("Year chart refresh requested - CSS chart renders automatically");
+  return true; // Always succeeds with CSS chart
+},
+
+
+
+generateYearDataFromModules() {
+  // Create a map to group modules by year
+  const modulesByYear = {};
+  
+  // Group modules by year
+  this.moduleData.forEach(module => {
+    if (!modulesByYear[module.year]) {
+      modulesByYear[module.year] = [];
+    }
+    modulesByYear[module.year].push(module);
+  });
+  
+  // Convert to the format needed for the chart
+  return Object.keys(modulesByYear).map(yearName => {
+    const modules = modulesByYear[yearName];
+    const totalCredits = modules.reduce((sum, m) => sum + m.credits, 0);
     
-    calculateStarWidth(rating) {
-      return `${(rating / 5) * 100}%`;
-    },
+    // Calculate scores (only from completed modules)
+    const completedModules = modules.filter(m => !m.isCurrentlyEnrolled);
+    const scores = completedModules.map(m => m.score);
     
-    // Format rating display
-    formatRating(rating) {
-      if (rating === null || rating === undefined) return 'N/A';
-      return rating.toFixed(1);
-    },
+    // Only calculate average if we have completed modules
+    let average = 0;
+    if (completedModules.length > 0) {
+      average = Math.round(
+        completedModules.reduce((sum, m) => sum + (m.score * m.credits), 0) / 
+        completedModules.reduce((sum, m) => sum + m.credits, 0)
+      );
+    }
     
-    // Format percentage display
-    formatPercentage(value) {
-      if (value === null || value === undefined) return 'N/A';
-      return `${value.toFixed(0)}%`;
-    },
+    return {
+      name: yearName,
+      average: average,
+      credits: totalCredits,
+      modules: modules.length,
+      highest: scores.length > 0 ? Math.max(...scores) : 0,
+      lowest: scores.length > 0 ? Math.min(...scores) : 0
+    };
+  });
+},
     
-    // Check if module exists in GradeRadar when viewing module details
-    async checkGradeRadarModule(module) {
-      try {
-        // Check if the module exists in GradeRadar based on code or name
-        const response = await gradeRadarService.searchModules({
-          university: this.userGradeRadarProfile.university,
-          degree: this.userGradeRadarProfile.degree,
-          code: module.code,
-          name: module.name
-        });
-        
-        if (response.data && response.data.length > 0) {
-          // Module exists, fetch its details
-          const moduleId = response.data[0].id;
-          const moduleDetailsResponse = await gradeRadarService.getModuleDetails(moduleId);
-          this.gradeRadarModule = moduleDetailsResponse.data;
-        } else {
-          // Module doesn't exist in GradeRadar
-          this.gradeRadarModule = null;
-        }
-      } catch (error) {
-        console.error("Error checking GradeRadar module:", error);
-        this.gradeRadarModule = null;
-      }
-    },
-    
-    // Add module to GradeRadar
-    async addToGradeRadar() {
-      if (!this.selectedModule) return;
-      
-      try {
-        // Check if user has set university and degree
-        if (!this.userGradeRadarProfile.university || !this.userGradeRadarProfile.degree) {
-          // Prompt user to update their GradeRadar profile
-          notify({
-            type: "warning",
-            message: "Please update your university and degree in your profile settings to add modules to GradeRadar."
-          });
-          return;
-        }
-        
-        // Prepare module data for GradeRadar
-        const moduleData = {
-          name: this.selectedModule.name,
-          code: this.selectedModule.code,
-          university: this.userGradeRadarProfile.university,
-          degree: this.userGradeRadarProfile.degree,
-          year: this.selectedModule.year,
-          semester: this.selectedModule.semester,
-          credits: this.selectedModule.credits
-        };
-        
-        // Add module to GradeRadar
-        const response = await gradeRadarService.addModule(moduleData);
-        
-        if (response.data && response.data.id) {
-          // Update local reference
-          this.gradeRadarModule = response.data;
-          
-          notify({
-            type: "success",
-            message: "Module successfully added to GradeRadar!"
-          });
-          
-          // Open review dialog
-          this.reviewModule = {
-            id: this.gradeRadarModule.id,
-            name: this.selectedModule.name
-          };
-          this.showReviewDialog = true;
-        }
-      } catch (error) {
-        console.error("Error adding module to GradeRadar:", error);
-        notify({
-          type: "error",
-          message: "Failed to add module to GradeRadar. Please try again."
-        });
-      }
-    },
-    
-    // View module in GradeRadar
-    viewInGradeRadar(moduleId) {
-      if (!moduleId) return;
-      this.$router.push(`/graderadar/module/${moduleId}`);
-    },
-    
-    // Open review dialog for a module
-    reviewModule(moduleId) {
-      if (!moduleId) return;
-      
-      this.reviewModule = {
-        id: moduleId,
-        name: this.selectedModule.name
-      };
-      
-      // Reset review form
-      this.moduleReview = {
-        teaching_quality: 3,
-        difficulty: 3,
-        recommended: true,
-        comment: ""
-      };
-      
-      this.showReviewDialog = true;
-    },
-    
-    // Submit module review
-    async submitReview() {
-      if (!this.isReviewValid || !this.reviewModule.id) return;
-      
-      this.reviewSubmitting = true;
-      
-      try {
-        // Prepare review data
-        const reviewData = {
-          module_id: this.reviewModule.id,
-          teaching_quality: this.moduleReview.teaching_quality,
-          difficulty: this.moduleReview.difficulty,
-          recommended: this.moduleReview.recommended,
-          comment: this.moduleReview.comment
-        };
-        
-        // Submit review
-        await gradeRadarService.submitReview(reviewData);
-        
-        // Refresh module data
-        if (this.gradeRadarModule) {
-          const moduleDetailsResponse = await gradeRadarService.getModuleDetails(this.gradeRadarModule.id);
-          this.gradeRadarModule = moduleDetailsResponse.data;
-        }
-        
-        notify({
-          type: "success",
-          message: "Your review has been submitted successfully!"
-        });
-        
-        // Close review dialog
-        this.showReviewDialog = false;
-      } catch (error) {
-        console.error("Error submitting review:", error);
-        notify({
-          type: "error",
-          message: "Failed to submit review. Please try again."
-        });
-      } finally {
-        this.reviewSubmitting = false;
-      }
-    },
-    
-    // Load user's GradeRadar profile
-    async loadGradeRadarProfile() {
-      try {
-        const response = await gradeRadarService.getUserProfile();
-        if (response.data) {
-          this.userGradeRadarProfile = {
-            university: response.data.university || "",
-            degree: response.data.degree || ""
-          };
-        }
-      } catch (error) {
-        console.error("Error loading GradeRadar profile:", error);
-      }
-    },
 
     updateTimeframe(timeframe) {
-      this.selectedTimeframe = timeframe;
+    this.selectedTimeframe = timeframe;
+  },
+
+  async fetchModuleSuggestions() {
+    // Clear any existing timeout
+    if (this.suggestionTimeout) {
+      clearTimeout(this.suggestionTimeout);
+    }
+
+    // Don't fetch suggestions if the input is empty
+    if (!this.moduleForm.name || this.moduleForm.name.length < 2) {
+      this.moduleSuggestions = [];
+      this.showSuggestions = false;
+      return;
+    }
+
+    // Use a small debounce to avoid too many requests while typing
+    this.suggestionTimeout = setTimeout(async () => {
+      try {
+        this.isLoadingSuggestions = true;
+
+        // Fetch suggestions from the API
+        const response = await axios.get(`${API_URL}/modules/suggestions`, {
+          params: {
+            query: this.moduleForm.name,
+            degree: this.moduleForm.degree || 'COMPUTER SCIENCE', // Default to Computer Science if no degree selected
+            university: this.userProfile.university || 'University of Southampton' // Use user's university or default
+          },
+          withCredentials: true
+        });
+
+        // Update suggestions
+        this.moduleSuggestions = response.data || [];
+        this.showSuggestions = this.moduleSuggestions.length > 0;
+        this.selectedSuggestionIndex = -1;
+      } catch (error) {
+        console.error("Error fetching module suggestions:", error);
+        this.moduleSuggestions = [];
+        this.showSuggestions = false;
+      } finally {
+        this.isLoadingSuggestions = false;
+      }
+    }, 300); // 300ms debounce
+  },
+  selectSuggestion(suggestion) {
+    // Fill in module form data from the suggestion
+    this.moduleForm.name = suggestion.name;
+    this.moduleForm.code = suggestion.code;
+    
+    // Other fields that might be available in the suggestion
+    if (suggestion.credits) {
+      this.moduleForm.credits = suggestion.credits;
+    }
+
+    // Hide suggestions after selection
+    this.showSuggestions = false;
+    this.moduleSuggestions = [];
+  },
+
+  handleSuggestionKeydown(event) {
+    if (!this.showSuggestions) return;
+
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        this.selectedSuggestionIndex = Math.min(
+          this.selectedSuggestionIndex + 1, 
+          this.moduleSuggestions.length - 1
+        );
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        this.selectedSuggestionIndex = Math.max(this.selectedSuggestionIndex - 1, -1);
+        break;
+      case 'Enter':
+        event.preventDefault();
+        if (this.selectedSuggestionIndex >= 0) {
+          this.selectSuggestion(this.moduleSuggestions[this.selectedSuggestionIndex]);
+        }
+        break;
+      case 'Escape':
+        event.preventDefault();
+        this.showSuggestions = false;
+        break;
+    }
+  },
+
+  closeSuggestions(event) {
+    // Only close if click is outside of suggestions and module name input
+    if (
+      !event.target.closest('.module-name-input') && 
+      !event.target.closest('.module-suggestions')
+    ) {
+      this.showSuggestions = false;
+    }
+  },
+
+/**
+     * View module details and reset active tab
+     * @param {Object} module - The module to view details for
+     */
+     viewModuleDetails(module) {
+      this.selectedModule = module;
+      this.activeModuleTab = 'details'; // Reset to details tab by default
+      this.showModuleDetail = true;
     },
+    
+    /**
+     * Generate a consistent analytics ID for a module if one doesn't exist
+     * @param {Object} module - The module object
+     * @returns {String} - The analytics ID
+     */
+    getAnalyticsId(module) {
+      if (module.analyticsId) return module.analyticsId;
+      
+      // Create a consistent ID based on module name and code
+      const cleanName = module.name.trim().toLowerCase().replace(/\s+/g, '_');
+      const codeSegment = module.code ? 
+                          `-${module.code.trim().toLowerCase()}` : '';
+      return `${cleanName}${codeSegment}`;
+    },
+    
+    /**
+     * Get the CSS class for a score
+     * @param {Number} score - The score to get a class for
+     * @returns {String} - The CSS class name
+     */
+    getScoreClass(score) {
+      if (score >= 70) return 'excellent-score';
+      if (score >= 60) return 'good-score';
+      if (score >= 50) return 'average-score';
+      if (score >= 40) return 'pass-score';
+      return 'fail-score';
+    },
+
 
     // Remove settings event listeners
     removeSettingsEventListeners() {
@@ -2517,11 +2469,6 @@ export default {
 
           if (this.showModuleForm) {
             this.showModuleForm = false;
-            return;
-          }
-          
-          if (this.showReviewDialog) {
-            this.showReviewDialog = false;
             return;
           }
 
@@ -3034,9 +2981,6 @@ export default {
     viewModuleDetails(module) {
       this.selectedModule = module;
       this.showModuleDetail = true;
-      
-      // Check if module exists in GradeRadar
-      this.checkGradeRadarModule(module);
     },
 
     // Show add module form
@@ -3183,162 +3127,163 @@ export default {
     },
 
     // Prepare data for charts
-    prepareChartData() {
-      console.log(`Preparing chart data for timeframe: ${this.selectedTimeframe}`);
-      
-      // Filter modules based on selected timeframe
-      const completedModules = this.selectedTimeframe === 'all' 
-        ? this.completedModuleData 
-        : this.completedModuleData.filter(m => m.year === `Year ${this.selectedTimeframe}`);
-      
-      // Log how many modules we're working with
-      console.log(`Found ${completedModules.length} completed modules for the selected timeframe`);
-      
-      // Score distribution for grade distribution chart
-      const scores = completedModules.map(m => m.score);
-      
-      // Use grading scale ranges from settings if available
-      let ranges;
-      const gradingScale = this.settings.academic.gradingScale;
+// Prepare data for charts
+prepareChartData() {
+  console.log(`Preparing chart data for timeframe: ${this.selectedTimeframe}`);
+  
+  // Filter modules based on selected timeframe
+  const completedModules = this.selectedTimeframe === 'all' 
+    ? this.completedModuleData 
+    : this.completedModuleData.filter(m => m.year === `Year ${this.selectedTimeframe}`);
+  
+  // Log how many modules we're working with
+  console.log(`Found ${completedModules.length} completed modules for the selected timeframe`);
+  
+  // Score distribution for grade distribution chart
+  const scores = completedModules.map(m => m.score);
+  
+  // Use grading scale ranges from settings if available
+  let ranges;
+  const gradingScale = this.settings.academic.gradingScale;
 
-      if (gradingScale && gradingScale.length >= 4) {
-        ranges = [];
-        // Sort grading scale by minPercentage in descending order
-        const sortedScale = [...gradingScale].sort((a, b) => b.minPercentage - a.minPercentage);
+  if (gradingScale && gradingScale.length >= 4) {
+    ranges = [];
+    // Sort grading scale by minPercentage in descending order
+    const sortedScale = [...gradingScale].sort((a, b) => b.minPercentage - a.minPercentage);
 
-        // Create ranges from grading scale
-        for (let i = 0; i < sortedScale.length; i++) {
-          const min = sortedScale[i].minPercentage;
-          const max = i === 0 ? 100 : sortedScale[i - 1].minPercentage - 1;
-          ranges.push({
-            name: `${sortedScale[i].letter} (${min}-${max}%)`,
-            range: [min, max]
-          });
-        }
-      } else {
-        // Default ranges
-        ranges = [
-          {name: '0-39%', range: [0, 39]},
-          {name: '40-49%', range: [40, 49]},
-          {name: '50-59%', range: [50, 59]},
-          {name: '60-69%', range: [60, 69]},
-          {name: '70-100%', range: [70, 100]}
-        ];
-      }
+    // Create ranges from grading scale
+    for (let i = 0; i < sortedScale.length; i++) {
+      const min = sortedScale[i].minPercentage;
+      const max = i === 0 ? 100 : sortedScale[i - 1].minPercentage - 1;
+      ranges.push({
+        name: `${sortedScale[i].letter} (${min}-${max}%)`,
+        range: [min, max]
+      });
+    }
+  } else {
+    // Default ranges
+    ranges = [
+      {name: '0-39%', range: [0, 39]},
+      {name: '40-49%', range: [40, 49]},
+      {name: '50-59%', range: [50, 59]},
+      {name: '60-69%', range: [60, 69]},
+      {name: '70-100%', range: [70, 100]}
+    ];
+  }
 
-      // Update score distribution for grade chart
-      this.scoreDistribution = ranges.map(range => {
-        return {
-          name: range.name,
-          count: scores.filter(score => score >= range.range[0] && score <= range.range[1]).length
+  // Update score distribution for grade chart
+  this.scoreDistribution = ranges.map(range => {
+    return {
+      name: range.name,
+      count: scores.filter(score => score >= range.range[0] && score <= range.range[1]).length
+    };
+  });
+  
+  // Prepare year comparison data
+  // Group modules by year to prepare yearData
+  const modulesByYear = {};
+  completedModules.forEach(module => {
+    if (!modulesByYear[module.year]) {
+      modulesByYear[module.year] = [];
+    }
+    modulesByYear[module.year].push(module);
+  });
+  
+  // Only update yearData if we need year comparison data
+  if (this.selectedTimeframe === 'all') {
+    this.yearData = Object.keys(modulesByYear).map(year => {
+      const modules = modulesByYear[year];
+      const totalCredits = modules.reduce((sum, m) => sum + m.credits, 0);
+      const averageScore = modules.length ? 
+        Math.round(modules.reduce((sum, m) => sum + (m.score * m.credits), 0) / totalCredits * 10) / 10 : 0;
+      
+      return {
+        name: year,
+        average: averageScore,
+        credits: totalCredits,
+        modules: modules.length,
+        highest: Math.max(...modules.map(m => m.score)),
+        lowest: Math.min(...modules.map(m => m.score))
+      };
+    }).sort((a, b) => {
+      // Sort by year number
+      const yearA = parseInt(a.name.replace('Year ', ''));
+      const yearB = parseInt(b.name.replace('Year ', ''));
+      return yearA - yearB;
+    });
+  }
+  
+  // Prepare data for subject strengths radar chart (optional, only if you're using this)
+  const subjectCategories = [
+    {name: 'Programming', pattern: /(programming|coding|development|software)/i},
+    {name: 'Theory', pattern: /(theory|concepts|foundations)/i},
+    {name: 'Mathematics', pattern: /(math|mathematics|calculation|statistics)/i},
+    {name: 'Design', pattern: /(design|architecture|interface)/i},
+    {name: 'Research', pattern: /(research|analysis|thesis)/i},
+    {name: 'Security', pattern: /(security|cyber|protection)/i}
+  ];
+  
+  this.strengthsData = subjectCategories.map(category => {
+    const matchingModules = completedModules.filter(m =>
+      category.pattern.test(m.name) || (m.code && category.pattern.test(m.code))
+    );
+    
+    return {
+      subject: category.name,
+      score: matchingModules.length ?
+        Math.round(matchingModules.reduce((sum, m) => sum + m.score, 0) / matchingModules.length) :
+        50 // Default value if no matching modules
+    };
+  });
+  
+  // Prepare performance trend data
+  if (this.selectedTimeframe === 'all') {
+    // Sort modules by completion date or semester
+    const sortedModules = [...completedModules].sort((a, b) => {
+      // First by year
+      const yearA = parseInt(a.year.replace('Year ', ''));
+      const yearB = parseInt(b.year.replace('Year ', ''));
+      if (yearA !== yearB) return yearA - yearB;
+      
+      // Then by semester
+      return (a.semester || 1) - (b.semester || 1);
+    });
+    
+    // Group by semester for performance chart
+    const performanceByPeriod = {};
+    sortedModules.forEach(module => {
+      const period = `${module.year} - Sem ${module.semester || 1}`;
+      if (!performanceByPeriod[period]) {
+        performanceByPeriod[period] = { 
+          modules: [], 
+          totalCredits: 0 
         };
-      });
-      
-      // Prepare year comparison data
-      // Group modules by year to prepare yearData
-      const modulesByYear = {};
-      completedModules.forEach(module => {
-        if (!modulesByYear[module.year]) {
-          modulesByYear[module.year] = [];
-        }
-        modulesByYear[module.year].push(module);
-      });
-      
-      // Only update yearData if we need year comparison data
-      if (this.selectedTimeframe === 'all') {
-        this.yearData = Object.keys(modulesByYear).map(year => {
-          const modules = modulesByYear[year];
-          const totalCredits = modules.reduce((sum, m) => sum + m.credits, 0);
-          const averageScore = modules.length ? 
-            Math.round(modules.reduce((sum, m) => sum + (m.score * m.credits), 0) / totalCredits * 10) / 10 : 0;
-          
-          return {
-            name: year,
-            average: averageScore,
-            credits: totalCredits,
-            modules: modules.length,
-            highest: Math.max(...modules.map(m => m.score)),
-            lowest: Math.min(...modules.map(m => m.score))
-          };
-        }).sort((a, b) => {
-          // Sort by year number
-          const yearA = parseInt(a.name.replace('Year ', ''));
-          const yearB = parseInt(b.name.replace('Year ', ''));
-          return yearA - yearB;
-        });
       }
+      performanceByPeriod[period].modules.push(module);
+      performanceByPeriod[period].totalCredits += module.credits;
+    });
+    
+    // Create performance data points
+    this.performanceData = Object.keys(performanceByPeriod).map(period => {
+      const data = performanceByPeriod[period];
+      const weightedSum = data.modules.reduce((sum, m) => sum + (m.score * m.credits), 0);
+      const average = data.totalCredits > 0 ? Math.round((weightedSum / data.totalCredits) * 10) / 10 : 0;
       
-      // Prepare data for subject strengths radar chart (optional, only if you're using this)
-      const subjectCategories = [
-        {name: 'Programming', pattern: /(programming|coding|development|software)/i},
-        {name: 'Theory', pattern: /(theory|concepts|foundations)/i},
-        {name: 'Mathematics', pattern: /(math|mathematics|calculation|statistics)/i},
-        {name: 'Design', pattern: /(design|architecture|interface)/i},
-        {name: 'Research', pattern: /(research|analysis|thesis)/i},
-        {name: 'Security', pattern: /(security|cyber|protection)/i}
-      ];
-      
-      this.strengthsData = subjectCategories.map(category => {
-        const matchingModules = completedModules.filter(m =>
-          category.pattern.test(m.name) || (m.code && category.pattern.test(m.code))
-        );
-        
-        return {
-          subject: category.name,
-          score: matchingModules.length ?
-            Math.round(matchingModules.reduce((sum, m) => sum + m.score, 0) / matchingModules.length) :
-            50 // Default value if no matching modules
-        };
-      });
-      
-      // Prepare performance trend data
-      if (this.selectedTimeframe === 'all') {
-        // Sort modules by completion date or semester
-        const sortedModules = [...completedModules].sort((a, b) => {
-          // First by year
-          const yearA = parseInt(a.year.replace('Year ', ''));
-          const yearB = parseInt(b.year.replace('Year ', ''));
-          if (yearA !== yearB) return yearA - yearB;
-          
-          // Then by semester
-          return (a.semester || 1) - (b.semester || 1);
-        });
-        
-        // Group by semester for performance chart
-        const performanceByPeriod = {};
-        sortedModules.forEach(module => {
-          const period = `${module.year} - Sem ${module.semester || 1}`;
-          if (!performanceByPeriod[period]) {
-            performanceByPeriod[period] = { 
-              modules: [], 
-              totalCredits: 0 
-            };
-          }
-          performanceByPeriod[period].modules.push(module);
-          performanceByPeriod[period].totalCredits += module.credits;
-        });
-        
-        // Create performance data points
-        this.performanceData = Object.keys(performanceByPeriod).map(period => {
-          const data = performanceByPeriod[period];
-          const weightedSum = data.modules.reduce((sum, m) => sum + (m.score * m.credits), 0);
-          const average = data.totalCredits > 0 ? Math.round((weightedSum / data.totalCredits) * 10) / 10 : 0;
-          
-          return {
-            period: period,
-            average: average,
-            highest: Math.max(...data.modules.map(m => m.score)),
-            lowest: Math.min(...data.modules.map(m => m.score)),
-            credits: data.totalCredits
-          };
-        }).sort((a, b) => {
-          // Sort periods chronologically
-          return a.period.localeCompare(b.period);
-        });
-      }
-      
-      console.log("Chart data prepared successfully");
-    },
+      return {
+        period: period,
+        average: average,
+        highest: Math.max(...data.modules.map(m => m.score)),
+        lowest: Math.min(...data.modules.map(m => m.score)),
+        credits: data.totalCredits
+      };
+    }).sort((a, b) => {
+      // Sort periods chronologically
+      return a.period.localeCompare(b.period);
+    });
+  }
+  
+  console.log("Chart data prepared successfully");
+},
 
     // Prepare data for insights charts
     prepareInsightsData() {
@@ -3637,136 +3582,118 @@ export default {
     },
 
     async completeSetup() {
-  // Validate weights before proceeding
-  if (this.totalWeight !== 100 && this.hasActiveYears) {
-    const message = "The total weight of active years should equal 100%.";
-    if (this.isCapacitorApp()) {
-      this.showNativeToast(message);
-    } else {
-      notify({type: "warning", message: message});
-    }
-    return;
-  }
-
-  if (this.isMobile) this.showLoading();
-
-  try {
-    this.loading = true;
-
-    const yearsCount =
-        this.nextConfig.numYears === "other" ? this.nextConfig.customYears : this.nextConfig.numYears;
-    const semCount =
-        this.nextConfig.semesters === "other"
-            ? this.nextConfig.customSemesters
-            : this.nextConfig.semesters;
-    const credCount =
-        this.nextConfig.credits === "other" ? this.nextConfig.customCredits : this.nextConfig.credits;
-
-    // Create request payload for calculator config
-    const configData = {
-      numYears: yearsCount,
-      semesters: semCount,
-      credits: credCount,
-      years: this.yearWeights.map((year, index) => ({
-        year: `Year ${index + 1}`,
-        active: year.active,
-        credits: credCount,
-        weight: year.weight,
-        semesters: semCount
-      }))
-    };
-
-    // Update settings with completed setup data
-    this.settings.academic.totalYears = yearsCount;
-    this.settings.academic.semestersPerYear = semCount;
-    this.settings.academic.creditsPerYear = credCount;
-    this.settings.academic.yearWeights = this.yearWeights;
-    this.settings.academic.targetGrade = this.targetGrade;
-    this.settings.academic.customTargetGrade = this.customTargetGrade;
-
-    // Save calculator config
-    await axios.put(
-        `${API_URL}/calculator/update`,
-        configData,
-        {withCredentials: true}
-    );
-
-    // Save target grade in goals
-    const targetValue = this.targetGrade === 'custom' ? this.customTargetGrade : this.targetGrade;
-    const goals = [{
-      title: 'First Class Degree',
-      description: `Achieve overall average of ${targetValue}% or higher`,
-      progress: 0,
-      target_score: targetValue
-    }];
-
-    // Update goals
-    await axios.put(
-        `${API_URL}/dashboard/goals`,
-        goals,
-        {withCredentials: true}
-    );
-
-    // Save user configuration
-    if (this.userConfig.academicLevel || this.userConfig.enrollmentType || this.userConfig.studyPreference) {
-      await axios.put(
-          `${API_URL}/user/config`,
-          {studyPreferences: this.userConfig},
-          {withCredentials: true}
-      );
-    }
-    
-    // Set GradeRadar profile with university information if available
-    if (this.userProfile.university) {
-      try {
-        // Sync university info with GradeRadar
-        await gradeRadarService.updateUserProfile({
-          university: this.userProfile.university,
-          degree: this.userProfile.degree || ""
-        });
-        
-        console.log("GradeRadar profile updated with university information");
-      } catch (grError) {
-        console.error("Error updating GradeRadar profile:", grError);
-        // Non-blocking error, continue with setup
+      // Validate weights before proceeding
+      if (this.totalWeight !== 100 && this.hasActiveYears) {
+        const message = "The total weight of active years should equal 100%.";
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(message);
+        } else {
+          notify({type: "warning", message: message});
+        }
+        return;
       }
-    }
 
-    // Save settings to userSettingsService
-    await userSettingsService.saveSettings(this.settings);
+      if (this.isMobile) this.showLoading();
 
-    this.showYearWeights = false;
-    this.showSetupWizard = false;
-    this.showNextConfig = false;
+      try {
+        this.loading = true;
 
-    // Refresh data
-    await this.fetchCalculatorConfig();
-    await this.fetchModules();
-    await this.fetchDashboardData();
-    await this.loadGradeRadarProfile(); // Load GradeRadar profile
+        const yearsCount =
+            this.nextConfig.numYears === "other" ? this.nextConfig.customYears : this.nextConfig.numYears;
+        const semCount =
+            this.nextConfig.semesters === "other"
+                ? this.nextConfig.customSemesters
+                : this.nextConfig.semesters;
+        const credCount =
+            this.nextConfig.credits === "other" ? this.nextConfig.customCredits : this.nextConfig.credits;
 
-    const message = "Setup completed successfully!";
-    if (this.isCapacitorApp()) {
-      this.showNativeToast(message);
-    } else {
-      notify({type: "success", message: message});
-    }
-  } catch (error) {
-    console.error("Error completing setup:", error);
-    const errorMsg = `Setup failed: ${error.response?.data?.error || error.message}`;
+        // Create request payload for calculator config
+        const configData = {
+          numYears: yearsCount,
+          semesters: semCount,
+          credits: credCount,
+          years: this.yearWeights.map((year, index) => ({
+            year: `Year ${index + 1}`,
+            active: year.active,
+            credits: credCount,
+            weight: year.weight,
+            semesters: semCount
+          }))
+        };
 
-    if (this.isCapacitorApp()) {
-      this.showNativeToast(errorMsg);
-    } else {
-      notify({type: "error", message: errorMsg});
-    }
-  } finally {
-    this.loading = false;
-    if (this.isMobile) this.hideLoading();
-  }
-},
+        // Update settings with completed setup data
+        this.settings.academic.totalYears = yearsCount;
+        this.settings.academic.semestersPerYear = semCount;
+        this.settings.academic.creditsPerYear = credCount;
+        this.settings.academic.yearWeights = this.yearWeights;
+        this.settings.academic.targetGrade = this.targetGrade;
+        this.settings.academic.customTargetGrade = this.customTargetGrade;
 
-async saveModule() {
+        // Save calculator config
+        await axios.put(
+            `${API_URL}/calculator/update`,
+            configData,
+            {withCredentials: true}
+        );
+
+        // Save target grade in goals
+        const targetValue = this.targetGrade === 'custom' ? this.customTargetGrade : this.targetGrade;
+        const goals = [{
+          title: 'First Class Degree',
+          description: `Achieve overall average of ${targetValue}% or higher`,
+          progress: 0,
+          target_score: targetValue
+        }];
+
+        // Update goals
+        await axios.put(
+            `${API_URL}/dashboard/goals`,
+            goals,
+            {withCredentials: true}
+        );
+
+        // Save user configuration
+        if (this.userConfig.academicLevel || this.userConfig.enrollmentType || this.userConfig.studyPreference) {
+          await axios.put(
+              `${API_URL}/user/config`,
+              {studyPreferences: this.userConfig},
+              {withCredentials: true}
+          );
+        }
+
+        // Save settings to userSettingsService
+        await userSettingsService.saveSettings(this.settings);
+
+        this.showYearWeights = false;
+        this.showSetupWizard = false;
+        this.showNextConfig = false;
+
+        // Refresh data
+        await this.fetchCalculatorConfig();
+        await this.fetchModules();
+        await this.fetchDashboardData();
+
+        const message = "Setup completed successfully!";
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(message);
+        } else {
+          notify({type: "success", message: message});
+        }
+      } catch (error) {
+        console.error("Error completing setup:", error);
+        const errorMsg = `Setup failed: ${error.response?.data?.error || error.message}`;
+
+        if (this.isCapacitorApp()) {
+          this.showNativeToast(errorMsg);
+        } else {
+          notify({type: "error", message: errorMsg});
+        }
+      } finally {
+        this.loading = false;
+        if (this.isMobile) this.hideLoading();
+      }
+    },
+    async saveModule() {
   if (!this.isModuleFormValid) {
     notify({
       type: "warning",
@@ -3844,89 +3771,6 @@ async saveModule() {
         console.error("Response data:", apiError.response.data);
       }
       // We'll continue with local storage backup below
-    }
-
-    // GradeRadar Integration
-    // Add/update module in GradeRadar if it's completed (not currently enrolled)
-    if (!this.moduleForm.isCurrentlyEnrolled && this.userGradeRadarProfile.university) {
-      try {
-        // Check if module exists in GradeRadar
-        let gradeRadarModuleId = null;
-        
-        // Search for existing module in GradeRadar
-        const searchResponse = await gradeRadarService.searchModules({
-          university: this.userGradeRadarProfile.university,
-          degree: this.userGradeRadarProfile.degree,
-          code: this.moduleForm.code,
-          name: this.moduleForm.name
-        });
-        
-        if (searchResponse.data && searchResponse.data.length > 0) {
-          // Module exists, get its ID
-          gradeRadarModuleId = searchResponse.data[0].id;
-          console.log("Module exists in GradeRadar with ID:", gradeRadarModuleId);
-          
-          // Update the existing module
-          await gradeRadarService.updateModule(gradeRadarModuleId, {
-            name: this.moduleForm.name,
-            code: this.moduleForm.code,
-            credits: this.moduleForm.credits,
-            semester: this.moduleForm.semester,
-            year: this.moduleForm.year
-          });
-          
-          console.log("Module updated in GradeRadar");
-        } else if (!this.editingModule) {
-          // Module doesn't exist and this is a new module
-          // Ask if the user wants to add it to GradeRadar
-          const addToGradeRadar = confirm(
-            `Would you like to add "${this.moduleForm.name}" to the GradeRadar community database? This helps other students discover and review this module.`
-          );
-          
-          if (addToGradeRadar) {
-            // Add module to GradeRadar
-            const grResponse = await gradeRadarService.addModule({
-              name: this.moduleForm.name,
-              code: this.moduleForm.code,
-              university: this.userGradeRadarProfile.university,
-              degree: this.userGradeRadarProfile.degree,
-              year: this.moduleForm.year,
-              semester: this.moduleForm.semester,
-              credits: this.moduleForm.credits
-            });
-            
-            if (grResponse.data && grResponse.data.id) {
-              gradeRadarModuleId = grResponse.data.id;
-              console.log("Module added to GradeRadar with ID:", gradeRadarModuleId);
-              
-              // Notify user
-              notify({
-                type: "success",
-                message: "Module added to GradeRadar community database!"
-              });
-              
-              // Ask if they want to review the module
-              const reviewModule = confirm(
-                "Would you like to write a review for this module now?"
-              );
-              
-              if (reviewModule) {
-                // Show review dialog
-                this.reviewModule = {
-                  id: gradeRadarModuleId,
-                  name: this.moduleForm.name
-                };
-                setTimeout(() => {
-                  this.showReviewDialog = true;
-                }, 500);
-              }
-            }
-          }
-        }
-      } catch (grError) {
-        console.error("Error with GradeRadar integration:", grError);
-        // Non-blocking error, continue with the main flow
-      }
     }
 
     // If API call was successful, refresh data and ensure the year is active
@@ -4165,90 +4009,109 @@ async saveModule() {
     if (this.isMobile) this.hideLoading();
   }
 },
+    async deleteModule(module) {
+      // Use a confirm dialog appropriate for the platform
+      let confirmed = false;
 
-async deleteModule(module) {
-  // Use a confirm dialog appropriate for the platform
-  let confirmed = false;
+      if (this.isCapacitorApp() && window.Capacitor.Plugins.Dialog) {
+        const {value} = await window.Capacitor.Plugins.Dialog.confirm({
+          title: 'Confirm Deletion',
+          message: `Are you sure you want to delete "${module.name}"?`,
+          okButtonTitle: 'Delete',
+          cancelButtonTitle: 'Cancel'
+        });
+        confirmed = value;
+      } else {
+        confirmed = confirm(`Are you sure you want to delete "${module.name}"?`);
+      }
 
-  if (this.isCapacitorApp() && window.Capacitor.Plugins.Dialog) {
-    const {value} = await window.Capacitor.Plugins.Dialog.confirm({
-      title: 'Confirm Deletion',
-      message: `Are you sure you want to delete "${module.name}"? Note that if this module exists in GradeRadar, it will remain available in the community database.`,
-      okButtonTitle: 'Delete',
-      cancelButtonTitle: 'Cancel'
-    });
-    confirmed = value;
-  } else {
-    confirmed = confirm(`Are you sure you want to delete "${module.name}"? Note that if this module exists in GradeRadar, it will remain available in the community database.`);
-  }
+      if (confirmed) {
+        if (this.isMobile) this.showLoading();
 
-  if (confirmed) {
-    if (this.isMobile) this.showLoading();
-
-    try {
-      this.loading = true;
-      
-      // Check if module exists in GradeRadar before deleting
-      let gradeRadarModuleExists = false;
-      
-      if (this.userGradeRadarProfile.university) {
         try {
-          const searchResponse = await gradeRadarService.searchModules({
-            university: this.userGradeRadarProfile.university,
-            degree: this.userGradeRadarProfile.degree,
-            code: module.code,
-            name: module.name
+          this.loading = true;
+          await axios.delete(`${API_URL}/modules/${module.id}`, {withCredentials: true});
+
+          await this.fetchModules(); // Refresh module data
+          await this.fetchDashboardData(); // Refresh dashboard stats
+
+          const message = "Module deleted successfully!";
+          if (this.isCapacitorApp()) {
+            this.showNativeToast(message);
+          } else {
+            notify({type: "success", message: message});
+          }
+
+          this.showModuleDetail = false;
+
+          // Add activity to recent activities
+          this.addActivity({
+            type: 'grade',
+            title: 'Module Deleted',
+            description: `${module.name}`,
+            time: 'Just now'
           });
-          
-          gradeRadarModuleExists = searchResponse.data && searchResponse.data.length > 0;
-        } catch (grError) {
-          console.error("Error checking GradeRadar for module:", grError);
-          // Non-blocking error, continue with deletion
+        } catch (error) {
+          console.error("Error deleting module:", error);
+          const errorMsg = `Failed to delete module: ${error.response?.data?.error || error.message}`;
+
+          if (this.isCapacitorApp()) {
+            this.showNativeToast(errorMsg);
+          } else {
+            notify({type: "error", message: errorMsg});
+          }
+        } finally {
+          this.loading = false;
+          if (this.isMobile) this.hideLoading();
         }
       }
-      
-      // Delete from personal dashboard
-      await axios.delete(`${API_URL}/modules/${module.id}`, {withCredentials: true});
+    },
+    async addActivity(activityData) {
+      try {
+        await axios.post(
+            `${API_URL}/dashboard/activity`,
+            activityData,
+            {withCredentials: true}
+        );
 
-      await this.fetchModules(); // Refresh module data
-      await this.fetchDashboardData(); // Refresh dashboard stats
+        // Update local activities
+        if (!Array.isArray(this.recentActivities)) {
+          this.recentActivities = [];
+        }
 
-      // Different notification based on GradeRadar status
-      let message = "Module deleted successfully!";
-      if (gradeRadarModuleExists) {
-        message = "Module removed from your dashboard but remains available in GradeRadar for the community.";
+        this.recentActivities.unshift(activityData);
+
+        // Limit to 10 activities
+        if (this.recentActivities.length > 10) {
+          this.recentActivities = this.recentActivities.slice(0, 10);
+        }
+      } catch (error) {
+        console.error("Error adding activity:", error);
       }
-      
-      if (this.isCapacitorApp()) {
-        this.showNativeToast(message);
-      } else {
-        notify({type: "success", message: message});
+    },
+
+    async updateGoals() {
+      try {
+        await axios.put(
+            `${API_URL}/dashboard/goals`,
+            this.goals,
+            {withCredentials: true}
+        );
+      } catch (error) {
+        console.error("Error updating goals:", error);
       }
-
-      this.showModuleDetail = false;
-
-      // Add activity to recent activities
-      this.addActivity({
-        type: 'grade',
-        title: 'Module Deleted',
-        description: `${module.name}`,
-        time: 'Just now'
-      });
-    } catch (error) {
-      console.error("Error deleting module:", error);
-      const errorMsg = `Failed to delete module: ${error.response?.data?.error || error.message}`;
-
-      if (this.isCapacitorApp()) {
-        this.showNativeToast(errorMsg);
-      } else {
-        notify({type: "error", message: errorMsg});
+    },
+    async updateDashboardConfig(config) {
+      try {
+        await axios.put(
+            `${API_URL}/dashboard`,
+            config,
+            {withCredentials: true}
+        );
+      } catch (error) {
+        console.error("Error updating dashboard config:", error);
       }
-    } finally {
-      this.loading = false;
-      if (this.isMobile) this.hideLoading();
     }
-  }
-}
   }
 };
 </script>
@@ -5438,56 +5301,48 @@ input:checked + .toggle-switch:before {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 2.25rem;
+  margin-bottom: 2rem;
 }
 
 .chart-card {
-  background-color: var(--bg-card);
-  border-radius: var(--border-radius-lg);
-  padding: 1.75rem;
-  box-shadow: var(--shadow-md);
-  border: 1px solid var(--border-color-light);
+  background-color: var(--bg-card, #1f2937);
+  border-radius: var(--border-radius-lg, 12px);
+  padding: 1.5rem 1.5rem 1rem 1.5rem; /* Slightly reduced padding */
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.07));
+  border: 1px solid var(--border-color-light, #374151);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.chart-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  height: 380px; /* Fixed height */
+  max-height: 380px; /* Maximum height */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Prevent overflow */
 }
 
 .chart-card h3 {
-  margin: 0 0 1.25rem;
-  font-size: 1.2rem;
+  margin: 0 0 1rem; /* Reduced margin */
+  font-size: 1.1rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--text-primary, #f1f5f9);
   position: relative;
   display: inline-block;
 }
 
-.chart-card h3::after {
-  content: '';
-  position: absolute;
-  bottom: -8px;
-  left: 0;
-  width: 30px;
-  height: 3px;
-  background: var(--primary-color);
-  border-radius: 4px;
-}
-
 .chart-container {
-  height: 320px;
+  flex: 1;
   position: relative;
+  overflow: hidden; /* Prevent overflow */
 }
 
-.large-chart .chart-container {
-  height: 370px;
+.chart-container.year-chart {
+  height: 320px !important;
+  max-height: 320px !important;
+  overflow: hidden !important; /* Triple emphasis on preventing overflow */
 }
 
-/* ========== Bottom Row ========== */
+
 .bottom-row {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 2.25rem;
+  margin-top: 1rem; /* Add margin to separate from visualization row */
+  clear: both; /* Ensure it starts below any floating elements */
 }
 
 /* ========== Activity Card ========== */
@@ -7232,399 +7087,165 @@ input:checked + .toggle-switch:before {
   }
 }
 
-/* GradeRadar Module Section Styles */
-.module-graderadar-section {
-  margin-top: 1.5rem;
-  border-top: 1px solid var(--border-color);
-  padding-top: 1.5rem;
-}
-
-.graderadar-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.stat-item {
+.module-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.stat-title {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-
-.stat-value {
-  display: flex;
-  align-items: center;
   gap: 0.5rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.rating-stars {
-  position: relative;
-  font-size: 1.25rem;
-  line-height: 1;
-  display: inline-block;
-}
-
-.stars-background {
-  color: #e0e0e0;
-}
-
-body.dark-mode .stars-background {
-  color: #3a3a52;
-}
-
-.stars-filled {
-  position: absolute;
-  top: 0;
-  left: 0;
-  color: var(--primary-color);
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.graderadar-actions {
-  display: flex;
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
-
-.view-graderadar-btn,
-.review-module-btn,
-.add-to-graderadar-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border-radius: var(--border-radius);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.view-graderadar-btn {
-  background-color: transparent;
-  color: var(--primary-color);
-  border: 1px solid var(--primary-color);
-}
-
-.view-graderadar-btn:hover {
-  background-color: rgba(123, 73, 255, 0.1);
-}
-
-.review-module-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-}
-
-.review-module-btn:hover {
-  background-color: var(--primary-dark);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
-}
-
-.add-to-graderadar-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-  margin: 1rem auto;
-  display: flex;
-}
-
-.add-to-graderadar-btn:hover {
-  background-color: var(--primary-dark);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
-}
-
-.no-ratings {
-  text-align: center;
-  padding: 1rem 0;
-}
-
-/* Module Review Dialog */
-.review-dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.review-dialog {
-  background-color: var(--bg-card);
-  border-radius: var(--border-radius-lg);
-  width: 100%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: var(--shadow-lg);
-  border: 1px solid var(--border-color);
-  animation: dialogFadeIn 0.3s ease;
-}
-
-@keyframes dialogFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.review-dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem;
+  background: var(--bg-accent);
+  padding: 0.5rem 1.5rem;
   border-bottom: 1px solid var(--border-color);
 }
 
-.review-dialog-header h3 {
-  margin: 0;
-  font-size: 1.25rem;
+.module-tabs button {
+  padding: 0.75rem 1.25rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--border-radius);
+  color: var(--text-secondary);
   font-weight: 600;
-  color: var(--primary-dark);
-}
-
-.review-dialog-content {
-  padding: 1.5rem;
-}
-
-.review-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.rating-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.rating-item label {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.rating-input {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.star-rating {
-  display: flex;
-  gap: 0.25rem;
-  font-size: 1.75rem;
-  color: #e0e0e0;
   cursor: pointer;
-}
-
-.star-rating span {
   transition: all 0.2s ease;
 }
 
-.star-rating span:hover {
-  transform: scale(1.2);
+.module-tabs button.active {
+  background: var(--primary-color);
+  color: white;
+  box-shadow: 0 2px 8px rgba(123, 73, 255, 0.25);
 }
 
-.star-rating span.active {
+.module-tabs button:hover:not(.active) {
+  background: rgba(123, 73, 255, 0.1);
   color: var(--primary-color);
 }
 
-.rating-value {
+/* Add these styles to your component's <style> section */
+
+/* Module name input container with relative positioning for dropdown */
+.module-name-container {
+  position: relative;
+  width: 100%;
+}
+
+/* Input styling */
+.module-name-input {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  background-color: var(--bg-input);
+  color: var(--text-primary);
+  transition: all var(--transition-speed) ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.module-name-input:focus {
+  border-color: var(--primary-color);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(123, 73, 255, 0.15);
+}
+
+/* Suggestions dropdown container */
+.module-suggestions {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  right: 0;
+  background-color: var(--bg-card);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  z-index: 1100;
+  max-height: 250px;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+
+/* Individual suggestion item */
+.suggestion-item {
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border-left: 3px solid transparent;
+}
+
+.suggestion-item:hover, .suggestion-item.selected {
+  background-color: rgba(123, 73, 255, 0.05);
+  border-left-color: var(--primary-color);
+}
+
+/* Main suggestion content */
+.suggestion-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.suggestion-name {
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.rating-hint {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  margin-top: 0.25rem;
-}
-
-.checkbox-item {
-  margin-top: 0.5rem;
-}
-
-.checkbox-input {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.checkbox-input input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  accent-color: var(--primary-color);
-}
-
-.checkbox-input label {
-  font-weight: 400;
-  cursor: pointer;
-}
-
-.comment-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.comment-item label {
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.comment-item textarea {
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  background-color: var(--bg-input);
-  color: var(--text-primary);
-  font-family: inherit;
-  resize: vertical;
-  transition: border-color 0.3s ease;
-}
-
-.comment-item textarea:focus {
-  outline: none;
-  border-color: var(--primary-color);
-}
-
-.comment-hint {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-
-.review-dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  padding: 1rem 1.5rem 1.5rem;
-  border-top: 1px solid var(--border-color);
-}
-
-.cancel-btn,
-.submit-btn {
-  padding: 0.75rem 1.5rem;
-  border-radius: var(--border-radius);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.cancel-btn {
-  background-color: transparent;
-  color: var(--text-secondary);
-  border: 1px solid var(--border-color);
-}
-
-.cancel-btn:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-  color: var(--text-primary);
-}
-
-.submit-btn {
-  background-color: var(--primary-color);
-  color: white;
-  border: none;
-}
-
-.submit-btn:hover {
-  background-color: var(--primary-dark);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
-}
-
-.submit-btn:disabled {
-  background-color: var(--border-color);
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-/* GradeRadar Settings in Profile */
-.info-text {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background-color: rgba(123, 73, 255, 0.05);
-  border-radius: var(--border-radius);
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-  margin: 0;
-}
-
-.info-text svg {
-  flex-shrink: 0;
-  margin-top: 0.125rem;
+.suggestion-code {
+  font-size: 0.85rem;
   color: var(--primary-color);
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  background: rgba(123, 73, 255, 0.1);
+  border-radius: 4px;
 }
 
-/* Media queries for responsive layout */
+/* Additional suggestion details */
+.suggestion-details {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* Loading indicator */
+.suggestions-loading {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+}
+
+.spinner {
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Dark mode adjustments */
+.dark-mode .suggestion-item:hover, 
+.dark-mode .suggestion-item.selected {
+  background-color: rgba(139, 92, 246, 0.1);
+}
+
+.dark-mode .suggestion-code {
+  background: rgba(139, 92, 246, 0.15);
+}
+
+/* Mobile optimizations */
 @media (max-width: 768px) {
-  .graderadar-stats {
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
+  .module-suggestions {
+    max-height: 200px;
   }
   
-  .graderadar-actions {
-    flex-direction: column;
+  .suggestion-item {
+    padding: 0.75rem;
   }
   
-  .view-graderadar-btn,
-  .review-module-btn,
-  .add-to-graderadar-btn {
-    width: 100%;
-    justify-content: center;
-  }
-  
-  .review-dialog {
-    width: 90%;
-    max-height: 80vh;
-  }
-}
-
-@media (max-width: 480px) {
-  .graderadar-stats {
-    grid-template-columns: 1fr;
-  }
-  
-  .rating-input {
+  .suggestion-main {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.5rem;
   }
   
-  .star-rating {
-    font-size: 1.5rem;
-  }
-  
-  .review-dialog-footer {
-    flex-direction: column-reverse;
-    gap: 0.75rem;
-  }
-  
-  .cancel-btn,
-  .submit-btn {
-    width: 100%;
+  .suggestion-code {
+    margin-top: 0.25rem;
   }
 }
 </style>

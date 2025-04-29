@@ -9,11 +9,8 @@ import UserProfile from "@/views/UserProfile.vue";
 import Calendar from "@/views/Calendar.vue";
 import SettingsPage from "@/views/SettingsPage.vue";
 import StudyHub from "@/views/StudyHub.vue";
-import UserReviews from './views/UserReviews.vue'
-import GradeRadar from './views/GradeRadar.vue'
-import UniversityView from './views/UniversityView.vue'
-import ModulesList from './views/ModulesList.vue'
-import ModuleDetail from './views/ModuleDetail.vue'
+import AnalyticsPage from "@/views/AnalyticsPage.vue";
+
 
 // Detect mobile via Capacitor or screen width
 // We'll keep this for other potential uses in the app
@@ -74,44 +71,23 @@ const routes = [
     },
 
     {
-        path: '/graderadar',
-        name: 'GradeRadar',
-        component: () => import('./views/GradeRadar.vue'),
-        meta: { requiresAuth: false }
-      },
-      {
-        path: '/graderadar/university/:university',
-        name: 'UniversityView',
-        component: () => import('./views/UniversityView.vue'),
-        meta: { requiresAuth: false }
-      },
-      {
-        path: '/graderadar/modules/:university/:degree',
-        name: 'ModulesList',
-        component: () => import('./views/ModulesList.vue'),
-        meta: { requiresAuth: false }
-      },
-      {
-        path: '/graderadar/module/:id',
-        name: 'ModuleDetail',
-        component: () => import('./views/ModuleDetail.vue'),
-        meta: { requiresAuth: false }
-      },
-      {
-        path: '/graderadar/user-reviews',
-        name: 'UserReviews',
-        component: () => import('./views/UserReviews.vue'),
-        meta: { requiresAuth: true }
-      },
-
-    {
         path: '/settings',
         name: 'Settings',
         component: SettingsPage,
         meta: {
             requiresAuth: true
         }
-    }
+    },
+
+    {
+        path: '/analytics',
+        name: 'Analytics',
+        component: AnalyticsPage,
+        meta: {
+          requiresAuth: false,
+          title: 'Module Analytics'
+        }
+      }
 ]
 
 const router = createRouter({
